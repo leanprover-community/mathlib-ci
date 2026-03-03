@@ -9,10 +9,27 @@ fi
 PR_NUMBER=$1
 BRANCH_NAME="lean-pr-testing-$PR_NUMBER"
 
-git checkout nightly-testing
-git pull --ff-only
+# Find the remote that hosts a given GitHub repository.
+# Returns the remote name, or empty string if not found.
+find_remote() {
+  local repo_pattern="$1"
+  git remote -v | grep -E "$repo_pattern(\.git)? \(fetch\)" | head -n1 | cut -f1 || true
+}
 
-if ! git merge origin/$BRANCH_NAME; then
+# Detect the remote hosting mathlib4-nightly-testing.
+# Add it if missing (e.g. when the user's 'origin' points to mathlib4 instead).
+NIGHTLY_REMOTE=$(find_remote "leanprover-community/mathlib4-nightly-testing")
+if [ -z "$NIGHTLY_REMOTE" ]; then
+    echo "Adding remote 'nightly-testing' for leanprover-community/mathlib4-nightly-testing"
+    git remote add nightly-testing https://github.com/leanprover-community/mathlib4-nightly-testing.git
+    git fetch nightly-testing
+    NIGHTLY_REMOTE="nightly-testing"
+fi
+
+git checkout nightly-testing
+git pull --ff-only "$NIGHTLY_REMOTE" nightly-testing
+
+if ! git merge "$NIGHTLY_REMOTE/$BRANCH_NAME"; then
     echo "Merge conflicts detected. Resolving conflicts in favor of current version..."
     git checkout --ours lean-toolchain lakefile.lean lake-manifest.json
     git add lean-toolchain lakefile.lean lake-manifest.json
