@@ -48,8 +48,17 @@ runs:
 
         if MATHLIB_CACHE_AZURE_BEARER_TOKEN_RAW="$(az account get-access-token --resource "$RESOURCE" --query accessToken -o tsv)"; then
           MATHLIB_CACHE_AZURE_BEARER_TOKEN="${MATHLIB_CACHE_AZURE_BEARER_TOKEN_RAW%"${MATHLIB_CACHE_AZURE_BEARER_TOKEN_RAW##*[![:space:]]}"}"
+          if [ -z "$MATHLIB_CACHE_AZURE_BEARER_TOKEN" ]; then
+            echo "Minted Azure storage bearer token is empty"
+            exit 1
+          fi
           echo "::add-mask::$MATHLIB_CACHE_AZURE_BEARER_TOKEN"
-          echo "cache_bearer_length=${#MATHLIB_CACHE_AZURE_BEARER_TOKEN}"
+          MATHLIB_CACHE_AZURE_BEARER_TOKEN_EXPIRES_ON="$(az account get-access-token --resource "$RESOURCE" --query expiresOn -o tsv 2>/dev/null || true)"
+          if [ -n "$MATHLIB_CACHE_AZURE_BEARER_TOKEN_EXPIRES_ON" ]; then
+            echo "cache_bearer_expires_on=$MATHLIB_CACHE_AZURE_BEARER_TOKEN_EXPIRES_ON"
+          else
+            echo "cache_bearer_expires_on=unavailable"
+          fi
           echo "MATHLIB_CACHE_AZURE_BEARER_TOKEN=$MATHLIB_CACHE_AZURE_BEARER_TOKEN" >> "$GITHUB_ENV"
         else
           echo "Failed to mint Azure storage bearer token"
