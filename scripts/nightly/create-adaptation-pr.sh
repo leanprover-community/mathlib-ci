@@ -123,6 +123,36 @@ if ! command -v gh &> /dev/null; then
     exit 1
 fi
 
+# Check that branches we need to checkout are not already checked out in other worktrees.
+# Git refuses to checkout a branch that is checked out in another worktree, and there is
+# no good workaround: operating in someone else's worktree risks clobbering their state,
+# and using a temporary worktree puts conflict resolution in a folder the user can't easily
+# open in their editor.
+check_worktree_conflicts() {
+  local current_wt
+  current_wt=$(git rev-parse --show-toplevel)
+  local branches_needed=("$@")
+  local blocked=()
+  for branch in "${branches_needed[@]}"; do
+    local wt
+    wt=$(git worktree list --porcelain \
+      | awk -v b="$branch" '/^worktree /{wt=$2} $0 == "branch refs/heads/" b {print wt}')
+    if [ -n "$wt" ] && [ "$wt" != "$current_wt" ]; then
+      blocked+=("  $branch  (checked out in $wt)")
+    fi
+  done
+  if [ ${#blocked[@]} -gt 0 ]; then
+    echo "Error: This script needs to checkout branches that are already checked out in other worktrees:"
+    printf '%s\n' "${blocked[@]}"
+    echo ""
+    echo "Please either remove those worktrees or run this script from a clone"
+    echo "that doesn't share worktrees with them."
+    exit 1
+  fi
+}
+
+check_worktree_conflicts "master" "bump/$BUMPVERSION" "bump/nightly-$NIGHTLYDATE" "nightly-testing"
+
 # Setup and validate remotes
 setup_remotes
 
