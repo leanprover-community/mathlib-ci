@@ -176,7 +176,11 @@ for message in messages:
 
         # The maintainer merge label is different from the others, as it is not mutually exclusive
         # with them: just add or remove it manually and leave the other emojis alone.
-        if LABEL_NAME == "maintainer-merge" and message['display_recipient'] not in private_channels:
+        # Exception: skip maintainer-merge emoji in "maintainer merge" threads in the reviewers
+        # channel, where they would be redundant.
+        if LABEL_NAME == "maintainer-merge":
+            if message['display_recipient'] == 'mathlib reviewers' and message['subject'].lower().startswith('maintainer merge'):
+                continue
             if ACTION == "labeled":
                 add_reaction('maintainer-merge', 'hammer')
             elif ACTION == "unlabeled":
