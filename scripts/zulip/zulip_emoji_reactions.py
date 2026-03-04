@@ -69,22 +69,34 @@ public_response = client.get_messages({
     ],
 })
 
-# Fetch the messages containing the PR number from the `mathlib reviewers` channel
-# There does not seem to be a way to search simultaneously public and private channels.
-reviewers_response = client.get_messages({
-    "anchor": "newest",
-    "num_before": 5000,
-    "num_after": 0,
-    "narrow": [
-        {"operator": "channel", "operand": "mathlib reviewers"},
-        {"operator": "search", "operand": f'#{PR_NUMBER}'},
-    ],
-})
+print(f"Found {len(public_response.get('messages', []))} messages in public channels")
 
-print(f"public_response:{public_response}")
-print(f"reviewers_response:{reviewers_response}")
+messages = public_response['messages']
 
-messages = (public_response['messages']) + (reviewers_response['messages'])
+# Also search private channels the bot is subscribed to.
+# The Zulip API doesn't support searching all channels at once,
+# so we query each private channel individually.
+subs_response = client.get_subscriptions()
+private_channels = [
+    sub['name'] for sub in subs_response.get('subscriptions', [])
+    if sub.get('invite_only', False)
+]
+print(f"Bot is subscribed to {len(private_channels)} private channel(s): {private_channels}")
+
+for channel in private_channels:
+    response = client.get_messages({
+        "anchor": "newest",
+        "num_before": 5000,
+        "num_after": 0,
+        "narrow": [
+            {"operator": "channel", "operand": channel},
+            {"operator": "search", "operand": f'#{PR_NUMBER}'},
+        ],
+    })
+    count = len(response.get('messages', []))
+    if count > 0:
+        print(f"Found {count} message(s) in private channel '{channel}'")
+    messages.extend(response.get('messages', []))
 
 hashPR = re.compile(f'#{PR_NUMBER}')
 urlPR = re.compile(f'https://github.com/leanprover-community/mathlib4/pull/{PR_NUMBER}')
@@ -164,7 +176,7 @@ for message in messages:
 
         # The maintainer merge label is different from the others, as it is not mutually exclusive
         # with them: just add or remove it manually and leave the other emojis alone.
-        if LABEL_NAME == "maintainer-merge" and message['display_recipient'] != 'mathlib reviewers':
+        if LABEL_NAME == "maintainer-merge" and message['display_recipient'] not in private_channels:
             if ACTION == "labeled":
                 add_reaction('maintainer-merge', 'hammer')
             elif ACTION == "unlabeled":
