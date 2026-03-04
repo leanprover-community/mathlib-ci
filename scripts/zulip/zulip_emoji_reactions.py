@@ -81,7 +81,7 @@ private_channels = [
     sub['name'] for sub in subs_response.get('subscriptions', [])
     if sub.get('invite_only', False)
 ]
-print(f"Bot is subscribed to {len(private_channels)} private channel(s): {private_channels}")
+print(f"Bot is subscribed to {len(private_channels)} private channel(s)")
 
 for channel in private_channels:
     response = client.get_messages({
@@ -95,7 +95,7 @@ for channel in private_channels:
     })
     count = len(response.get('messages', []))
     if count > 0:
-        print(f"Found {count} message(s) in private channel '{channel}'")
+        print(f"Found {count} message(s) in a private channel")
     messages.extend(response.get('messages', []))
 
 hashPR = re.compile(f'#{PR_NUMBER}')
@@ -131,7 +131,7 @@ for message in messages:
     first_by_subject[message['subject']] = message['id']
     match = urlPR.search(content) or first_in_thread
     if match:
-        print(f"matched: '{message}'")
+        print(f"matched message {message['id']} in '{message['display_recipient']}' > '{message['subject']}'")
 
         # name: a description of the emoji to be removed
         # emoji_name: the emoji name as used on Zulip
