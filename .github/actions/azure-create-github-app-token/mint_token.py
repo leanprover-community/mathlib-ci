@@ -4,6 +4,26 @@
 This script is invoked by the local composite action. It builds a JWT for a
 GitHub App, signs the JWT digest with an Azure Key Vault key via OIDC-authenticated
 REST calls, and exchanges the JWT for an installation access token.
+
+References:
+- GitHub App JWT auth:
+  https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/generating-a-json-web-token-jwt-for-a-github-app
+- GitHub installation token flow:
+  https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/generating-an-installation-access-token-for-a-github-app
+- GitHub REST: get an organization installation:
+  https://docs.github.com/en/rest/apps/apps#get-an-organization-installation-for-the-authenticated-app
+- GitHub REST: get a user installation:
+  https://docs.github.com/en/rest/apps/apps#get-a-user-installation-for-the-authenticated-app
+- GitHub REST: get a repository installation:
+  https://docs.github.com/en/rest/apps/apps#get-a-repository-installation-for-the-authenticated-app
+- GitHub REST: create an installation access token:
+  https://docs.github.com/en/rest/apps/apps#create-an-installation-access-token-for-an-app
+- GitHub Actions OIDC token request environment variables:
+  https://docs.github.com/en/actions/reference/openid-connect-reference#methods-for-requesting-the-oidc-token
+- Microsoft Entra OAuth2 client-credentials flow with federated assertions:
+  https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-client-creds-grant-flow
+- Azure Key Vault cryptographic sign operation (REST API reference):
+  https://learn.microsoft.com/en-us/rest/api/keyvault/keys/sign/sign?view=rest-keyvault-keys-7.4
 """
 
 import base64

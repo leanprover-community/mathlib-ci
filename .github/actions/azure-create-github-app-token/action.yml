@@ -16,7 +16,7 @@ inputs:
     required: false
     default: ""
   azure-client-id:
-    description: Azure user-assigned managed identity client ID.
+    description: Azure app registration application (client) ID.
     required: true
   azure-tenant-id:
     description: Azure tenant ID.
