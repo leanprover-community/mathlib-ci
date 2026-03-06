@@ -2,6 +2,10 @@
 shopt -s extglob
 
 lean_outfile=$1
+target_repo=${TARGET_REPO:-${REPO}}
+target_sha=${TARGET_SHA:-${SHA}}
+workflow_repo=${WORKFLOW_REPO:-${REPO}}
+workflow_run_id=${WORKFLOW_RUN_ID:-${RUN_ID}}
 
 # Skip the lines about build progress.
 filtered_out=$(grep -v '^✔' "${lean_outfile}" | grep -v '^trace: ')
@@ -9,7 +13,7 @@ echo "$(wc -l <<<"${filtered_out}") lines of output" >&2
 
 delimiter=$(cat /proc/sys/kernel/random/uuid)
 echo "zulip-message<<${delimiter}"
-echo "Mathlib's [nightly-testing branch](https://github.com/leanprover-community/mathlib4-nightly-testing/tree/nightly-testing) ([${SHA}](https://github.com/${REPO}/commit/${SHA})) regression run [completed](https://github.com/${REPO}/actions/runs/${RUN_ID})."
+echo "Mathlib's [nightly-testing branch](https://github.com/leanprover-community/mathlib4-nightly-testing/tree/nightly-testing) ([${target_sha}](https://github.com/${target_repo}/commit/${target_sha})) regression run [completed](https://github.com/${workflow_repo}/actions/runs/${workflow_run_id})."
 
 # Categorize the output.
 counts=()
