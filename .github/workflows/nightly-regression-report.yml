@@ -31,12 +31,8 @@ jobs:
 
     - name: Capture target SHA
       id: target
-      run: echo "sha=$(git -C '${{ env.TARGET_PATH }}' rev-parse HEAD)" >> "$GITHUB_OUTPUT"
-
-    - name: Set up CI scripts paths
-      uses: ./.github/actions/setup-ci-scripts
-      with:
-        checkout_path: .
+      working-directory: ${{ env.TARGET_PATH }}
+      run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
     - name: Configure Lean
       uses: leanprover/lean-action@c544e89643240c6b398f14a431bcdc6309e36b3e # v1.4.0
@@ -99,7 +95,7 @@ jobs:
         WORKFLOW_REPO=${{ github.repository }} \
         WORKFLOW_RUN_ID=${{ github.run_id }} \
         SUCCESS=${{ steps.build.outcome == 'success' }} \
-          "${CI_SCRIPTS_DIR}/reporting/zulip_build_report.sh" "${{ steps.buildlog.outputs.filename }}" > "${GITHUB_OUTPUT}"
+          ./scripts/reporting/zulip_build_report.sh "${{ steps.buildlog.outputs.filename }}" > "${GITHUB_OUTPUT}"
 
     - name: Post output to Zulip
       uses: zulip/github-actions-zulip/send-message@e4c8f27c732ba9bd98ac6be0583096dea82feea5 # v1.0.2
