@@ -16,6 +16,11 @@ jobs:
     env:
       TARGET_REPO: leanprover-community/mathlib4-nightly-testing
     steps:
+      - name: Checkout mathlib-ci
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          path: ci-tools
+
       - name: clean up
         run: |
           rm -rf docbuild
@@ -31,6 +36,11 @@ jobs:
       - name: Capture target SHA
         id: target
         run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Set up CI scripts paths
+        uses: ./ci-tools/.github/actions/setup-ci-scripts
+        with:
+          checkout_path: ci-tools
 
       - name: Add upstream
         run: |
@@ -84,21 +94,28 @@ jobs:
           mkdir docs/
           cp ../docs/references.bib docs/references.bib
 
+      - name: Generate a temporary file to capture command output
+        id: buildlog
+        working-directory: docbuild
+        run: |
+          echo -n "filename=" >> "${GITHUB_OUTPUT}"
+          mktemp >> "${GITHUB_OUTPUT}"
+
       - name: build doc-gen4
         working-directory: docbuild
         run: |
-          env DISABLE_EQUATIONS=1 lake build doc-gen4
+          env DISABLE_EQUATIONS=1 lake build doc-gen4 | tee -a "${{ steps.buildlog.outputs.filename }}"
 
       - name: build import graph
         working-directory: .
         run: |
-          lake exe graph mathlib.html
+          lake exe graph mathlib.html | tee -a "${{ steps.buildlog.outputs.filename }}"
 
       - name: generate docs
         working-directory: docbuild
         run: |
-          lake build Batteries:docs Qq:docs Aesop:docs ProofWidgets:docs Mathlib:docs Archive:docs Counterexamples:docs docs:docs
-          lake build Mathlib:docsHeader
+          lake build Batteries:docs Qq:docs Aesop:docs ProofWidgets:docs Mathlib:docs Archive:docs Counterexamples:docs docs:docs | tee -a "${{ steps.buildlog.outputs.filename }}"
+          lake build Mathlib:docsHeader | tee -a "${{ steps.buildlog.outputs.filename }}"
 
       - name: clean up
         if: always()
@@ -107,22 +124,20 @@ jobs:
           rm -rf "$HOME/.elan"
           rm -rf "$HOME/.cache/mathlib"
 
-      - name: Send success message on Zulip
-        uses: zulip/github-actions-zulip/send-message@e4c8f27c732ba9bd98ac6be0583096dea82feea5 # v1.0.2
-        if: success()
-        with:
-          api-key: ${{ secrets.ZULIP_API_KEY }}
-          email: 'github-mathlib4-bot@leanprover.zulipchat.com'
-          organization-url: 'https://leanprover.zulipchat.com'
-          to: 'nightly-testing'
-          type: 'stream'
-          topic: 'Docgen status updates'
-          content: |
-            ✅ The docgen run for Mathlib's [nightly-testing branch](https://github.com/${{ env.TARGET_REPO }}/tree/nightly-testing) has [succeeded](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}) ([${{ steps.target.outputs.sha }}](https://github.com/${{ env.TARGET_REPO }}/commit/${{ steps.target.outputs.sha }})).
+      - name: Prepare Zulip report
+        id: zulip-report
+        run: |
+          # Process output for posting to Zulip
+          WORKFLOW=${{ github.workflow }} \
+          TARGET_SHA=${{ steps.target.outputs.sha }} \
+          TARGET_REPO=${{ env.TARGET_REPO }} \
+          WORKFLOW_REPO=${{ github.repository }} \
+          WORKFLOW_RUN_ID=${{ github.run_id }} \
+          SUCCESS=${{ job.status == 'success' }} \
+            "${CI_SCRIPTS_DIR}/reporting/zulip_build_report.sh" "${{ steps.buildlog.outputs.filename }}" >> "${GITHUB_OUTPUT}"
 
-      - name: Send failure message on Zulip
+      - name: Send message on Zulip
         uses: zulip/github-actions-zulip/send-message@e4c8f27c732ba9bd98ac6be0583096dea82feea5 # v1.0.2
-        if: failure()
         with:
           api-key: ${{ secrets.ZULIP_API_KEY }}
           email: 'github-mathlib4-bot@leanprover.zulipchat.com'
@@ -130,6 +145,4 @@ jobs:
           to: 'nightly-testing'
           type: 'stream'
           topic: 'Docgen status updates'
-          content: |
-            ❌ The docgen run for Mathlib's [nightly-testing branch](https://github.com/${{ env.TARGET_REPO }}/tree/nightly-testing) has [failed](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}) ([${{ steps.target.outputs.sha }}](https://github.com/${{ env.TARGET_REPO }}/commit/${{ steps.target.outputs.sha }})).
-            This likely indicates an issue with the nightly Lean build, or a required update in doc-gen4.
+          content: ${{ steps.zulip-report.outputs.zulip-message }}
