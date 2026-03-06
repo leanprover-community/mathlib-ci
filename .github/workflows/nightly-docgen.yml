@@ -12,7 +12,6 @@ jobs:
   build:
     name: build mathlib4-nightly-testing docs
     runs-on: doc-gen
-    if: github.repository == 'leanprover-community/mathlib-ci'
     env:
       TARGET_REPO: leanprover-community/mathlib4-nightly-testing
       TARGET_PATH: nightly-testing
