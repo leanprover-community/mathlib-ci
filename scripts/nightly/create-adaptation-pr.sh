@@ -167,6 +167,7 @@ echo
 echo "### [auto] checkout master and pull the latest changes"
 
 git fetch "$MAIN_REMOTE" master
+git fetch "$NIGHTLY_REMOTE"
 
 # Ensure local master branch exists and tracks $MAIN_REMOTE/master
 if git show-ref --verify --quiet refs/heads/master; then
