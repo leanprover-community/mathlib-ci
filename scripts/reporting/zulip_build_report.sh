@@ -2,10 +2,11 @@
 shopt -s extglob
 
 lean_outfile=$1
-target_repo=${TARGET_REPO:-${REPO}}
-target_sha=${TARGET_SHA:-${SHA}}
-workflow_repo=${WORKFLOW_REPO:-${REPO}}
-workflow_run_id=${WORKFLOW_RUN_ID:-${RUN_ID}}
+target_repo=${TARGET_REPO:-${REPO:-${GITHUB_REPOSITORY}}}
+target_sha=${TARGET_SHA:-${SHA:-${GITHUB_SHA}}}
+workflow_repo=${WORKFLOW_REPO:-${REPO:-${GITHUB_REPOSITORY}}}
+workflow_run_id=${WORKFLOW_RUN_ID:-${RUN_ID:-${GITHUB_RUN_ID}}}
+workflow_name=${WORKFLOW:-${GITHUB_WORKFLOW}}
 
 # Skip the lines about build progress.
 filtered_out=$(grep -v '^✔' "${lean_outfile}" | grep -v '^trace: ')
@@ -13,7 +14,6 @@ echo "$(wc -l <<<"${filtered_out}") lines of output" >&2
 
 delimiter=$(cat /proc/sys/kernel/random/uuid)
 echo "zulip-message<<${delimiter}"
-echo "Mathlib's [nightly-testing branch](https://github.com/leanprover-community/mathlib4-nightly-testing/tree/nightly-testing) ([${target_sha}](https://github.com/${target_repo}/commit/${target_sha})) regression run [completed](https://github.com/${workflow_repo}/actions/runs/${workflow_run_id})."
 
 # Categorize the output.
 counts=()
@@ -44,10 +44,20 @@ if info_lines=$(grep '^info: ' <<<"${filtered_out}" | grep -v 'PANIC at '); then
   echo "$(wc -l <<<"${info_lines}") lines of info" >&2
 fi
 
-if (( ${#counts[@]} == 0 )); then
-  echo "Build completed without messages."
+if [ "true" == "${SUCCESS}" ]; then
+  icon="✅"
+  ended="succeeded"
 else
-  printf ' %s\n\n' "${counts[@]}"
+  icon="❌"
+  ended="failed"
+fi
+
+if (( ${#counts[@]} == 0 )); then
+  echo "${icon} ${workflow_name} run on [${target_repo}](https://github.com/${target_repo}) (commit [${target_sha}](https://github.com/${target_repo}/commit/${target_sha})) [${ended} without messages](https://github.com/${workflow_repo}/actions/runs/${workflow_run_id})."
+else
+  echo "${icon} ${workflow_name} run on [${target_repo}](https://github.com/${target_repo}) (commit [${target_sha}](https://github.com/${target_repo}/commit/${target_sha})) [${ended} with messages](https://github.com/${workflow_repo}/actions/runs/${workflow_run_id}):"
+  printf '\n* %s' "${counts[@]}"
+  printf '\n\n'
 fi
 
 if [ -n "${panic_lines}" ]; then
