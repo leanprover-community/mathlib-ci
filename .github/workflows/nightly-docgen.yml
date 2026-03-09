@@ -140,7 +140,7 @@ jobs:
         if: always() && steps.zulip-report.outcome == 'success' && (github.event_name != 'workflow_dispatch' || inputs.send_zulip)
         uses: zulip/github-actions-zulip/send-message@e4c8f27c732ba9bd98ac6be0583096dea82feea5 # v1.0.2
         with:
-          api-key: ${{ secrets.ZULIP_API_KEY }}
+          api-key: ${{ secrets.ZULIP_MATHLIB_CI_BOT_API_KEY }}
           email: 'github-mathlib4-bot@leanprover.zulipchat.com'
           organization-url: 'https://leanprover.zulipchat.com'
           to: 'nightly-testing'
