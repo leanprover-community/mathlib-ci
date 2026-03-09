@@ -94,12 +94,12 @@ jobs:
     - name: Prepare Zulip report
       id: zulip-report
       run: |
-        WORKFLOW=${{ github.workflow }} \
-        TARGET_SHA=${{ steps.target.outputs.sha }} \
-        TARGET_REPO=${{ env.TARGET_REPO }} \
-        WORKFLOW_REPO=${{ github.repository }} \
-        WORKFLOW_RUN_ID=${{ github.run_id }} \
-        SUCCESS=${{ steps.build.outcome == 'success' }} \
+        WORKFLOW="${{ github.workflow }}" \
+        TARGET_SHA="${{ steps.target.outputs.sha }}" \
+        TARGET_REPO="${{ env.TARGET_REPO }}" \
+        WORKFLOW_REPO="${{ github.repository }}" \
+        WORKFLOW_RUN_ID="${{ github.run_id }}" \
+        SUCCESS="${{ steps.build.outcome == 'success' }}" \
           ./scripts/reporting/zulip_build_report.sh "${{ steps.buildlog.outputs.filename }}" > "${GITHUB_OUTPUT}"
 
     - name: Post output to Zulip

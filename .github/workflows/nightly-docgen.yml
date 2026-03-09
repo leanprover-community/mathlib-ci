@@ -128,12 +128,12 @@ jobs:
         if: always()
         run: |
           # Process output for posting to Zulip
-          WORKFLOW=${{ github.workflow }} \
-          TARGET_SHA=${{ steps.target.outputs.sha }} \
-          TARGET_REPO=${{ env.TARGET_REPO }} \
-          WORKFLOW_REPO=${{ github.repository }} \
-          WORKFLOW_RUN_ID=${{ github.run_id }} \
-          SUCCESS=${{ job.status == 'success' }} \
+          WORKFLOW="${{ github.workflow }}" \
+          TARGET_SHA="${{ steps.target.outputs.sha }}" \
+          TARGET_REPO="${{ env.TARGET_REPO }}" \
+          WORKFLOW_REPO="${{ github.repository }}" \
+          WORKFLOW_RUN_ID="${{ github.run_id }}" \
+          SUCCESS="${{ job.status == 'success' }}" \
             ./ci-tools/scripts/reporting/zulip_build_report.sh "${{ steps.buildlog.outputs.filename }}" >> "${GITHUB_OUTPUT}"
 
       - name: Send message on Zulip
