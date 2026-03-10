@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import sys
+import time
 import zulip
 import re
 import json
@@ -12,6 +13,11 @@ import json
 # $LABELS_TO_KEEP is optional, but if present, should be a JSON array of GitHub PR label names
 # Emoji reactions that correspond to these labels will not be removed
 # (see .github/workflows/zulip_emoji_labelling.yaml)
+#
+# IMPORTANT: Workflow steps that call this script should use `continue-on-error: true`.
+# Emoji updates are cosmetic and must never cause CI failures on unrelated PRs.
+# The script handles Zulip rate limits with retry+backoff and exits gracefully on
+# persistent errors, but `continue-on-error` provides a safety net.
 
 ZULIP_API_KEY = sys.argv[1]
 ZULIP_EMAIL = sys.argv[2]
@@ -57,9 +63,23 @@ client = zulip.Client(
     site=ZULIP_SITE
 )
 
+def call_with_retry(api_fn, request=None, max_retries=3):
+    """Call a Zulip API function, retrying on rate limit errors with backoff."""
+    for attempt in range(max_retries + 1):
+        result = api_fn(request) if request is not None else api_fn()
+        if result.get('code') != 'RATE_LIMIT_HIT':
+            return result
+        retry_after = result.get('retry-after', 30)
+        if attempt < max_retries:
+            print(f"Rate limited, sleeping {retry_after:.1f}s before retry {attempt + 1}/{max_retries}")
+            time.sleep(retry_after)
+        else:
+            print(f"Rate limited after {max_retries} retries, giving up on this call")
+    return result
+
 # Fetch the messages containing the PR number from the public channels.
 # There does not seem to be a way to search simultaneously public and private channels.
-public_response = client.get_messages({
+public_response = call_with_retry(client.get_messages, {
     "anchor": "newest",
     "num_before": 5000,
     "num_after": 0,
@@ -69,6 +89,11 @@ public_response = client.get_messages({
     ],
 })
 
+if public_response.get('result') != 'success':
+    print(f"Warning: failed to fetch public messages: {public_response}")
+    print("Skipping emoji updates for this PR.")
+    sys.exit(0)
+
 print(f"Found {len(public_response.get('messages', []))} messages in public channels")
 
 messages = public_response['messages']
@@ -76,7 +101,7 @@ messages = public_response['messages']
 # Also search private channels the bot is subscribed to.
 # The Zulip API doesn't support searching all channels at once,
 # so we query each private channel individually.
-subs_response = client.get_subscriptions()
+subs_response = call_with_retry(client.get_subscriptions)
 private_channels = [
     sub['name'] for sub in subs_response.get('subscriptions', [])
     if sub.get('invite_only', False)
@@ -84,7 +109,7 @@ private_channels = [
 print(f"Bot is subscribed to {len(private_channels)} private channel(s)")
 
 for channel in private_channels:
-    response = client.get_messages({
+    response = call_with_retry(client.get_messages, {
         "anchor": "newest",
         "num_before": 5000,
         "num_after": 0,
@@ -93,6 +118,9 @@ for channel in private_channels:
             {"operator": "search", "operand": f'#{PR_NUMBER}'},
         ],
     })
+    if response.get('result') != 'success':
+        print(f"Warning: failed to fetch messages from private channel '{channel}': {response}")
+        continue
     count = len(response.get('messages', []))
     if count > 0:
         print(f"Found {count} message(s) in a private channel")
@@ -141,7 +169,7 @@ for message in messages:
         def remove_reaction(name: str, emoji_name: str, label_name: str, **kwargs) -> None:
             if label_name not in LABELS_TO_KEEP:
                 print(f'Removing {name}')
-                result = client.remove_reaction({
+                result = call_with_retry(client.remove_reaction, {
                     "message_id": message['id'],
                     "emoji_name": emoji_name,
                     **kwargs
@@ -151,7 +179,7 @@ for message in messages:
                 print(f'The "{label_name}" label is present, so we will not remove the "{name}" reaction.')
         def add_reaction(name: str, emoji_name: str) -> None:
             print(f'adding {name} emoji')
-            client.add_reaction({
+            call_with_retry(client.add_reaction, {
                 "message_id": message['id'],
                 "emoji_name": emoji_name
             })
