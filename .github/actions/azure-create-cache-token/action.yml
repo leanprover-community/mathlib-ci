@@ -1,0 +1,77 @@
+name: Azure Create Cache Token
+description: Mint an Azure storage access token via GitHub OIDC for cache uploads.
+
+inputs:
+  azure-client-id:
+    description: Azure user-assigned managed identity or app registration client ID.
+    required: true
+  azure-tenant-id:
+    description: Azure tenant ID.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Azure CLI OIDC login and mint storage bearer token
+      shell: bash
+      env:
+        CLIENT_ID: ${{ inputs.azure-client-id }}
+        TENANT_ID: ${{ inputs.azure-tenant-id }}
+      run: |
+        # OIDC audience required by Azure AD workload identity federation.
+        AUDIENCE='api://AzureADTokenExchange'
+        # Azure Storage resource used when minting the cache bearer token.
+        RESOURCE='https://storage.azure.com/'
+
+        if [ -z "$CLIENT_ID" ] || [ -z "$TENANT_ID" ]; then
+          echo "Missing azure-client-id or azure-tenant-id"
+          exit 1
+        fi
+
+        # This variable is provided by GitHub automatically in OIDC-enabled actions,
+        # see https://docs.github.com/en/actions/how-tos/secure-your-work/security-harden-deployments/oidc-in-cloud-providers#using-custom-actions
+        OIDC_URL="$ACTIONS_ID_TOKEN_REQUEST_URL"
+        
+        # Preserve existing query params and append the audience selector.
+        if [[ "$OIDC_URL" == *\?* ]]; then
+          OIDC_URL="${OIDC_URL}&audience=${AUDIENCE}"
+        else
+          OIDC_URL="${OIDC_URL}?audience=${AUDIENCE}"
+        fi
+        
+        # Exchange GitHub's request token for an OIDC JWT scoped to the Azure audience.
+        OIDC_TOKEN="$(
+          curl --silent --show-error \
+            -H "Authorization: Bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" \
+            "$OIDC_URL" | python3 -c 'import json,sys; print(json.load(sys.stdin)["value"])'
+        )"
+
+        az login \
+          --service-principal \
+          --username "$CLIENT_ID" \
+          --tenant "$TENANT_ID" \
+          --federated-token "$OIDC_TOKEN" \
+          --allow-no-subscriptions \
+          --output none
+
+        if MATHLIB_CACHE_AZURE_BEARER_TOKEN_RAW="$(az account get-access-token --resource "$RESOURCE" --query accessToken -o tsv)"; then
+          # `az ... -o tsv` can include trailing whitespace; trim it before validation/export.
+          MATHLIB_CACHE_AZURE_BEARER_TOKEN="${MATHLIB_CACHE_AZURE_BEARER_TOKEN_RAW%"${MATHLIB_CACHE_AZURE_BEARER_TOKEN_RAW##*[![:space:]]}"}"
+          if [ -z "$MATHLIB_CACHE_AZURE_BEARER_TOKEN" ]; then
+            echo "Minted Azure storage bearer token is empty"
+            exit 1
+          fi
+          # Mask token in all subsequent logs emitted by this job.
+          echo "::add-mask::$MATHLIB_CACHE_AZURE_BEARER_TOKEN"
+          MATHLIB_CACHE_AZURE_BEARER_TOKEN_EXPIRES_ON="$(az account get-access-token --resource "$RESOURCE" --query expiresOn -o tsv 2>/dev/null || true)"
+          if [ -n "$MATHLIB_CACHE_AZURE_BEARER_TOKEN_EXPIRES_ON" ]; then
+            echo "cache_bearer_expires_on=$MATHLIB_CACHE_AZURE_BEARER_TOKEN_EXPIRES_ON"
+          else
+            echo "cache_bearer_expires_on=unavailable"
+          fi
+          # Export for downstream workflow steps in this job.
+          echo "MATHLIB_CACHE_AZURE_BEARER_TOKEN=$MATHLIB_CACHE_AZURE_BEARER_TOKEN" >> "$GITHUB_ENV"
+        else
+          echo "Failed to mint Azure storage bearer token"
+          exit 1
+        fi
