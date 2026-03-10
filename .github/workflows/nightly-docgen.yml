@@ -103,16 +103,19 @@ jobs:
       - name: build doc-gen4
         working-directory: ${{ env.TARGET_PATH }}/docbuild
         run: |
+          set -o pipefail
           env DISABLE_EQUATIONS=1 lake build doc-gen4 | tee -a "${{ steps.buildlog.outputs.filename }}"
 
       - name: build import graph
         working-directory: ${{ env.TARGET_PATH }}
         run: |
+          set -o pipefail
           lake exe graph mathlib.html | tee -a "${{ steps.buildlog.outputs.filename }}"
 
       - name: generate docs
         working-directory: ${{ env.TARGET_PATH }}/docbuild
         run: |
+          set -o pipefail
           lake build Batteries:docs Qq:docs Aesop:docs ProofWidgets:docs Mathlib:docs Archive:docs Counterexamples:docs docs:docs | tee -a "${{ steps.buildlog.outputs.filename }}"
           lake build Mathlib:docsHeader | tee -a "${{ steps.buildlog.outputs.filename }}"
 
