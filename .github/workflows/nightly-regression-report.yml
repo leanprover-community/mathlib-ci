@@ -83,6 +83,7 @@ jobs:
       continue-on-error: true
       working-directory: ${{ env.TARGET_PATH }}
       run: |
+        set -o pipefail
         lake build | tee -a "${{ steps.buildlog.outputs.filename }}"
 
     - name: Remove GitHub problem matcher wrapper
