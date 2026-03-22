@@ -20,14 +20,25 @@ find_remote() {
 # Detect the remote hosting mathlib4-nightly-testing, if any.
 NIGHTLY_REMOTE=$(find_remote "leanprover-community/mathlib4-nightly-testing")
 
-git checkout nightly-testing
+# Helper: ensure a local nightly-testing branch exists and is up-to-date.
+# Fetches the branch, then either fast-forwards or creates it.
+checkout_nightly() {
+    local fetch_source="$1"
+    git fetch "$fetch_source" nightly-testing
+    if git rev-parse --verify refs/heads/nightly-testing >/dev/null 2>&1; then
+        git checkout nightly-testing
+        git merge --ff-only FETCH_HEAD
+    else
+        git checkout -b nightly-testing FETCH_HEAD
+    fi
+}
 
 if [ -n "$NIGHTLY_REMOTE" ]; then
-    git pull --ff-only "$NIGHTLY_REMOTE" nightly-testing
+    checkout_nightly "$NIGHTLY_REMOTE"
     MERGE_REF="$NIGHTLY_REMOTE/$BRANCH_NAME"
 else
     # No configured remote for nightly-testing; fetch by URL without adding a remote.
-    git pull --ff-only "$NIGHTLY_URL" nightly-testing
+    checkout_nightly "$NIGHTLY_URL"
     git fetch "$NIGHTLY_URL" "$BRANCH_NAME"
     MERGE_REF="FETCH_HEAD"
 fi
