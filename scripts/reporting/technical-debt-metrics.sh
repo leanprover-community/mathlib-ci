@@ -104,10 +104,10 @@ for i in ${!titlesPathsAndRegexes[@]}; do
 done
 
 # Dynamic breakdown of backwards compatibility flags by individual option
-for flag in $({ git grep -oh -e 'set_option backward\.[A-Za-z0-9_]*' -- ':^scripts' || true; } |
+for flag in $({ git grep -ohP -e 'set_option backward\.[A-Za-z0-9_]+(\.[A-Za-z0-9_]+)*' -- ':^scripts' || true; } |
                sed 's/set_option //' | sort -u); do
   printf '%s|%s\n' \
-    "$({ git grep -Fc -e "set_option ${flag}" -- ':^scripts' || true; } |
+    "$({ git grep -Ec -e "set_option ${flag}([[:space:]]|$)" -- ':^scripts' || true; } |
       awk -F: 'BEGIN{s=0}{s+=$2} END{print s}')" \
     "${flag}"
 done
