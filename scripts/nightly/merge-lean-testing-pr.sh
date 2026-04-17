@@ -20,28 +20,41 @@ find_remote() {
 # Detect the remote hosting mathlib4-nightly-testing, if any.
 NIGHTLY_REMOTE=$(find_remote "leanprover-community/mathlib4-nightly-testing")
 
+# Ensure a usable nightly-testing remote exists and points at the expected repo.
+ensure_nightly_remote() {
+    if [ -n "$NIGHTLY_REMOTE" ]; then
+        return
+    fi
+
+    if git remote get-url nightly-testing >/dev/null 2>&1; then
+        git remote set-url nightly-testing "$NIGHTLY_URL"
+    else
+        git remote add nightly-testing "$NIGHTLY_URL"
+    fi
+
+    NIGHTLY_REMOTE=nightly-testing
+}
+
 # Helper: ensure a local nightly-testing branch exists and is up-to-date.
 # Fetches the branch, then either fast-forwards or creates it.
+# Also ensures the local branch tracks <remote>/nightly-testing so a later plain
+# `git push` goes to mathlib4-nightly-testing rather than the clone's default remote.
 checkout_nightly() {
-    local fetch_source="$1"
-    git fetch "$fetch_source" nightly-testing
+    local remote_name="$1"
+    git fetch "$remote_name" nightly-testing
     if git rev-parse --verify refs/heads/nightly-testing >/dev/null 2>&1; then
         git checkout nightly-testing
+        git branch --set-upstream-to="$remote_name/nightly-testing" nightly-testing
         git merge --ff-only FETCH_HEAD
     else
-        git checkout -b nightly-testing FETCH_HEAD
+        git checkout --track -b nightly-testing "$remote_name/nightly-testing"
     fi
 }
 
-if [ -n "$NIGHTLY_REMOTE" ]; then
-    checkout_nightly "$NIGHTLY_REMOTE"
-    MERGE_REF="$NIGHTLY_REMOTE/$BRANCH_NAME"
-else
-    # No configured remote for nightly-testing; fetch by URL without adding a remote.
-    checkout_nightly "$NIGHTLY_URL"
-    git fetch "$NIGHTLY_URL" "$BRANCH_NAME"
-    MERGE_REF="FETCH_HEAD"
-fi
+ensure_nightly_remote
+checkout_nightly "$NIGHTLY_REMOTE"
+git fetch "$NIGHTLY_REMOTE" "$BRANCH_NAME"
+MERGE_REF="FETCH_HEAD"
 
 if ! git merge "$MERGE_REF"; then
     echo "Merge conflicts detected. Resolving conflicts in favor of current version..."
