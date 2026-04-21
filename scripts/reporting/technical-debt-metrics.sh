@@ -18,9 +18,12 @@ set -euo pipefail
 
 IFS=$'\n\t'
 
-# `./scripts/reporting/technical-debt-metrics.sh` returns a tally of some technical debts in current Mathlib,
-# reporting also the change with respect to the same counts in
-# Mathlib from last week.
+# This script returns a tally of some technical debts in current Mathlib,
+# reporting also the change with respect to the same counts in Mathlib from last week.
+# It must be run from a `mathlib4` checkout, and invoked via its path in a separate
+# `mathlib-ci` checkout. To run locally, from your `mathlib4` directory:
+#   git clone https://github.com/leanprover-community/mathlib-ci.git ../mathlib-ci
+#   ../mathlib-ci/scripts/reporting/technical-debt-metrics.sh pr_summary
 
 # the script takes two optional arguments `<optCurrCommit> <optReferenceCommit>`
 # and tallies the same technical debts on `<optCurrCommit>` using `<optReferenceCommit>`
@@ -194,7 +197,7 @@ then
           if(average < 0) {change= "Decrease"; average=-average; weight=-weight} else {change= "Increase"}
           printf("<details><summary>%s in tech debt: (relative, absolute) = (%4.2f, %4.2f)</summary>\n\n%s\n", change, average, weight, rep) }'
   fi
-  printf '\nYou can run this locally as\n```\n./scripts/reporting/technical-debt-metrics.sh pr_summary\n```\n%s\n</details>\n' '* The `relative` value is the weighted *sum* of the differences with weight given by the *inverse* of the current value of the statistic.
+  printf '\nThis script lives in the [`mathlib-ci`](https://github.com/leanprover-community/mathlib-ci) repository. To run it locally, from your `mathlib4` directory:\n```\ngit clone https://github.com/leanprover-community/mathlib-ci.git ../mathlib-ci\n../mathlib-ci/scripts/reporting/technical-debt-metrics.sh pr_summary\n```\n%s\n</details>\n' '* The `relative` value is the weighted *sum* of the differences with weight given by the *inverse* of the current value of the statistic.
 * The `absolute` value is the `relative` value divided by the total sum of the inverses of the current values (i.e. the weighted *average* of the differences).'
 else
   report
