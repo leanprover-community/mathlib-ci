@@ -206,7 +206,7 @@ if __name__ == '__main__':
             sha_short = args.merge_base_sha[:12] if args.merge_base_sha else 'unknown'
             msg = _error_comment(
                 f'Oleans for the merge base (`{sha_short}`) are not available in the cache.',
-                f'Try merging `{args.base_ref}` again.',
+                f'Try merging a commit of `{args.base_ref}` that has oleans in the cache.',
                 args.actions_url,
             )
             with open(args.comment_file, 'w') as fh:
@@ -229,7 +229,7 @@ if __name__ == '__main__':
         traceback.print_exc(file=sys.stderr)
         msg = _error_comment(
             'The olean diff script encountered an unexpected error.',
-            'This is a bug in the CI tooling.\n'
+            'This could be a bug in the CI tooling.\n'
             'Please report it on [Zulip](https://leanprover.zulipchat.com).',
             args.actions_url,
         )
