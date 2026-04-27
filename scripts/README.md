@@ -18,6 +18,13 @@ Layout:
   It is used by the `PR_summary` workflow to maintain an up-to-date report with a searchable history.
 - `count-trans-deps.py`, `import-graph-report.py` and `import_trans_difference.sh` produce various
   summaries of changes in transitive imports that the `PR_summary` message incorporates.
+- `olean_diff.py` compares the `.olean` build outputs of two Lean builds and writes two markdown
+  reports: a truncated one suitable for posting as a GitHub comment, and a full one for upload as
+  a workflow artifact. Modules are classified as having public interface changes (exported
+  signatures, declarations, or axioms differ), non-public changes only (proof bodies, docstrings,
+  or declaration ranges differ), added, or removed. Takes four arguments:
+  `<base_lib_dir> <head_lib_dir> <comment_file> <full_file>`, where `base_lib_dir` and
+  `head_lib_dir` are paths to `.lake/build/lib/lean` for the base and PR builds respectively.
 
 ## `reporting/`
 - `technical-debt-metrics.sh`
