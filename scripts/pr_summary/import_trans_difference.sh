@@ -91,7 +91,7 @@ printf '\n\n<details><summary>Import changes for all files</summary>\n\n%s\n\n</
       }
     }
     if ((all == 0) && (ghLimit/2 <= outputLength)) {
-      printf("There are %s files with changed transitive imports taking up over %s characters: this is too many to display!\nYou can run `ci-tools/scripts/pr_summary/import_trans_difference.sh all` locally to see the whole output.", fileCount, outputLength)
+      printf("There are %s files with changed transitive imports taking up over %s characters: this is too many to display!\nYou can run this locally from your `mathlib4` directory:\n```\ngit clone https://github.com/leanprover-community/mathlib-ci.git ../mathlib-ci\n../mathlib-ci/scripts/pr_summary/import_trans_difference.sh all\n```", fileCount, outputLength)
     } else {
       for(x in reds) {
         sorted=""
