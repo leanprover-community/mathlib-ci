@@ -1,22 +1,37 @@
 #!/usr/bin/env bash
 # Commit Verification Script
-# Verifies transient and automated commits in a PR
+# Verifies transient and automated commits in a PR.
 #
-# Usage: ./scripts/verification/verify_commits.sh <base_ref> [--json] [--json-file <path>]
+# Usage: ./scripts/verification/verify_commits.sh <base_ref> [--json | --json-file <path>]
 #
 # Exit codes:
 #   0 - All verifications passed
 #   1 - Verification failed
 #   2 - Usage error
+#
+# Each automated commit is replayed in an isolated `git worktree` checked out
+# at the commit's parent. The replay is independent of the main checkout and
+# of other commits' replays, so failures and stray output never bleed across
+# commits or back into the user's working tree. Combined stdout+stderr is
+# `tee`'d so it stays visible in CI logs while being captured for the JSON
+# report. JSON output is built via `jq -nc --arg ...` so commit subjects with
+# arbitrary characters (newlines, backslashes, control bytes) round-trip
+# safely.
 
 set -euo pipefail
 
 # --- Configuration ---
-TIMEOUT_SECONDS=600  # 10 minutes per command
+TIMEOUT_SECONDS="${TIMEOUT_SECONDS:-600}"  # 10 minutes per command (env-overridable for tests)
 TRANSIENT_PREFIX="${TRANSIENT_PREFIX:-transient: }"
 # Support both "x <cmd>" and "x: <cmd>" (legacy) formats
 AUTO_PREFIX_COLON="${AUTO_PREFIX_COLON:-x: }"
 AUTO_PREFIX_SPACE="${AUTO_PREFIX_SPACE:-x }"
+
+# Excerpt limits — capture at most this many bytes/lines of command output
+# or diff stat for inclusion in the JSON report (and ultimately the comment).
+# The summary script applies a separate overall comment-size cap.
+MAX_EXCERPT_BYTES=4096
+MAX_EXCERPT_LINES=40
 
 # --- Colors (disabled if not a terminal) ---
 if [[ -t 1 ]]; then
@@ -29,54 +44,20 @@ else
   RED='' GREEN='' YELLOW='' BLUE='' NC=''
 fi
 
-# --- Helpers ---
 log_info()  { echo -e "${BLUE}[INFO]${NC} $*" >&2; }
 log_ok()    { echo -e "${GREEN}[OK]${NC} $*" >&2; }
 log_warn()  { echo -e "${YELLOW}[WARN]${NC} $*" >&2; }
 log_error() { echo -e "${RED}[ERROR]${NC} $*" >&2; }
 
-# Show a truncated diff stat between two trees
-show_diff_stat() {
-  local tree1="$1"
-  local tree2="$2"
-  local max_lines="${3:-20}"
-  local diff_output
-  diff_output=$(git diff-tree --stat "$tree1" "$tree2")
-  local line_count
-  line_count=$(echo "$diff_output" | wc -l)
-  if [[ $line_count -gt $max_lines ]]; then
-    echo "$diff_output" | head -"$max_lines" >&2
-    echo "  ... and $((line_count - max_lines)) more lines" >&2
-  else
-    echo "$diff_output" >&2
-  fi
-}
-
-# Check if a subject matches an auto-commit prefix
-# Returns 0 if it matches, 1 otherwise
-is_auto_commit() {
-  local subject="$1"
-  [[ "$subject" == "$AUTO_PREFIX_COLON"* || "$subject" == "$AUTO_PREFIX_SPACE"* ]]
-}
-
-# Extract the command from an auto-commit subject
-# Assumes is_auto_commit has already returned true
-get_auto_command() {
-  local subject="$1"
-  if [[ "$subject" == "$AUTO_PREFIX_COLON"* ]]; then
-    echo "${subject#$AUTO_PREFIX_COLON}"
-  else
-    echo "${subject#$AUTO_PREFIX_SPACE}"
-  fi
-}
-
 usage() {
-  echo "Usage: $0 <base_ref> [--json | --json-file <path>]"
-  echo ""
-  echo "Arguments:"
-  echo "  base_ref          The base commit/branch to compare against (e.g., origin/master)"
-  echo "  --json            Output results in JSON format (instead of human-readable)"
-  echo "  --json-file PATH  Write JSON to PATH while outputting human-readable to stdout"
+  cat >&2 <<EOF
+Usage: $0 <base_ref> [--json | --json-file <path>]
+
+Arguments:
+  base_ref          The base commit/branch to compare against (e.g., origin/master)
+  --json            Output results in JSON format (instead of human-readable)
+  --json-file PATH  Write JSON to PATH while outputting human-readable to stdout
+EOF
   exit 2
 }
 
@@ -100,61 +81,126 @@ if [[ -z "$BASE_REF" ]]; then
   usage
 fi
 
-# --- State management ---
-# Save original HEAD/branch to restore on exit
-ORIGINAL_REF=""
-STASH_CREATED=false
+# --- Subject / command helpers ---
+is_auto_commit() {
+  local subject="$1"
+  [[ "$subject" == "$AUTO_PREFIX_COLON"* || "$subject" == "$AUTO_PREFIX_SPACE"* ]]
+}
 
-save_state() {
-  # Try to get current branch name; if in detached HEAD, fall back to SHA
-  ORIGINAL_REF=$(git symbolic-ref --short HEAD 2>/dev/null || git rev-parse HEAD)
-  # Stash any uncommitted changes
-  if ! git diff --quiet || ! git diff --cached --quiet; then
-    git stash push -q -m "verify_commits temporary stash"
-    STASH_CREATED=true
+get_auto_command() {
+  local subject="$1"
+  if [[ "$subject" == "$AUTO_PREFIX_COLON"* ]]; then
+    printf %s "${subject#$AUTO_PREFIX_COLON}"
+  else
+    printf %s "${subject#$AUTO_PREFIX_SPACE}"
   fi
 }
 
-restore_state() {
-  if [[ -n "$ORIGINAL_REF" ]]; then
-    git checkout -q "$ORIGINAL_REF" 2>/dev/null || true
-    git reset -q HEAD 2>/dev/null || true
+# --- Excerpt extraction ---
+# Extract the last N bytes/lines of a file. Sets EXCERPT and EXCERPT_TRUNCATED.
+# Globals are used so the result can include arbitrary bytes (incl. newlines)
+# without splitting issues.
+EXCERPT=""
+EXCERPT_TRUNCATED=false
+extract_excerpt() {
+  local file="$1"
+  local total_bytes total_lines
+  if [[ ! -s "$file" ]]; then
+    EXCERPT=""
+    EXCERPT_TRUNCATED=false
+    return
   fi
-  if [[ "$STASH_CREATED" == "true" ]]; then
-    git stash pop -q 2>/dev/null || true
+  total_bytes=$(wc -c < "$file" | tr -d ' ')
+  total_lines=$(wc -l < "$file" | tr -d ' ')
+  EXCERPT=$(tail -c "$MAX_EXCERPT_BYTES" "$file" | tail -n "$MAX_EXCERPT_LINES")
+  if [[ $total_bytes -gt $MAX_EXCERPT_BYTES ]] || [[ $total_lines -gt $MAX_EXCERPT_LINES ]]; then
+    EXCERPT_TRUNCATED=true
+  else
+    EXCERPT_TRUNCATED=false
   fi
 }
 
-# Ensure we restore state on exit (success or failure)
-trap restore_state EXIT
+# Compute a truncated `git diff-tree --stat` between two trees.
+# Sets DIFF_EXCERPT and DIFF_EXCERPT_TRUNCATED.
+DIFF_EXCERPT=""
+DIFF_EXCERPT_TRUNCATED=false
+extract_diff_excerpt() {
+  local tree1="$1" tree2="$2"
+  local diff_full total_bytes total_lines
+  diff_full=$(git diff-tree --stat "$tree1" "$tree2" 2>&1 || true)
+  total_bytes=$(printf %s "$diff_full" | wc -c | tr -d ' ')
+  total_lines=$(printf '%s\n' "$diff_full" | wc -l | tr -d ' ')
+  DIFF_EXCERPT=$(printf %s "$diff_full" | tail -c "$MAX_EXCERPT_BYTES" | tail -n "$MAX_EXCERPT_LINES")
+  if [[ $total_bytes -gt $MAX_EXCERPT_BYTES ]] || [[ $total_lines -gt $MAX_EXCERPT_LINES ]]; then
+    DIFF_EXCERPT_TRUNCATED=true
+  else
+    DIFF_EXCERPT_TRUNCATED=false
+  fi
+}
 
-# --- Main logic ---
+# --- Worktree management ---
+# All replay worktrees live under a single mktemp'd parent so cleanup is
+# trivial and isolated from any other worktrees the caller may have.
+WORKTREE_BASE=""
+declare -a CREATED_WORKTREES=()
+JSON_TMPDIR=""
 
-# Find merge base
+init_tmpdirs() {
+  [[ -n "$WORKTREE_BASE" ]] && return
+  WORKTREE_BASE=$(mktemp -d -t verify_commits.XXXXXX)
+  JSON_TMPDIR=$(mktemp -d -t verify_commits_json.XXXXXX)
+}
+
+create_worktree() {
+  local target_ref="$1" label="$2"
+  init_tmpdirs
+  local wt_path="$WORKTREE_BASE/$label"
+  git worktree add -q --detach "$wt_path" "$target_ref" >&2
+  CREATED_WORKTREES+=("$wt_path")
+  printf %s "$wt_path"
+}
+
+remove_worktree() {
+  local wt_path="$1"
+  git worktree remove --force "$wt_path" 2>/dev/null || rm -rf "$wt_path"
+}
+
+cleanup_all() {
+  if [[ ${#CREATED_WORKTREES[@]} -gt 0 ]]; then
+    for wt in "${CREATED_WORKTREES[@]}"; do
+      git worktree remove --force "$wt" 2>/dev/null || true
+    done
+  fi
+  [[ -n "$WORKTREE_BASE" ]] && rm -rf "$WORKTREE_BASE"
+  [[ -n "$JSON_TMPDIR" ]]   && rm -rf "$JSON_TMPDIR"
+  git worktree prune 2>/dev/null || true
+}
+
+trap cleanup_all EXIT
+
+# Clear stale state from any previous interrupted run.
+git worktree prune 2>/dev/null || true
+
+# --- Main: collect and categorize commits ---
 MERGE_BASE=$(git merge-base "$BASE_REF" HEAD)
 log_info "Merge base: $MERGE_BASE"
 log_info "HEAD: $(git rev-parse HEAD)"
 
-# Collect all commits in the PR
-mapfile -t ALL_COMMITS < <(git rev-list --reverse "$MERGE_BASE..HEAD")
+ALL_COMMITS=()
+while IFS= read -r _commit_line; do
+  ALL_COMMITS+=("$_commit_line")
+done < <(git rev-list --reverse "$MERGE_BASE..HEAD")
 TOTAL_COMMITS=${#ALL_COMMITS[@]}
-
-if [[ $TOTAL_COMMITS -eq 0 ]]; then
-  log_info "No commits to verify"
-  exit 0
-fi
-
 log_info "Found $TOTAL_COMMITS commits to analyze"
 
-# Categorize commits (also build NON_TRANSIENT list for later use)
 declare -a TRANSIENT_COMMITS=()
 declare -a NON_TRANSIENT_COMMITS=()
 declare -a AUTO_COMMITS=()
 declare -a SUBSTANTIVE_COMMITS=()
 
-for commit in "${ALL_COMMITS[@]}"; do
+for commit in "${ALL_COMMITS[@]:-}"; do
+  [[ -z "$commit" ]] && continue
   subject=$(git log -1 --format="%s" "$commit")
-
   if [[ "$subject" == "$TRANSIENT_PREFIX"* ]]; then
     TRANSIENT_COMMITS+=("$commit")
   else
@@ -169,157 +215,227 @@ done
 
 log_info "Categorized: ${#SUBSTANTIVE_COMMITS[@]} substantive, ${#AUTO_COMMITS[@]} automated, ${#TRANSIENT_COMMITS[@]} transient"
 
-# Save state before any checkouts
-save_state
+init_tmpdirs
+SUBSTANTIVE_NDJSON="$JSON_TMPDIR/substantive.ndjson"
+AUTO_NDJSON="$JSON_TMPDIR/auto.ndjson"
+TRANSIENT_NDJSON="$JSON_TMPDIR/transient.ndjson"
+: > "$SUBSTANTIVE_NDJSON"
+: > "$AUTO_NDJSON"
+: > "$TRANSIENT_NDJSON"
 
-# --- Verification results ---
-TRANSIENT_VERIFIED=false
-TRANSIENT_ERROR=""
-declare -A AUTO_RESULTS=()  # commit -> "ok" or error message
+# --- Verification state ---
+TRANSIENT_VERIFIED=true
+TRANSIENT_FAILURE_KIND=""
+TRANSIENT_FAILED_SHA=""
+TRANSIENT_FAILED_SUBJECT=""
+TRANSIENT_OUTPUT_EXCERPT=""
+TRANSIENT_OUTPUT_TRUNCATED=false
+TRANSIENT_DIFF_EXCERPT=""
+TRANSIENT_DIFF_TRUNCATED=false
 OVERALL_SUCCESS=true
 
-# --- 1. Verify transient commits ---
+# --- Substantive commits: just record subject for the report ---
+for commit in "${SUBSTANTIVE_COMMITS[@]:-}"; do
+  [[ -z "$commit" ]] && continue
+  subject=$(git log -1 --format="%s" "$commit")
+  jq -nc --arg sha "$commit" --arg short "${commit:0:7}" --arg subject "$subject" \
+    '{sha: $sha, short: $short, subject: $subject}' >> "$SUBSTANTIVE_NDJSON"
+done
+
+# --- Transient commits: list them ---
+for commit in "${TRANSIENT_COMMITS[@]:-}"; do
+  [[ -z "$commit" ]] && continue
+  subject=$(git log -1 --format="%s" "$commit")
+  jq -nc --arg sha "$commit" --arg short "${commit:0:7}" --arg subject "$subject" \
+    '{sha: $sha, short: $short, subject: $subject}' >> "$TRANSIENT_NDJSON"
+done
+
+# --- Verify transient commits (in an isolated worktree) ---
 verify_transient() {
   log_info "Verifying transient commits..."
 
   if [[ ${#TRANSIENT_COMMITS[@]} -eq 0 ]]; then
     log_info "No transient commits to verify"
-    TRANSIENT_VERIFIED=true
     return 0
   fi
 
-  # Get the final tree (^{tree} dereferences commit to its tree object)
-  FINAL_TREE=$(git rev-parse HEAD^{tree})
+  local final_tree expected_tree
+  final_tree=$(git rev-parse HEAD^{tree})
 
   if [[ ${#NON_TRANSIENT_COMMITS[@]} -eq 0 ]]; then
-    # All commits are transient - final tree should match base
-    EXPECTED_TREE=$(git rev-parse "$MERGE_BASE^{tree}")
+    expected_tree=$(git rev-parse "$MERGE_BASE^{tree}")
   else
-    # Cherry-pick non-transient commits onto base and get resulting tree
-    log_info 'Work in detached HEAD to avoid creating/deleting branches'
-    git checkout -q --detach "$MERGE_BASE"
+    # Cherry-pick non-transient commits onto the merge base in a fresh
+    # worktree, then compare the resulting tree against HEAD's tree.
+    local wt_path
+    wt_path=$(create_worktree "$MERGE_BASE" "transient-replay")
 
-    CHERRY_PICK_FAILED=false
+    local cp_failed=false
     for commit in "${NON_TRANSIENT_COMMITS[@]}"; do
-      local cp_output
-      # Check if this is a merge commit (has more than one parent)
-      local parent_count
+      local cp_args=(--no-commit) parent_count
       parent_count=$(git rev-list --parents -n 1 "$commit" | awk '{print NF-1}')
+      [[ "$parent_count" -gt 1 ]] && cp_args+=(-m 1)
 
-      local cp_args=(--no-commit)
-      if [[ "$parent_count" -gt 1 ]]; then
-        # For merge commits, use -m 1 to cherry-pick relative to first parent
-        cp_args+=(-m 1)
-      fi
+      local cp_log
+      cp_log=$(mktemp)
+      local cp_exit=0
+      set +e
+      ( cd "$wt_path" && git cherry-pick "${cp_args[@]}" "$commit" ) 2>&1 \
+        | tee "$cp_log" >&2
+      cp_exit=${PIPESTATUS[0]}
+      set -e
 
-      if ! cp_output=$(git cherry-pick "${cp_args[@]}" "$commit" 2>&1); then
-        # Cherry-pick failed - transient commits don't cleanly separate
-        echo "$cp_output" >&2
-        git cherry-pick --abort 2>/dev/null || git reset --hard HEAD >/dev/null 2>&1
-        CHERRY_PICK_FAILED=true
-        TRANSIENT_ERROR="Cherry-pick of $(git log -1 --format='%h: %s' "$commit") failed - transient commits may have side effects"
+      if [[ $cp_exit -ne 0 ]]; then
+        extract_excerpt "$cp_log"
+        TRANSIENT_FAILURE_KIND="cherry_pick_conflict"
+        TRANSIENT_FAILED_SHA="$commit"
+        TRANSIENT_FAILED_SUBJECT=$(git log -1 --format="%s" "$commit")
+        TRANSIENT_OUTPUT_EXCERPT="$EXCERPT"
+        TRANSIENT_OUTPUT_TRUNCATED="$EXCERPT_TRUNCATED"
+        cp_failed=true
+        rm -f "$cp_log"
+        ( cd "$wt_path" && git cherry-pick --abort 2>/dev/null || true )
         break
       fi
+      rm -f "$cp_log"
     done
 
-    if [[ "$CHERRY_PICK_FAILED" == "false" ]]; then
-      # Get the tree of the cherry-picked result
-      # cherry-pick --no-commit stages changes, so write-tree works directly
-      EXPECTED_TREE=$(git write-tree)
-    fi
-
-    # Note: restore_state (via trap) will return us to ORIGINAL_HEAD
-
-    if [[ "$CHERRY_PICK_FAILED" == "true" ]]; then
+    if [[ "$cp_failed" == "true" ]]; then
+      remove_worktree "$wt_path"
       return 1
     fi
+
+    expected_tree=$(cd "$wt_path" && git write-tree)
+    remove_worktree "$wt_path"
   fi
 
-  if [[ "$FINAL_TREE" == "$EXPECTED_TREE" ]]; then
-    log_ok "Transient commits verified: final tree matches (${FINAL_TREE:0:12})"
-    TRANSIENT_VERIFIED=true
+  if [[ "$final_tree" == "$expected_tree" ]]; then
+    log_ok "Transient commits verified: final tree matches (${final_tree:0:12})"
     return 0
-  else
-    TRANSIENT_ERROR="Tree mismatch: transient commits have net effect"
-    log_error "Transient verification failed: $TRANSIENT_ERROR"
-    log_error "Diff between HEAD and tree-without-transient-commits:"
-    show_diff_stat "$EXPECTED_TREE" "$FINAL_TREE"
-    return 1
   fi
+
+  TRANSIENT_FAILURE_KIND="tree_mismatch"
+  extract_diff_excerpt "$expected_tree" "$final_tree"
+  TRANSIENT_DIFF_EXCERPT="$DIFF_EXCERPT"
+  TRANSIENT_DIFF_TRUNCATED="$DIFF_EXCERPT_TRUNCATED"
+  log_error "Transient verification failed: final tree differs from non-transient replay"
+  printf %s "$DIFF_EXCERPT" >&2
+  return 1
 }
 
-# --- 2. Verify automated commits ---
+# --- Verify a single auto commit in a fresh worktree ---
 verify_auto_commit() {
   local commit="$1"
-  local subject
+  local subject command short_sha parent expected_tree
   subject=$(git log -1 --format="%s" "$commit")
-  local command
   command=$(get_auto_command "$subject")
-  local short_sha="${commit:0:7}"
+  short_sha="${commit:0:7}"
 
   log_info "Verifying auto commit $short_sha: $command"
 
-  # Check single parent
+  # Sanity: auto commits are expected to be linear (single parent).
   local parent_count
   parent_count=$(git rev-list --parents -n 1 "$commit" | awk '{print NF-1}')
   if [[ "$parent_count" -ne 1 ]]; then
-    AUTO_RESULTS["$commit"]="Expected 1 parent, found $parent_count"
     log_error "Auto commit $short_sha: expected 1 parent, found $parent_count"
+    jq -nc \
+      --arg sha "$commit" --arg short "$short_sha" \
+      --arg subject "$subject" --arg command "$command" \
+      --arg msg "Expected 1 parent, found $parent_count" \
+      '{sha: $sha, short: $short, subject: $subject, command: $command, verified: false,
+        failure_kind: "command_failed", exit_code: -1, output_excerpt: $msg, output_truncated: false}' \
+      >> "$AUTO_NDJSON"
     return 1
   fi
 
-  local parent
   parent=$(git rev-parse "$commit^")
-  local expected_tree
   expected_tree=$(git rev-parse "$commit^{tree}")
 
-  # Checkout parent in detached HEAD
-  git checkout -q --detach "$parent"
+  local wt_path
+  wt_path=$(create_worktree "$parent" "auto-${short_sha}")
 
-  # Record untracked files before running command (to exclude pre-existing ones)
-  local untracked_before
-  untracked_before=$(git ls-files --others --exclude-standard | sort)
-
-  # Run command with timeout
+  # Run the command, streaming combined stdout+stderr to the runner's
+  # stderr (so it shows up live in CI logs) while also capturing it to
+  # a temp file for the JSON report.
+  local out_file
+  out_file=$(mktemp)
   local cmd_exit=0
-  timeout "$TIMEOUT_SECONDS" bash -c "$command" || cmd_exit=$?
+  set +e
+  ( cd "$wt_path" && timeout "$TIMEOUT_SECONDS" bash -c "$command" ) 2>&1 \
+    | tee "$out_file" >&2
+  cmd_exit=${PIPESTATUS[0]}
+  set -e
+
+  local emit_failure=""  # one of: "", "timed_out", "command_failed", "tree_mismatch"
+  local actual_tree=""
 
   if [[ $cmd_exit -eq 124 ]]; then
-    AUTO_RESULTS["$commit"]="Command timed out after ${TIMEOUT_SECONDS}s"
-    log_error "Auto commit $short_sha: command timed out"
-    return 1
+    emit_failure="timed_out"
   elif [[ $cmd_exit -ne 0 ]]; then
-    AUTO_RESULTS["$commit"]="Command failed with exit code $cmd_exit"
-    log_error "Auto commit $short_sha: command failed (exit $cmd_exit)"
-    return 1
-  fi
-
-  # Stage changes: update tracked files and add only NEW untracked files
-  git add -u  # Stage modifications to tracked files
-  local untracked_after
-  untracked_after=$(git ls-files --others --exclude-standard | sort)
-  # Add only files that are new (not in untracked_before)
-  local new_files
-  new_files=$(comm -13 <(echo "$untracked_before") <(echo "$untracked_after"))
-  if [[ -n "$new_files" ]]; then
-    echo "$new_files" | xargs -r git add
-  fi
-  local actual_tree
-  actual_tree=$(git write-tree)
-
-  # Note: restore_state (via trap) handles returning to ORIGINAL_HEAD
-
-  if [[ "$expected_tree" == "$actual_tree" ]]; then
-    AUTO_RESULTS["$commit"]="ok"
-    log_ok "Auto commit $short_sha verified"
-    return 0
+    emit_failure="command_failed"
   else
-    AUTO_RESULTS["$commit"]="Tree mismatch: command output differs from commit"
-    log_error "Auto commit $short_sha: tree mismatch"
-    log_error "Diff between expected and actual:"
-    show_diff_stat "$expected_tree" "$actual_tree"
-    return 1
+    # Stage all changes (mods, new files, deletions) and compute the tree.
+    # `git add -A` respects .gitignore, so we never include build artifacts.
+    ( cd "$wt_path" && git add -A )
+    actual_tree=$(cd "$wt_path" && git write-tree)
+    if [[ "$expected_tree" != "$actual_tree" ]]; then
+      emit_failure="tree_mismatch"
+    fi
   fi
+
+  if [[ -z "$emit_failure" ]]; then
+    log_ok "Auto commit $short_sha verified"
+    jq -nc \
+      --arg sha "$commit" --arg short "$short_sha" \
+      --arg subject "$subject" --arg command "$command" \
+      '{sha: $sha, short: $short, subject: $subject, command: $command, verified: true}' \
+      >> "$AUTO_NDJSON"
+    rm -f "$out_file"
+    remove_worktree "$wt_path"
+    return 0
+  fi
+
+  # Build the failure record. All three branches share the output excerpt
+  # (it can be informative even on tree_mismatch); tree_mismatch additionally
+  # includes a diff excerpt.
+  extract_excerpt "$out_file"
+  local out_excerpt="$EXCERPT"
+  local out_truncated="$EXCERPT_TRUNCATED"
+
+  local diff_excerpt="" diff_truncated=false
+  if [[ "$emit_failure" == "tree_mismatch" ]]; then
+    extract_diff_excerpt "$expected_tree" "$actual_tree"
+    diff_excerpt="$DIFF_EXCERPT"
+    diff_truncated="$DIFF_EXCERPT_TRUNCATED"
+    log_error "Auto commit $short_sha: tree mismatch"
+  elif [[ "$emit_failure" == "timed_out" ]]; then
+    log_error "Auto commit $short_sha: command timed out after ${TIMEOUT_SECONDS}s"
+  else
+    log_error "Auto commit $short_sha: command failed (exit $cmd_exit)"
+  fi
+
+  jq -nc \
+    --arg sha "$commit" --arg short "$short_sha" \
+    --arg subject "$subject" --arg command "$command" \
+    --arg failure_kind "$emit_failure" \
+    --argjson exit_code "$cmd_exit" \
+    --argjson timeout_seconds "$TIMEOUT_SECONDS" \
+    --arg output_excerpt "$out_excerpt" \
+    --argjson output_truncated "$out_truncated" \
+    --arg diff_excerpt "$diff_excerpt" \
+    --argjson diff_truncated "$diff_truncated" \
+    '{sha: $sha, short: $short, subject: $subject, command: $command, verified: false,
+      failure_kind: $failure_kind}
+     + (if $failure_kind == "timed_out" then {timeout_seconds: $timeout_seconds, exit_code: $exit_code}
+        elif $failure_kind == "command_failed" then {exit_code: $exit_code}
+        else {} end)
+     + (if $output_excerpt != "" then {output_excerpt: $output_excerpt, output_truncated: $output_truncated} else {} end)
+     + (if $diff_excerpt != "" then {diff_excerpt: $diff_excerpt, diff_truncated: $diff_truncated} else {} end)' \
+    >> "$AUTO_NDJSON"
+
+  rm -f "$out_file"
+  remove_worktree "$wt_path"
+  return 1
 }
 
 verify_auto_commits() {
@@ -337,81 +453,55 @@ verify_auto_commits() {
     fi
   done
 
-  if [[ "$all_ok" == "true" ]]; then
-    return 0
-  else
-    return 1
-  fi
+  [[ "$all_ok" == "true" ]]
 }
 
 # --- Run verifications ---
 if ! verify_transient; then
+  TRANSIENT_VERIFIED=false
   OVERALL_SUCCESS=false
 fi
-
-# Restore to original state before auto verification
-# (transient verification may have left us in detached HEAD)
-restore_state
-save_state
 
 if ! verify_auto_commits; then
   OVERALL_SUCCESS=false
 fi
 
-# --- Output results ---
-output_json() {
-  echo "{"
-  echo "  \"success\": $([[ "$OVERALL_SUCCESS" == "true" ]] && echo "true" || echo "false"),"
-
-  # Substantive commits
-  echo "  \"substantive_commits\": ["
-  local first=true
-  for commit in "${SUBSTANTIVE_COMMITS[@]}"; do
-    [[ "$first" == "true" ]] || echo ","
-    first=false
-    local subject
-    subject=$(git log -1 --format="%s" "$commit" | sed 's/"/\\"/g')
-    echo -n "    {\"sha\": \"$commit\", \"short\": \"${commit:0:7}\", \"subject\": \"$subject\"}"
-  done
-  echo ""
-  echo "  ],"
-
-  # Auto commits
-  echo "  \"auto_commits\": ["
-  first=true
-  for commit in "${AUTO_COMMITS[@]}"; do
-    [[ "$first" == "true" ]] || echo ","
-    first=false
-    local subject
-    subject=$(git log -1 --format="%s" "$commit" | sed 's/"/\\"/g')
-    local result="${AUTO_RESULTS[$commit]:-not_run}"
-    local verified=$([[ "$result" == "ok" ]] && echo "true" || echo "false")
-    local error_msg=""
-    [[ "$result" != "ok" && "$result" != "not_run" ]] && error_msg="$result"
-    echo -n "    {\"sha\": \"$commit\", \"short\": \"${commit:0:7}\", \"subject\": \"$subject\", \"verified\": $verified"
-    [[ -n "$error_msg" ]] && echo -n ", \"error\": \"$(echo "$error_msg" | sed 's/"/\\"/g')\""
-    echo -n "}"
-  done
-  echo ""
-  echo "  ],"
-
-  # Transient commits
-  echo "  \"transient_commits\": ["
-  first=true
-  for commit in "${TRANSIENT_COMMITS[@]}"; do
-    [[ "$first" == "true" ]] || echo ","
-    first=false
-    local subject
-    subject=$(git log -1 --format="%s" "$commit" | sed 's/"/\\"/g')
-    echo -n "    {\"sha\": \"$commit\", \"short\": \"${commit:0:7}\", \"subject\": \"$subject\"}"
-  done
-  echo ""
-  echo "  ],"
-
-  echo "  \"transient_verified\": $([[ "$TRANSIENT_VERIFIED" == "true" ]] && echo "true" || echo "false")"
-  [[ -n "$TRANSIENT_ERROR" ]] && echo "  ,\"transient_error\": \"$(echo "$TRANSIENT_ERROR" | sed 's/"/\\"/g')\""
-
-  echo "}"
+# --- Output: assemble final JSON ---
+build_final_json() {
+  jq -nc \
+    --argjson success "$([[ "$OVERALL_SUCCESS" == "true" ]] && echo true || echo false)" \
+    --argjson transient_verified "$([[ "$TRANSIENT_VERIFIED" == "true" ]] && echo true || echo false)" \
+    --slurpfile substantive "$SUBSTANTIVE_NDJSON" \
+    --slurpfile auto "$AUTO_NDJSON" \
+    --slurpfile transient "$TRANSIENT_NDJSON" \
+    --arg transient_failure_kind "$TRANSIENT_FAILURE_KIND" \
+    --arg transient_failed_sha "$TRANSIENT_FAILED_SHA" \
+    --arg transient_failed_subject "$TRANSIENT_FAILED_SUBJECT" \
+    --arg transient_output_excerpt "$TRANSIENT_OUTPUT_EXCERPT" \
+    --argjson transient_output_truncated "$TRANSIENT_OUTPUT_TRUNCATED" \
+    --arg transient_diff_excerpt "$TRANSIENT_DIFF_EXCERPT" \
+    --argjson transient_diff_truncated "$TRANSIENT_DIFF_TRUNCATED" \
+    '{success: $success,
+      substantive_commits: $substantive,
+      auto_commits: $auto,
+      transient_commits: $transient,
+      transient_verified: $transient_verified}
+     + (if $transient_failure_kind != "" then
+          {transient_failure_kind: $transient_failure_kind}
+          + (if $transient_failed_sha != "" then
+               {transient_failed_sha: $transient_failed_sha,
+                transient_failed_short: ($transient_failed_sha[0:7]),
+                transient_failed_subject: $transient_failed_subject}
+             else {} end)
+          + (if $transient_output_excerpt != "" then
+               {transient_output_excerpt: $transient_output_excerpt,
+                transient_output_truncated: $transient_output_truncated}
+             else {} end)
+          + (if $transient_diff_excerpt != "" then
+               {transient_diff_excerpt: $transient_diff_excerpt,
+                transient_diff_truncated: $transient_diff_truncated}
+             else {} end)
+        else {} end)'
 }
 
 output_summary() {
@@ -435,15 +525,24 @@ output_summary() {
   if [[ ${#AUTO_COMMITS[@]} -eq 0 ]]; then
     echo "  (none)"
   else
-    for commit in "${AUTO_COMMITS[@]}"; do
-      local result="${AUTO_RESULTS[$commit]:-not_run}"
-      if [[ "$result" == "ok" ]]; then
-        log_ok "${commit:0:7}: $(git log -1 --format='%s' "$commit")"
+    while IFS= read -r row; do
+      local short subject verified failure_kind exit_code
+      short=$(jq -r '.short' <<<"$row")
+      subject=$(jq -r '.subject' <<<"$row")
+      verified=$(jq -r '.verified' <<<"$row")
+      failure_kind=$(jq -r '.failure_kind // ""' <<<"$row")
+      exit_code=$(jq -r '.exit_code // ""' <<<"$row")
+      if [[ "$verified" == "true" ]]; then
+        log_ok "$short: $subject"
       else
-        log_error "${commit:0:7}: $(git log -1 --format='%s' "$commit")"
-        [[ "$result" != "not_run" ]] && echo "        Error: $result"
+        log_error "$short: $subject"
+        case "$failure_kind" in
+          timed_out)      echo "        Timed out after ${TIMEOUT_SECONDS}s" ;;
+          command_failed) echo "        Command failed (exit $exit_code)" ;;
+          tree_mismatch)  echo "        Tree mismatch: command output differs from commit" ;;
+        esac
       fi
-    done
+    done < "$AUTO_NDJSON"
   fi
   echo ""
 
@@ -457,7 +556,14 @@ output_summary() {
     if [[ "$TRANSIENT_VERIFIED" == "true" ]]; then
       log_ok "Net effect: none (verified)"
     else
-      log_error "Verification failed: $TRANSIENT_ERROR"
+      case "$TRANSIENT_FAILURE_KIND" in
+        cherry_pick_conflict)
+          log_error "Cherry-pick of ${TRANSIENT_FAILED_SHA:0:7} (${TRANSIENT_FAILED_SUBJECT}) failed" ;;
+        tree_mismatch)
+          log_error "Net effect is non-empty: transient commits modify the final tree" ;;
+        *)
+          log_error "Verification failed" ;;
+      esac
     fi
   fi
   echo ""
@@ -471,17 +577,15 @@ output_summary() {
   echo "========================================="
 }
 
-# --- Output ---
 if [[ "$JSON_OUTPUT" == "true" ]]; then
-  output_json
+  build_final_json
 elif [[ -n "$JSON_FILE" ]]; then
-  output_json > "$JSON_FILE"
+  build_final_json > "$JSON_FILE"
   output_summary
 else
   output_summary
 fi
 
-# Exit with appropriate code
 if [[ "$OVERALL_SUCCESS" == "true" ]]; then
   exit 0
 else
