@@ -1,0 +1,24 @@
+{
+  "success": true,
+  "substantive_commits": [
+    {
+      "sha": "<SHA>",
+      "short": "<SHA>",
+      "subject": "feat: substantive change"
+    }
+  ],
+  "auto_commits": [],
+  "transient_commits": [
+    {
+      "sha": "<SHA>",
+      "short": "<SHA>",
+      "subject": "transient: add scratch file"
+    },
+    {
+      "sha": "<SHA>",
+      "short": "<SHA>",
+      "subject": "transient: remove scratch file"
+    }
+  ],
+  "transient_verified": true
+}

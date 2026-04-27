@@ -1,0 +1,39 @@
+{
+  "success": false,
+  "substantive_commits": [
+    {
+      "sha": "<SHA>",
+      "short": "<SHA>",
+      "subject": "feat: substantive change"
+    }
+  ],
+  "auto_commits": [
+    {
+      "sha": "<SHA>",
+      "short": "<SHA>",
+      "subject": "x: echo \"unterminated > stray.txt",
+      "command": "echo \"unterminated > stray.txt",
+      "verified": false,
+      "failure_kind": "command_failed",
+      "exit_code": 2,
+      "output_excerpt": "bash: -c: line 0: unexpected EOF while looking for matching `\"'\nbash: -c: line 1: syntax error: unexpected end of file",
+      "output_truncated": false
+    },
+    {
+      "sha": "<SHA>",
+      "short": "<SHA>",
+      "subject": "x: echo stray > stray.txt",
+      "command": "echo stray > stray.txt",
+      "verified": true
+    },
+    {
+      "sha": "<SHA>",
+      "short": "<SHA>",
+      "subject": "x: rm stray.txt",
+      "command": "rm stray.txt",
+      "verified": true
+    }
+  ],
+  "transient_commits": [],
+  "transient_verified": true
+}

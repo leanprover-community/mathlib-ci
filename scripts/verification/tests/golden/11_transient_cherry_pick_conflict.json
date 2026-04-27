@@ -1,0 +1,25 @@
+{
+  "success": false,
+  "substantive_commits": [
+    {
+      "sha": "<SHA>",
+      "short": "<SHA>",
+      "subject": "feat: append to a.txt"
+    }
+  ],
+  "auto_commits": [],
+  "transient_commits": [
+    {
+      "sha": "<SHA>",
+      "short": "<SHA>",
+      "subject": "transient: create a.txt"
+    }
+  ],
+  "transient_verified": false,
+  "transient_failure_kind": "cherry_pick_conflict",
+  "transient_failed_sha": "<SHA>",
+  "transient_failed_short": "<SHA>",
+  "transient_failed_subject": "feat: append to a.txt",
+  "transient_output_excerpt": "CONFLICT (modify/delete): a.txt deleted in HEAD and modified in <SHA> (feat: append to a.txt).  Version <SHA> (feat: append to a.txt) of a.txt left in tree.\nerror: could not apply <SHA>... feat: append to a.txt\nhint: after resolving the conflicts, mark the corrected paths\nhint: with 'git add <paths>' or 'git rm <paths>'\nhint: Disable this message with \"git config set advice.mergeConflict false\"",
+  "transient_output_truncated": false
+}

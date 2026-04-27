@@ -1,0 +1,28 @@
+{
+  "success": true,
+  "substantive_commits": [
+    {
+      "sha": "<SHA>",
+      "short": "<SHA>",
+      "subject": "feat: substantive change"
+    }
+  ],
+  "auto_commits": [
+    {
+      "sha": "<SHA>",
+      "short": "<SHA>",
+      "subject": "x: echo OK > b.txt",
+      "command": "echo OK > b.txt",
+      "verified": true
+    },
+    {
+      "sha": "<SHA>",
+      "short": "<SHA>",
+      "subject": "x: echo OK2 > c.txt",
+      "command": "echo OK2 > c.txt",
+      "verified": true
+    }
+  ],
+  "transient_commits": [],
+  "transient_verified": true
+}

@@ -1,0 +1,24 @@
+{
+  "success": false,
+  "substantive_commits": [
+    {
+      "sha": "<SHA>",
+      "short": "<SHA>",
+      "subject": "feat: substantive change"
+    }
+  ],
+  "auto_commits": [
+    {
+      "sha": "<SHA>",
+      "short": "<SHA>",
+      "subject": "x: echo expected > c.txt",
+      "command": "echo expected > c.txt",
+      "verified": false,
+      "failure_kind": "tree_mismatch",
+      "diff_excerpt": " c.txt | 2 +-\n 1 file changed, 1 insertion(+), 1 deletion(-)",
+      "diff_truncated": false
+    }
+  ],
+  "transient_commits": [],
+  "transient_verified": true
+}

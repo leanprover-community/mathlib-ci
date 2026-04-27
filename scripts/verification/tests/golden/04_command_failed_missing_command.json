@@ -1,0 +1,25 @@
+{
+  "success": false,
+  "substantive_commits": [
+    {
+      "sha": "<SHA>",
+      "short": "<SHA>",
+      "subject": "feat: substantive change"
+    }
+  ],
+  "auto_commits": [
+    {
+      "sha": "<SHA>",
+      "short": "<SHA>",
+      "subject": "x: this_command_does_not_exist_xyzzy --flag",
+      "command": "this_command_does_not_exist_xyzzy --flag",
+      "verified": false,
+      "failure_kind": "command_failed",
+      "exit_code": 127,
+      "output_excerpt": "bash: this_command_does_not_exist_xyzzy: command not found",
+      "output_truncated": false
+    }
+  ],
+  "transient_commits": [],
+  "transient_verified": true
+}

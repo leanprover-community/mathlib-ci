@@ -1,0 +1,49 @@
+{
+  "success": false,
+  "substantive_commits": [
+    {
+      "sha": "<SHA>",
+      "short": "<SHA>",
+      "subject": "feat: substantive change"
+    }
+  ],
+  "auto_commits": [
+    {
+      "sha": "<SHA>",
+      "short": "<SHA>",
+      "subject": "x: echo one > b.txt",
+      "command": "echo one > b.txt",
+      "verified": true
+    },
+    {
+      "sha": "<SHA>",
+      "short": "<SHA>",
+      "subject": "x: missing_command_xyzzy",
+      "command": "missing_command_xyzzy",
+      "verified": false,
+      "failure_kind": "command_failed",
+      "exit_code": 127,
+      "output_excerpt": "bash: missing_command_xyzzy: command not found",
+      "output_truncated": false
+    },
+    {
+      "sha": "<SHA>",
+      "short": "<SHA>",
+      "subject": "x: echo three > d.txt",
+      "command": "echo three > d.txt",
+      "verified": false,
+      "failure_kind": "tree_mismatch",
+      "diff_excerpt": " d.txt | 2 +-\n 1 file changed, 1 insertion(+), 1 deletion(-)",
+      "diff_truncated": false
+    },
+    {
+      "sha": "<SHA>",
+      "short": "<SHA>",
+      "subject": "x: echo four > e.txt",
+      "command": "echo four > e.txt",
+      "verified": true
+    }
+  ],
+  "transient_commits": [],
+  "transient_verified": true
+}

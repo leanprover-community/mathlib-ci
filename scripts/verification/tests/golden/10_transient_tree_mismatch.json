@@ -1,0 +1,22 @@
+{
+  "success": false,
+  "substantive_commits": [
+    {
+      "sha": "<SHA>",
+      "short": "<SHA>",
+      "subject": "feat: substantive change"
+    }
+  ],
+  "auto_commits": [],
+  "transient_commits": [
+    {
+      "sha": "<SHA>",
+      "short": "<SHA>",
+      "subject": "transient: add scratch file"
+    }
+  ],
+  "transient_verified": false,
+  "transient_failure_kind": "tree_mismatch",
+  "transient_diff_excerpt": " tmp.txt | 1 +\n 1 file changed, 1 insertion(+)",
+  "transient_diff_truncated": false
+}

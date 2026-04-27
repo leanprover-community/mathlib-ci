@@ -1,0 +1,13 @@
+{
+  "success": true,
+  "substantive_commits": [
+    {
+      "sha": "<SHA>",
+      "short": "<SHA>",
+      "subject": "feat: add a thing"
+    }
+  ],
+  "auto_commits": [],
+  "transient_commits": [],
+  "transient_verified": true
+}
