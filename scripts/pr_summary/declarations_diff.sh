@@ -169,15 +169,18 @@ fi
 printf $'<details>
   <summary>You can run this locally as follows</summary>\n\n
 ```bash
+## from your `mathlib4` directory:
+git clone https://github.com/leanprover-community/mathlib-ci.git ../mathlib-ci
+
 ## summary with just the declaration names:
-./scripts/pr_summary/declarations_diff.sh <optional_commit>
+../mathlib-ci/scripts/pr_summary/declarations_diff.sh <optional_commit>
 
 ## more verbose report:
-./scripts/pr_summary/declarations_diff.sh long <optional_commit>
+../mathlib-ci/scripts/pr_summary/declarations_diff.sh long <optional_commit>
 ```
 </details>
 
-The doc-module for `scripts/pr_summary/declarations_diff.sh` contains some details about this script.'
+The doc-module for `scripts/pr_summary/declarations_diff.sh` in the [`mathlib-ci`](https://github.com/leanprover-community/mathlib-ci) repository contains some details about this script.'
 
  : <<ReferenceTest
 theorem oh hello
