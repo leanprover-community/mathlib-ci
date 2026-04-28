@@ -7,6 +7,7 @@ target_sha=${TARGET_SHA:-${SHA:-${GITHUB_SHA}}}
 workflow_repo=${WORKFLOW_REPO:-${REPO:-${GITHUB_REPOSITORY}}}
 workflow_run_id=${WORKFLOW_RUN_ID:-${RUN_ID:-${GITHUB_RUN_ID}}}
 workflow_name=${WORKFLOW:-${GITHUB_WORKFLOW}}
+info=${INFO:-false}
 
 # Skip the lines about build progress.
 filtered_out=$(grep -v '^✔' "${lean_outfile}" | grep -v '^trace: ')
@@ -38,6 +39,8 @@ if warning_lines=$(grep '^warning: ' <<<"${filtered_out}"); then
   echo "$(wc -l <<<"${warning_lines}") lines of warnings" >&2
 fi
 if info_lines=$(grep '^info: ' <<<"${filtered_out}" | grep -v 'PANIC at '); then
+  # shellcheck disable=SC2001 # The sed version is (hours!) faster than native Bash string manipulation.
+  info_descriptions=$(sed 's/^info: [^:]*:[0-9]*:[0-9]*: //' <<<"${info_lines}")
   counts+=( "$(printf 'Info messages: %d' "$(wc -l <<<"${info_lines}")")" )
   echo "$(wc -l <<<"${info_lines}") lines of info" >&2
 fi
@@ -81,6 +84,15 @@ if [ -n "${warning_lines}" ]; then
   echo "| | Warning description |"
   echo "| ---: | --- |"
   sort <<<"${warning_descriptions}" | uniq -c | sort -bgr | sed 's/^\( *[0-9][0-9]*\) \(.*\)$/| \1 | \2 |/'
+  echo "\`\`\`"
+  echo
+fi
+
+if [ -n "${info_lines}" ] && [ "${info}" != "false" ]; then
+  echo "\`\`\`spoiler Info message counts"
+  echo "| | Info message |"
+  echo "| ---: | --- |"
+  sort <<<"${info_descriptions}" | uniq -c | sort -bgr | sed 's/^\( *[0-9][0-9]*\) \(.*\)$/| \1 | \2 |/'
   echo "\`\`\`"
   echo
 fi
