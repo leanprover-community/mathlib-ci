@@ -136,6 +136,8 @@ doubleDeprecs="$(git grep -A2 -- "set_option linter.deprecated false" -- ":^Math
 
 printf '%s|disabled deprecation lints\n' "$(( deprecs - doubleDeprecs ))"
 
+printf '%s|%s\n' "$({ git grep -c 'set_option warning.simp.varHead false' -- Mathlib Archive Counterexamples || true; } | awk -F: 'BEGIN{s=0}{s+=$2} END{print s}')" "disabled varHead simp warnings"
+
 printf '%s|%s\n' "$(grep -c 'docBlame' scripts/nolints.json)" "documentation nolint entries"
 printf '%s|%s\n' "$(grep -c 'tacticDocs' scripts/nolints.json)" "undocumented tactics"
 # We count the number of large files, making sure to avoid counting the test file `MathlibTest/Lint.lean`.
