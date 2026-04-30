@@ -62,8 +62,8 @@ if [[ "$branch_name" =~ ^$branch_prefix-([0-9]+)$ ]]; then
     -H "X-GitHub-Api-Version: 2022-11-28" \
     $repo_url/issues/$pr_number/labels | jq 'map(.name) | contains(["awaiting-mathlib"])')
 
-  # Perform actions based on outcomes (same logic as before)
-  if [ "$TEST_OUTCOME" == "success" ]; then
+  # Perform actions based on outcomes
+  if [ "$BUILD_OUTCOME" == "success" ] && [ "$NOISY_OUTCOME" == "success" ] && [ "$ARCHIVE_OUTCOME" == "success" ] && [ "$COUNTEREXAMPLES_OUTCOME" == "success" ] && [ "$LINT_OUTCOME" == "success" ] && [ "$TEST_OUTCOME" == "success" ]; then
     echo "Removing label awaiting-mathlib"
     curl -L -s \
       -X DELETE \
@@ -108,7 +108,7 @@ if [[ "$branch_name" =~ ^$branch_prefix-([0-9]+)$ ]]; then
   # Depending on the success/failure, set the appropriate message
   if [ "$LINT_OUTCOME" == "cancelled" ] || [ "$TEST_OUTCOME" == "cancelled" ] || [ "$COUNTEREXAMPLES_OUTCOME" == "cancelled" ] || [ "$ARCHIVE_OUTCOME" == "cancelled" ] || [ "$NOISY_OUTCOME" == "cancelled" ] || [ "$BUILD_OUTCOME" == "cancelled" ]; then
     message="- 🟡 Mathlib branch $branch build against this PR was cancelled. ($current_time) [View Log]($WORKFLOW_URL)"
-  elif [ "$TEST_OUTCOME" == "success" ]; then
+  elif [ "$BUILD_OUTCOME" == "success" ] && [ "$NOISY_OUTCOME" == "success" ] && [ "$ARCHIVE_OUTCOME" == "success" ] && [ "$COUNTEREXAMPLES_OUTCOME" == "success" ] && [ "$LINT_OUTCOME" == "success" ] && [ "$TEST_OUTCOME" == "success" ]; then
     message="- ✅ Mathlib branch $branch has successfully built against this PR. ($current_time) [View Log]($WORKFLOW_URL)"
   elif [ "$BUILD_OUTCOME" == "failure" ]; then
     message="- 💥 Mathlib branch $branch build failed against this PR. ($current_time) [View Log]($WORKFLOW_URL)"
