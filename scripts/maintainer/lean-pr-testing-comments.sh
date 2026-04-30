@@ -62,69 +62,97 @@ if [[ "$branch_name" =~ ^$branch_prefix-([0-9]+)$ ]]; then
     -H "X-GitHub-Api-Version: 2022-11-28" \
     $repo_url/issues/$pr_number/labels | jq 'map(.name) | contains(["awaiting-mathlib"])')
 
-  # Perform actions based on outcomes
-  if [ "$BUILD_OUTCOME" == "success" ] && [ "$NOISY_OUTCOME" == "success" ] && [ "$ARCHIVE_OUTCOME" == "success" ] && [ "$COUNTEREXAMPLES_OUTCOME" == "success" ] && [ "$LINT_OUTCOME" == "success" ] && [ "$TEST_OUTCOME" == "success" ]; then
-    echo "Removing label awaiting-mathlib"
-    curl -L -s \
-      -X DELETE \
-      -H "Accept: application/vnd.github+json" \
-      -H "Authorization: Bearer $TOKEN" \
-      -H "X-GitHub-Api-Version: 2022-11-28" \
-      $repo_url/issues/$pr_number/labels/awaiting-mathlib
-    echo "Removing label breaks-mathlib"
-    curl -L -s \
-      -X DELETE \
-      -H "Accept: application/vnd.github+json" \
-      -H "Authorization: Bearer $TOKEN" \
-      -H "X-GitHub-Api-Version: 2022-11-28" \
-      $repo_url/issues/$pr_number/labels/breaks-mathlib
-    echo "Adding label builds-mathlib"
-    curl -L -s \
-      -X POST \
-      -H "Accept: application/vnd.github+json" \
-      -H "Authorization: Bearer $TOKEN" \
-      -H "X-GitHub-Api-Version: 2022-11-28" \
-      $repo_url/issues/$pr_number/labels \
-      -d '{"labels":["builds-mathlib"]}'
-  elif [ "$LINT_OUTCOME" == "failure" ] || [ "$TEST_OUTCOME" == "failure" ] || [ "$COUNTEREXAMPLES_OUTCOME" == "failure" ] || [ "$ARCHIVE_OUTCOME" == "failure" ] || [ "$NOISY_OUTCOME" == "failure" ] || [ "$BUILD_OUTCOME" == "failure" ]; then
-    echo "Removing label builds-mathlib"
-    curl -L -s \
-      -X DELETE \
-      -H "Accept: application/vnd.github+json" \
-      -H "Authorization: Bearer $TOKEN" \
-      -H "X-GitHub-Api-Version: 2022-11-28" \
-      $repo_url/issues/$pr_number/labels/builds-mathlib
-    echo "Adding label breaks-mathlib"
-    curl -L -s \
-      -X POST \
-      -H "Accept: application/vnd.github+json" \
-      -H "Authorization: Bearer $TOKEN" \
-      -H "X-GitHub-Api-Version: 2022-11-28" \
-      $repo_url/issues/$pr_number/labels \
-      -d '{"labels":["breaks-mathlib"]}'
+  # Classify the run into one aggregate state, so labels and the status
+  # comment cannot disagree. `failure` beats `cancelled` so a mixed run is
+  # reported as breaking; everything that is neither all-success nor a failure
+  # (cancelled, skipped, empty) clears both labels rather than leaving a stale
+  # one from an earlier run.
+  outcomes=("$BUILD_OUTCOME" "$NOISY_OUTCOME" "$ARCHIVE_OUTCOME" "$COUNTEREXAMPLES_OUTCOME" "$LINT_OUTCOME" "$TEST_OUTCOME")
+  any_failure=false
+  any_cancelled=false
+  all_success=true
+  for outcome in "${outcomes[@]}"; do
+    if [ "$outcome" == "failure" ]; then any_failure=true; fi
+    if [ "$outcome" == "cancelled" ]; then any_cancelled=true; fi
+    if [ "$outcome" != "success" ]; then all_success=false; fi
+  done
+
+  if $all_success; then
+    state="success"
+  elif $any_failure; then
+    state="failure"
+  elif $any_cancelled; then
+    state="cancelled"
+  else
+    state="other"
   fi
 
+  remove_label() {
+    echo "Removing label $1"
+    curl -L -s \
+      -X DELETE \
+      -H "Accept: application/vnd.github+json" \
+      -H "Authorization: Bearer $TOKEN" \
+      -H "X-GitHub-Api-Version: 2022-11-28" \
+      "$repo_url/issues/$pr_number/labels/$1"
+  }
+  add_label() {
+    echo "Adding label $1"
+    curl -L -s \
+      -X POST \
+      -H "Accept: application/vnd.github+json" \
+      -H "Authorization: Bearer $TOKEN" \
+      -H "X-GitHub-Api-Version: 2022-11-28" \
+      "$repo_url/issues/$pr_number/labels" \
+      -d "$(jq --null-input --arg name "$1" '{labels: [$name]}')"
+  }
+
+  case "$state" in
+    success)
+      remove_label awaiting-mathlib
+      remove_label breaks-mathlib
+      add_label builds-mathlib
+      ;;
+    failure)
+      remove_label builds-mathlib
+      add_label breaks-mathlib
+      ;;
+    cancelled|other)
+      remove_label builds-mathlib
+      remove_label breaks-mathlib
+      ;;
+  esac
+
   branch="[$branch_prefix-$pr_number](https://github.com/$NIGHTLY_TESTING_REPO/compare/$base_branch...$branch_prefix-$pr_number)"
-  # Depending on the success/failure, set the appropriate message
-  if [ "$LINT_OUTCOME" == "cancelled" ] || [ "$TEST_OUTCOME" == "cancelled" ] || [ "$COUNTEREXAMPLES_OUTCOME" == "cancelled" ] || [ "$ARCHIVE_OUTCOME" == "cancelled" ] || [ "$NOISY_OUTCOME" == "cancelled" ] || [ "$BUILD_OUTCOME" == "cancelled" ]; then
-    message="- 🟡 Mathlib branch $branch build against this PR was cancelled. ($current_time) [View Log]($WORKFLOW_URL)"
-  elif [ "$BUILD_OUTCOME" == "success" ] && [ "$NOISY_OUTCOME" == "success" ] && [ "$ARCHIVE_OUTCOME" == "success" ] && [ "$COUNTEREXAMPLES_OUTCOME" == "success" ] && [ "$LINT_OUTCOME" == "success" ] && [ "$TEST_OUTCOME" == "success" ]; then
-    message="- ✅ Mathlib branch $branch has successfully built against this PR. ($current_time) [View Log]($WORKFLOW_URL)"
-  elif [ "$BUILD_OUTCOME" == "failure" ]; then
-    message="- 💥 Mathlib branch $branch build failed against this PR. ($current_time) [View Log]($WORKFLOW_URL)"
-  elif [ "$LINT_OUTCOME" == "failure" ]; then
-    message="- ❌ Mathlib branch $branch built against this PR, but linting failed. ($current_time) [View Log]($WORKFLOW_URL)"
-  elif [ "$COUNTEREXAMPLES_OUTCOME" == "failure" ]; then
-    message="- ❌ Mathlib branch $branch built against this PR, but the counterexamples library failed. ($current_time) [View Log]($WORKFLOW_URL)"
-  elif [ "$ARCHIVE_OUTCOME" == "failure" ]; then
-    message="- ❌ Mathlib branch $branch built against this PR, but the archive failed. ($current_time) [View Log]($WORKFLOW_URL)"
-  elif [ "$NOISY_OUTCOME" == "failure" ]; then
-    message="- ❌ Mathlib branch $branch built against this PR, but was unexpectedly noisy. ($current_time) [View Log]($WORKFLOW_URL)"
-  elif [ "$TEST_OUTCOME" == "failure" ]; then
-    message="- ❌ Mathlib branch $branch built against this PR, but testing failed. ($current_time) [View Log]($WORKFLOW_URL)"
-  else
-    message="- 🟡 Mathlib branch $branch build this PR didn't complete normally. ($current_time) [View Log]($WORKFLOW_URL)"
-  fi
+  case "$state" in
+    success)
+      message="- ✅ Mathlib branch $branch has successfully built against this PR. ($current_time) [View Log]($WORKFLOW_URL)"
+      ;;
+    failure)
+      # Pick the most informative failure message. Order matches the
+      # historical precedence: build > lint > counterexamples > archive >
+      # noisy > test.
+      if [ "$BUILD_OUTCOME" == "failure" ]; then
+        message="- 💥 Mathlib branch $branch build failed against this PR. ($current_time) [View Log]($WORKFLOW_URL)"
+      elif [ "$LINT_OUTCOME" == "failure" ]; then
+        message="- ❌ Mathlib branch $branch built against this PR, but linting failed. ($current_time) [View Log]($WORKFLOW_URL)"
+      elif [ "$COUNTEREXAMPLES_OUTCOME" == "failure" ]; then
+        message="- ❌ Mathlib branch $branch built against this PR, but the counterexamples library failed. ($current_time) [View Log]($WORKFLOW_URL)"
+      elif [ "$ARCHIVE_OUTCOME" == "failure" ]; then
+        message="- ❌ Mathlib branch $branch built against this PR, but the archive failed. ($current_time) [View Log]($WORKFLOW_URL)"
+      elif [ "$NOISY_OUTCOME" == "failure" ]; then
+        message="- ❌ Mathlib branch $branch built against this PR, but was unexpectedly noisy. ($current_time) [View Log]($WORKFLOW_URL)"
+      else
+        message="- ❌ Mathlib branch $branch built against this PR, but testing failed. ($current_time) [View Log]($WORKFLOW_URL)"
+      fi
+      ;;
+    cancelled)
+      message="- 🟡 Mathlib branch $branch build against this PR was cancelled. ($current_time) [View Log]($WORKFLOW_URL)"
+      ;;
+    other)
+      message="- 🟡 Mathlib branch $branch build this PR didn't complete normally. ($current_time) [View Log]($WORKFLOW_URL)"
+      ;;
+  esac
 
   echo "$message"
 
