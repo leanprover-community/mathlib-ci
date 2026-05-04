@@ -137,7 +137,7 @@ deprecs="$(git grep -c -- "set_option linter.deprecated false" -- ":^Mathlib/Dep
 doubleDeprecs="$(git grep -A2 -- "set_option linter.deprecated false" -- ":^Mathlib/Deprecated" |
   grep -c "deprecated .*(since")"
 
-printf '%s|disabled deprecation lints|strong\n' "$(( deprecs - doubleDeprecs ))"
+printf '%s|disabled deprecation lints|weak\n' "$(( deprecs - doubleDeprecs ))" # TODO: upgrade to strong after false positives are fixed, https://github.com/leanprover/lean4/pull/13595
 
 printf '%s|%s|strong\n' "$({ git grep -c 'set_option warning.simp.varHead false' -- Mathlib Archive Counterexamples || true; } | awk -F: 'BEGIN{s=0}{s+=$2} END{print s}')" "disabled varHead simp warnings"
 
