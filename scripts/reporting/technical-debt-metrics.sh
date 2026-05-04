@@ -70,50 +70,53 @@ computeDiff () {
 
 # `tdc` produces a semi-formatted output of the form
 # ...
-# <number>|description
+# <number>|description|level
 # ...
 # summarizing technical debts in Mathlib.
 # The script uses the fact that a line represents a technical debt if and only if the text before
 # the first `|` is a number.  This is then used for comparison and formatting.
+# The "level" field can be "strong" or "weak", indicating if we allow the number to increase between commits or not.
 tdc () {
 # We perform word-splitting "by hand" in the "middle" entries.
 # See also the comment on the `read` line in the for-loop that follows the definition of this array.
 titlesPathsAndRegexes=(
-  "porting notes"                  "*"      "Porting note"
-  "flexible linter exceptions"     ":^MathlibTest"      "set_option linter.flexible"
+  "porting notes"                  "*"      "Porting note" "strong"
+  "flexible linter exceptions"     ":^MathlibTest"      "set_option linter.flexible" "weak"
   "adaptation notes"               ":^Mathlib/Tactic/AdaptationNote.lean :^Mathlib/Tactic/Linter"
-                                            "^[· ]*#adaptation_note"
-  "disabled simpNF lints"          "*"      "nolint simpNF"
-  "erw"                            "*"      "erw \["
-  "maxHeartBeats modifications"    ":^MathlibTest" "^ *set_option .*maxHeartbeats.* [0-9][0-9]*"
-  "CommRing (Fin n) instances"     "*"      "^open Fin.CommRing "
-  "NatCast (Fin n) instances"      "*"      "^open Fin.NatCast "
-  "exposed public sections"        "*"      "^@\[expose\] public (meta |noncomputable )*section"
+                                            "^[· ]*#adaptation_note" "strong"
+  "disabled simpNF lints"          "*"      "nolint simpNF" "strong"
+  "erw"                            "*"      "erw \[" "strong"
+  "maxHeartBeats modifications"    ":^MathlibTest" "^ *set_option .*maxHeartbeats.* [0-9][0-9]*" "strong"
+  "CommRing (Fin n) instances"     "*"      "^open Fin.CommRing " "strong"
+  "NatCast (Fin n) instances"      "*"      "^open Fin.NatCast " "strong"
+  "exposed public sections"        "*"      "^@\[expose\] public (meta |noncomputable )*section" "weak"
 )
 
 for i in ${!titlesPathsAndRegexes[@]}; do
-  # loop on every 3rd entry and name that entry and the following two
-  if (( i % 3 == 0 )); then
+  # loop on every 4th entry and name those 4 entries
+  if (( i % 4 == 0 )); then
     title="${titlesPathsAndRegexes[$i]}"
     # Here we perform word-splitting: `pathspec` is an array whose entries are the "words" in
     # the string `"${titlesPathsAndRegexes[$(( i + 1 ))]}"`.
     read -r -a pathspec <<< "${titlesPathsAndRegexes[$(( i + 1 ))]}"
     regex="${titlesPathsAndRegexes[$(( i + 2 ))]}"
+    level="${titlesPathsAndRegexes[$(( i + 3 ))]}"
     if [ "${title}" == "porting notes" ]
     then fl="-i"  # just for porting notes we ignore the case in the regex
     else fl="--"
     fi
-    printf '%s|%s\n' "$(git grep "${fl}" "${regex}" -- ":^scripts" "${pathspec[@]}" | wc -l)" "${title}"
+    printf '%s|%s|%s\n' "$(git grep "${fl}" "${regex}" -- ":^scripts" "${pathspec[@]}" | wc -l)" "${title}" "${level}"
   fi
 done
 
 # Dynamic breakdown of backwards compatibility flags by individual option
 for flag in $({ git grep -oh -e 'set_option backward\.[A-Za-z0-9_.]*' -- ':^scripts' || true; } |
                sed 's/set_option //' | sort -u); do
-  printf '%s|%s\n' \
+  printf '%s|%s|%s\n' \
     "$({ git grep -Fc -e "set_option ${flag} " -- ':^scripts' || true; } |
       awk -F: 'BEGIN{s=0}{s+=$2} END{print s}')" \
-    "${flag}"
+    "${flag}" \
+    "strong"
 done
 
 # count simp +instances and dsimp +instances
@@ -122,8 +125,8 @@ simpPlusInstances="$({ git grep -e 'simp \([+-][^ ]* *\)*+instances' -- ':^scrip
   grep -v 'dsimp' | wc -l)"
 dsimpPlusInstances="$({ git grep -c -e 'dsimp \([+-][^ ]* *\)*+instances' -- ':^scripts' || true; } |
   awk -F: 'BEGIN{s=0}{s+=$2} END{print s}')"
-printf '%s|simp +instances\n' "${simpPlusInstances}"
-printf '%s|dsimp +instances\n' "${dsimpPlusInstances}"
+printf '%s|simp +instances|weak\n' "${simpPlusInstances}"
+printf '%s|dsimp +instances|weak\n' "${dsimpPlusInstances}"
 
 # count total number of `set_option linter.deprecated false` outside of `Mathlib/Deprecated`
 deprecs="$(git grep -c -- "set_option linter.deprecated false" -- ":^Mathlib/Deprecated" |
@@ -134,49 +137,81 @@ deprecs="$(git grep -c -- "set_option linter.deprecated false" -- ":^Mathlib/Dep
 doubleDeprecs="$(git grep -A2 -- "set_option linter.deprecated false" -- ":^Mathlib/Deprecated" |
   grep -c "deprecated .*(since")"
 
-printf '%s|disabled deprecation lints\n' "$(( deprecs - doubleDeprecs ))"
+printf '%s|disabled deprecation lints|strong\n' "$(( deprecs - doubleDeprecs ))"
 
-printf '%s|%s\n' "$({ git grep -c 'set_option warning.simp.varHead false' -- Mathlib Archive Counterexamples || true; } | awk -F: 'BEGIN{s=0}{s+=$2} END{print s}')" "disabled varHead simp warnings"
+printf '%s|%s|strong\n' "$({ git grep -c 'set_option warning.simp.varHead false' -- Mathlib Archive Counterexamples || true; } | awk -F: 'BEGIN{s=0}{s+=$2} END{print s}')" "disabled varHead simp warnings"
 
-printf '%s|%s\n' "$(grep -c 'docBlame' scripts/nolints.json)" "documentation nolint entries"
-printf '%s|%s\n' "$(grep -c 'tacticDocs' scripts/nolints.json)" "undocumented tactics"
+printf '%s|%s|strong\n' "$(grep -c 'docBlame' scripts/nolints.json)" "documentation nolint entries"
+printf '%s|%s|strong\n' "$(grep -c 'tacticDocs' scripts/nolints.json)" "undocumented tactics"
 # We count the number of large files, making sure to avoid counting the test file `MathlibTest/Lint.lean`.
-printf '%s|%s\n' "$(git grep '^set_option linter.style.longFile [0-9]*' Mathlib | wc -l)" "large files"
+printf '%s|%s|weak\n' "$(git grep '^set_option linter.style.longFile [0-9]*' Mathlib | wc -l)" "large files"
 
-printf '%s|%s\n' "$(wc -l < scripts/nolints_prime_decls.txt)" "exceptions for the docPrime linter"
+printf '%s|%s|strong\n' "$(wc -l < scripts/nolints_prime_decls.txt)" "exceptions for the docPrime linter"
 
 deprecatedFiles="$(git ls-files '**/Deprecated/*.lean' | xargs wc -l | sed 's=^ *==')"
 
-printf '%s|%s\n' "$(printf '%s' "${deprecatedFiles}" | wc -l)" "\`Deprecated\` files"
-printf '%s|%s\n\n' "$(printf '%s\n' "${deprecatedFiles}" | grep total | sed 's= total==')"  'total LoC in `Deprecated` files'
+printf '%s|%s|weak\n' "$(printf '%s' "${deprecatedFiles}" | wc -l)" "\`Deprecated\` files"
+printf '%s|%s|weak\n\n' "$(printf '%s\n' "${deprecatedFiles}" | grep total | sed 's= total==')"  'total LoC in `Deprecated` files'
 }
 
+# `report $level` reports the differnece in tech debt at indicated level (weak / strong).
 report () {
+level=${1}
 
 # Collect the technical debt metrics and the line counts of all deprecated files from current mathlib.
 git checkout -q "${currCommit}"
-new="$(tdc)"
+new="$(tdc | grep "\|${level}$")"
 newDeprecatedFiles="$(git ls-files '**/Deprecated/*.lean' | xargs wc -l | sed 's=^ *==')"
 git switch -q -
 
 # collect the technical debts and the line counts of the deprecated file from the reference mathlib
 git checkout -q "${refCommit}"
-old="$(tdc | sed 's=^[0-9]=-&=')"
+old="$(tdc | sed 's=^[0-9]=-&=' | grep "\|${level}$")"
 oldDeprecatedFiles="$(git ls-files '**/Deprecated/*.lean' | xargs wc -l | sed 's=^ *=-=')"
 git switch -q -
 
 printf '|Current number|Change|Type|\n|-:|:-:|:-|\n'
 printf '%s\n%s\n' "${old}" "${new}" | computeDiff -
-deprSummary="$(printf '%s\n%s\n' "${oldDeprecatedFiles}" "${newDeprecatedFiles}" | tr ' ' '|' | computeDiff -)"
 
-printf $'```spoiler Changed \'Deprecated\' lines by file\n%s\n```\n' "$(
-    printf '%s\n' "${deprSummary}" | awk -F'|' 'BEGIN{print("|LoC|Change|File|\n|-:|:-:|-|")}
-    ($4 == "total") {total=$0}
-    (!($4 == "total")) {
-      printf("%s\n", $0)
-    } END {printf("%s\n", total)}'
-  )"
+# Deprecated files count as weak tech debt.
+if [[ "${level}" == "weak" ]]; then
+  deprSummary="$(printf '%s\n%s\n' "${oldDeprecatedFiles}" "${newDeprecatedFiles}" | tr ' ' '|' | computeDiff -)"
 
+  printf $'```spoiler Changed \'Deprecated\' lines by file\n%s\n```\n' "$(
+      printf '%s\n' "${deprSummary}" | awk -F'|' 'BEGIN{print("|LoC|Change|File|\n|-:|:-:|-|")}
+      ($4 == "total") {total=$0}
+      (!($4 == "total")) {
+        printf("%s\n", $0)
+      } END {printf("%s\n", total)}'
+    )"
+fi
+}
+
+prSummaryReport () {
+  level="${1}"
+  rep="${2}"
+
+  if [ "$(wc -l <<<"${rep}")" -le 5 ]
+  then
+    printf '<details><summary>No changes to %s technical debt.</summary>\n' "${level}"
+    return 1
+  else
+    printf '%s\n' "${rep}" |  # outputs lines containing `|Current number|Change|Type|`, so
+      # `$2` refers to `Current number` and `$3` to `Change`.
+    awk -F '|' -v rep="${rep}" '
+    BEGIN{total=0; weight=0; absWeight=0}
+    {absWeight+=$3+0}
+    (($3+0 == $3) && (!($2+0 == 0))) {total+=1 / $2; weight+=$3 / $2}
+    END{
+      if (total == 0) {average=absWeight} else {average=weight/total}
+        if(average < 0) {change= "Decrease"; average=-average; weight=-weight} else {change= "Increase"}
+        printf("<details><summary>%s in '"${level}"' tech debt: (relative, absolute) = (%4.2f, %4.2f)</summary>\n\n%s\n", change, average, weight, rep) }'
+        return 0
+  fi
+}
+
+# What to print at the end of a set of reports.
+reportFooter () {
 baseURL='https://github.com/leanprover-community/mathlib4/commit'
 printf '\nCurrent commit [%s](%s)\n' "${currCommit:0:10}" "${baseURL}/${currCommit}"
 printf 'Reference commit [%s](%s)\n' "${refCommit:0:10}"  "${baseURL}/${refCommit}"
@@ -184,26 +219,29 @@ printf 'Reference commit [%s](%s)\n' "${refCommit:0:10}"  "${baseURL}/${refCommi
 
 if [ "${1:-}" == "pr_summary" ]
 then
-  rep="$(report | awk -F'|' 'BEGIN{backTicks=0} /^```/{backTicks++} ((!/^```/) && (backTicks % 2 == 0) && !($3 == "0")) {print $0}')"
-  if [ "$(wc -l <<<"${rep}")" -le 5 ]
-  then
-    printf '<details><summary>No changes to technical debt.</summary>\n'
-  else
-    printf '%s\n' "${rep}" |  # outputs lines containing `|Current number|Change|Type|`, so
-                              # `$2` refers to `Current number` and `$3` to `Change`.
-      awk -F '|' -v rep="${rep}" '
-        BEGIN{total=0; weight=0; absWeight=0}
-        {absWeight+=$3+0}
-        (($3+0 == $3) && (!($2+0 == 0))) {total+=1 / $2; weight+=$3 / $2}
-        END{
-          if (total == 0) {average=absWeight} else {average=weight/total}
-          if(average < 0) {change= "Decrease"; average=-average; weight=-weight} else {change= "Increase"}
-          printf("<details><summary>%s in tech debt: (relative, absolute) = (%4.2f, %4.2f)</summary>\n\n%s\n", change, average, weight, rep) }'
+  alreadyPrintedFooter="false"
+
+  repStrong="$(report strong | awk -F'|' 'BEGIN{backTicks=0} /^```/{backTicks++} ((!/^```/) && (backTicks % 2 == 0) && !($3 == "0")) {print $0}')"
+  repWeak="$(report weak | awk -F'|' 'BEGIN{backTicks=0} /^```/{backTicks++} ((!/^```/) && (backTicks % 2 == 0) && !($3 == "0")) {print $0}')"
+  if prSummaryReport strong "${repStrong}"; then
+    reportFooter
+    printf '\nThis script lives in the [`mathlib-ci`](https://github.com/leanprover-community/mathlib-ci) repository. To run it locally, from your `mathlib4` directory:\n```\ngit clone https://github.com/leanprover-community/mathlib-ci.git ../mathlib-ci\n../mathlib-ci/scripts/reporting/technical-debt-metrics.sh pr_summary\n```\n%s\n</details>\n' '* The `relative` value is the weighted *sum* of the differences with weight given by the *inverse* of the current value of the statistic.
+  * The `absolute` value is the `relative` value divided by the total sum of the inverses of the current values (i.e. the weighted *average* of the differences).'
+    alreadyPrintedFooter="true"
   fi
-  printf '\nThis script lives in the [`mathlib-ci`](https://github.com/leanprover-community/mathlib-ci) repository. To run it locally, from your `mathlib4` directory:\n```\ngit clone https://github.com/leanprover-community/mathlib-ci.git ../mathlib-ci\n../mathlib-ci/scripts/reporting/technical-debt-metrics.sh pr_summary\n```\n%s\n</details>\n' '* The `relative` value is the weighted *sum* of the differences with weight given by the *inverse* of the current value of the statistic.
-* The `absolute` value is the `relative` value divided by the total sum of the inverses of the current values (i.e. the weighted *average* of the differences).'
+  if prSummaryReport weak "${repWeak}"; then
+    reportFooter
+    if [[ "${alreadyPrintedFooter}" == "true" ]]; then
+      printf '</details>\n'
+    else
+      printf '\nThis script lives in the [`mathlib-ci`](https://github.com/leanprover-community/mathlib-ci) repository. To run it locally, from your `mathlib4` directory:\n```\ngit clone https://github.com/leanprover-community/mathlib-ci.git ../mathlib-ci\n../mathlib-ci/scripts/reporting/technical-debt-metrics.sh pr_summary\n```\n%s\n</details>\n' '* The `relative` value is the weighted *sum* of the differences with weight given by the *inverse* of the current value of the statistic.
+  * The `absolute` value is the `relative` value divided by the total sum of the inverses of the current values (i.e. the weighted *average* of the differences).'
+    fi
+  fi
 else
-  report
+  report strong
+  report weak
+  reportFooter
 fi
 
 # These last two lines are needed to make the script robust against changes on disk
