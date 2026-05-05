@@ -89,12 +89,21 @@ if [[ "$branch_name" =~ ^$branch_prefix-([0-9]+)$ ]]; then
 
   remove_label() {
     echo "Removing label $1"
-    curl -L -sS --fail-with-body \
+    # GitHub returns 404 when the label isn't currently on the PR; that's the
+    # desired post-condition, so accept it. curl exits 22 on any 4xx with
+    # --fail-with-body, so we have to inspect the status code ourselves.
+    local http_code
+    http_code=$(curl -L -sS \
+      -o /dev/null -w "%{http_code}" \
       -X DELETE \
       -H "Accept: application/vnd.github+json" \
       -H "Authorization: Bearer $TOKEN" \
       -H "X-GitHub-Api-Version: 2022-11-28" \
-      "$repo_url/issues/$pr_number/labels/$1"
+      "$repo_url/issues/$pr_number/labels/$1")
+    case "$http_code" in
+      200|404) ;;
+      *) echo "Failed to remove label $1: HTTP $http_code" >&2; return 1 ;;
+    esac
   }
   add_label() {
     echo "Adding label $1"
