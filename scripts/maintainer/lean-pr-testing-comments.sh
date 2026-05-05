@@ -56,7 +56,7 @@ if [[ "$branch_name" =~ ^$branch_prefix-([0-9]+)$ ]]; then
   echo "This is a '$branch_prefix-$pr_number' branch, so we need to adjust labels and write a comment."
 
   # Check if the PR has an awaiting-mathlib label
-  has_awaiting_label=$(curl -L -s \
+  has_awaiting_label=$(curl -L -sS --fail-with-body \
     -H "Accept: application/vnd.github+json" \
     -H "Authorization: Bearer $TOKEN" \
     -H "X-GitHub-Api-Version: 2022-11-28" \
@@ -89,7 +89,7 @@ if [[ "$branch_name" =~ ^$branch_prefix-([0-9]+)$ ]]; then
 
   remove_label() {
     echo "Removing label $1"
-    curl -L -s \
+    curl -L -sS --fail-with-body \
       -X DELETE \
       -H "Accept: application/vnd.github+json" \
       -H "Authorization: Bearer $TOKEN" \
@@ -98,7 +98,7 @@ if [[ "$branch_name" =~ ^$branch_prefix-([0-9]+)$ ]]; then
   }
   add_label() {
     echo "Adding label $1"
-    curl -L -s \
+    curl -L -sS --fail-with-body \
       -X POST \
       -H "Accept: application/vnd.github+json" \
       -H "Authorization: Bearer $TOKEN" \
@@ -161,7 +161,7 @@ if [[ "$branch_name" =~ ^$branch_prefix-([0-9]+)$ ]]; then
     # Always post as a new comment if awaiting-mathlib label is present
     intro="Mathlib CI status ([docs](https://leanprover-community.github.io/contribute/tags_and_branches.html)):"
     echo "Posting as a separate comment due to awaiting-mathlib label at $repo_url/issues/$pr_number/comments"
-    curl -L -s \
+    curl -L -sS --fail-with-body \
       -X POST \
       -H "Authorization: token $TOKEN" \
       -H "Accept: application/vnd.github.v3+json" \
@@ -170,7 +170,7 @@ if [[ "$branch_name" =~ ^$branch_prefix-([0-9]+)$ ]]; then
   else
     # Use existing behavior: append to existing comment or post a new one
     # Use GitHub API to check if a comment already exists
-    existing_comment=$(curl -L -s -H "Authorization: token $TOKEN" \
+    existing_comment=$(curl -L -sS --fail-with-body -H "Authorization: token $TOKEN" \
                             -H "Accept: application/vnd.github.v3+json" \
                             "$repo_url/issues/$pr_number/comments" \
                             | jq 'first(.[] | select(.body | test("^- . Mathlib") or startswith("Mathlib CI status")) | select(.user.login == "mathlib-lean-pr-testing[bot]"))')
@@ -182,7 +182,7 @@ if [[ "$branch_name" =~ ^$branch_prefix-([0-9]+)$ ]]; then
       # Post new comment with a bullet point
       intro="Mathlib CI status ([docs](https://leanprover-community.github.io/contribute/tags_and_branches.html)):"
       echo "Posting as new comment at $repo_url/issues/$pr_number/comments"
-      curl -L -s \
+      curl -L -sS --fail-with-body \
         -X POST \
         -H "Authorization: token $TOKEN" \
         -H "Accept: application/vnd.github.v3+json" \
@@ -191,7 +191,7 @@ if [[ "$branch_name" =~ ^$branch_prefix-([0-9]+)$ ]]; then
     else
       # Append new result to the existing comment
       echo "Appending to existing comment at $repo_url/issues/$pr_number/comments"
-      curl -L -s \
+      curl -L -sS --fail-with-body \
         -X PATCH \
         -H "Authorization: token $TOKEN" \
         -H "Accept: application/vnd.github.v3+json" \
