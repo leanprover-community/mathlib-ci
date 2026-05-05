@@ -146,7 +146,7 @@ jobs:
           api-key: ${{ secrets.ZULIP_MATHLIB_CI_BOT_API_KEY }}
           email: 'github-mathlib-ci-bot@leanprover.zulipchat.com'
           organization-url: 'https://leanprover.zulipchat.com'
-          to: 'nightly-testing'
+          to: 'nightly-testing-mathlib'
           type: 'stream'
           topic: 'Docgen status updates'
           content: ${{ steps.zulip-report.outputs.zulip-message }}

@@ -353,7 +353,7 @@ if ! git diff --quiet "bump/$BUMPVERSION" "bump/nightly-$NIGHTLYDATE"; then
     echo " Body: $zulip_body"
 
     if command -v zulip-send >/dev/null 2>&1; then
-      zulip_command="zulip-send --stream nightly-testing --subject \"$zulip_title\" --message \"$zulip_body\""
+      zulip_command="zulip-send --stream nightly-testing-mathlib --subject \"$zulip_title\" --message \"$zulip_body\""
       echo "Running the following 'zulip-send' command to do this:"
       echo "> $zulip_command"
       eval "$zulip_command"
