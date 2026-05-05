@@ -347,7 +347,7 @@ if ! git diff --quiet "bump/$BUMPVERSION" "bump/nightly-$NIGHTLYDATE"; then
 
   # Only post to Zulip if we created a new PR
   if [ -z "$existing_pr" ]; then
-    echo "Posting the link to the PR in a new thread on the #nightly-testing channel on Zulip"
+    echo "Posting the link to the PR in a new thread on the #nightly-testing-mathlib channel on Zulip"
     echo "Here is the message:"
     echo "Title: $zulip_title"
     echo " Body: $zulip_body"
