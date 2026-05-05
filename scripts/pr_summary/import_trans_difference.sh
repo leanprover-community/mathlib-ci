@@ -57,13 +57,13 @@ getTransImports () {
     tr -d ' "{}:'
 }
 
-git checkout "${commit1}"
+git checkout --detach "${commit1}"
 getTransImports > transImports1.txt
-git checkout "${currCommit}"
+git checkout --detach "${currCommit}"
 
-git checkout "${commit2}"
+git checkout --detach "${commit2}"
 getTransImports - > transImports2.txt
-git checkout "${currCommit}"
+git checkout --detach "${currCommit}"
 
 printf '\n\n<details><summary>Import changes for all files</summary>\n\n%s\n\n</details>\n' "$(
   printf "|Files|Import difference|\n|-|-|\n"
