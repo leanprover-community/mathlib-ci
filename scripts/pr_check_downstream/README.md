@@ -5,12 +5,12 @@ Helper scripts for the mathlib4 `PR check downstream` workflow
 
 ## Overview
 
-When a mathlib4 PR receives a `/check-downstream <name>[, <name>...] | all`
-comment from an authorised user, the workflow:
+When a mathlib4 PR receives a `/check-downstream …` comment from an
+authorised user, the workflow:
 
 1. Calls **`validate_names.sh`** to resolve the requested downstream names
-   against the inventory, gate `all` to owners/members, and fetch the PR's
-   merge ref.
+   against the inventory, gate `all` / `all@lkg` to owners/members, and
+   fetch the PR's merge ref.
 2. Dispatches the heavy validation workflow in
    `leanprover-community/downstream-reports` (no heavy work happens here).
 3. Calls **`post_ack_comment.sh`** to leave an acknowledgement comment on
@@ -19,6 +19,22 @@ comment from an authorised user, the workflow:
 
 The actual build results are posted back to the PR by the downstream-reports
 workflow as separate per-downstream comments.
+
+## Comment grammar
+
+```
+/check-downstream <name>[@lkg][, <name>[@lkg]...]
+/check-downstream all          → every enabled downstream, merge-SHA mode
+/check-downstream all@lkg      → every enabled downstream, LKG mode (OWNER/MEMBER only)
+```
+
+A bare name validates the downstream against the PR's would-be-merged
+tree (current mathlib master with the PR applied). The optional `@lkg`
+suffix instead cherry-picks the PR's commits onto the downstream's
+last-known-good mathlib commit and validates against *that* tree —
+yielding a verdict that is independent of current master health. See
+`docs/internal/pr-validation-workflow.md` in `downstream-reports` for the
+full design.
 
 ## Scripts
 

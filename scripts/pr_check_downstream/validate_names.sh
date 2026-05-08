@@ -3,7 +3,7 @@
 # then resolve the PR's merge ref.
 #
 # Inputs (CLI):
-#   --names <comma-separated list, or "all">
+#   --names <comma-separated list, or "all", or "all@lkg">
 #   --author-association <issue_comment.author_association value>
 #   --output <path to $GITHUB_OUTPUT or another writable file>
 #
@@ -14,15 +14,28 @@
 #   INVENTORY_URL      — (optional) override the inventory URL for testing
 #
 # Outputs (appended to --output as KEY=VALUE):
-#   resolved_names — comma-separated, normalised, validated downstream names
+#   resolved_names — comma-separated, normalised, validated downstream names,
+#                    preserving any `@lkg` mode suffix supplied by the user
+#                    (or applied wholesale by `all@lkg`)
 #   head_repo      — owner/repo of the PR head (differs from base on forks)
 #   head_sha       — HEAD SHA of the PR branch
 #   merge_sha      — resolved SHA of refs/pull/N/merge (the would-be-merged tree)
 #
+# Comment grammar
+# ---------------
+# Per-name optional suffix `@lkg` selects rebase-onto-LKG mode for that
+# downstream — see docs/internal/pr-validation-workflow.md in
+# downstream-reports for the full design.
+#
+#     /check-downstream FLT@lkg, Toric        # FLT in LKG mode, Toric in merge mode
+#     /check-downstream all                    # every enabled downstream, merge mode
+#     /check-downstream all@lkg                # every enabled downstream, LKG mode
+#
 # Authorization model:
-#   `all` is gated to OWNER and MEMBER only. COLLABORATORs must enumerate
-#   names explicitly. The calling workflow has already gated execution to
-#   OWNER/MEMBER/COLLABORATOR, so this is purely narrowing `all`.
+#   `all` and `all@lkg` are gated to OWNER and MEMBER only. COLLABORATORs
+#   must enumerate names explicitly. The calling workflow has already gated
+#   execution to OWNER/MEMBER/COLLABORATOR, so this is purely narrowing
+#   `all`.
 #
 # Exits non-zero with a `::error::` annotation on any failure.
 
@@ -57,21 +70,35 @@ if ! curl -sSfL "$INVENTORY_URL" -o "$INVENTORY"; then
 fi
 
 # ---- Resolve names -----------------------------------------------------------
+# We accept three high-level shapes:
+#   1) "all"      — every enabled downstream, merge mode
+#   2) "all@lkg"  — every enabled downstream, LKG mode (suffix applied wholesale)
+#   3) a comma-separated list, where each entry may carry an optional `@lkg`
+#      suffix.
 
-if [ "$(echo "$NAMES" | tr -d '[:space:]')" = "all" ]; then
-  # `all` expands to every enabled downstream; gated to OWNER/MEMBER.
+NAMES_TRIMMED="$(echo "$NAMES" | tr -d '[:space:]')"
+
+if [ "$NAMES_TRIMMED" = "all" ] || [ "$NAMES_TRIMMED" = "all@lkg" ]; then
   case "$ASSOC" in
     OWNER|MEMBER) ;;
     *)
-      echo "::error::author_association=$ASSOC is not allowed to use 'all'; enumerate names instead"
+      echo "::error::author_association=$ASSOC is not allowed to use 'all' / 'all@lkg'; enumerate names instead"
       exit 1
       ;;
   esac
-  RESOLVED="$(jq -r '[.downstreams[] | select(.enabled // true) | .name] | join(",")' \
-                 "$INVENTORY")"
-  if [ -z "$RESOLVED" ]; then
+  ALL_NAMES="$(jq -r '[.downstreams[] | select(.enabled // true) | .name] | join(",")' \
+                  "$INVENTORY")"
+  if [ -z "$ALL_NAMES" ]; then
     echo "::error::inventory has no enabled downstreams"
     exit 1
+  fi
+  if [ "$NAMES_TRIMMED" = "all@lkg" ]; then
+    # Tack `@lkg` onto every name.
+    RESOLVED="$(echo "$ALL_NAMES" | awk -F',' '{
+      for (i=1; i<=NF; i++) printf "%s%s@lkg", (i>1 ? "," : ""), $i
+    }')"
+  else
+    RESOLVED="$ALL_NAMES"
   fi
 else
   # Strip whitespace, drop empties, deduplicate while preserving order.
@@ -83,15 +110,28 @@ else
     echo "::error::no downstream names provided"
     exit 1
   fi
-  # Validate each name against the inventory (case-sensitive).
+  # Validate each name against the inventory (case-sensitive). Tokens may
+  # carry an optional `@lkg` suffix; only the bare name is matched against
+  # the inventory, but the suffix is preserved verbatim in $RESOLVED.
   KNOWN="$(jq -r '.downstreams[].name' "$INVENTORY" | sort -u)"
   UNKNOWN=""
+  BAD_SUFFIX=""
   IFS=',' read -ra REQ <<< "$RESOLVED"
-  for name in "${REQ[@]}"; do
-    if ! grep -Fxq "$name" <<< "$KNOWN"; then
-      UNKNOWN="${UNKNOWN:+$UNKNOWN, }$name"
+  for token in "${REQ[@]}"; do
+    bare="${token%%@*}"
+    suffix="${token#"$bare"}"   # "" or "@<mode>"
+    if [ -n "$suffix" ] && [ "$suffix" != "@lkg" ]; then
+      BAD_SUFFIX="${BAD_SUFFIX:+$BAD_SUFFIX, }$token"
+      continue
+    fi
+    if ! grep -Fxq "$bare" <<< "$KNOWN"; then
+      UNKNOWN="${UNKNOWN:+$UNKNOWN, }$bare"
     fi
   done
+  if [ -n "$BAD_SUFFIX" ]; then
+    echo "::error::unknown mode suffix on: $BAD_SUFFIX (only @lkg is supported)"
+    exit 1
+  fi
   if [ -n "$UNKNOWN" ]; then
     echo "::error::unknown downstream(s): $UNKNOWN"
     exit 1
