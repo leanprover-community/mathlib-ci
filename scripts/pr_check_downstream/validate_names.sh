@@ -17,9 +17,12 @@
 #   resolved_names — comma-separated, normalised, validated downstream names,
 #                    preserving any `@lkg` mode suffix supplied by the user
 #                    (or applied wholesale by `all@lkg`)
-#   head_repo      — owner/repo of the PR head (differs from base on forks)
-#   head_sha       — HEAD SHA of the PR branch
 #   merge_sha      — resolved SHA of refs/pull/N/merge (the would-be-merged tree)
+#
+# We do not emit the PR head repo / head SHA: the merge commit lives on
+# leanprover-community/mathlib4 even for fork PRs, and the merge commit's
+# two parents identify the PR base and head, so the downstream-reports
+# workflow needs nothing else.
 #
 # Comment grammar
 # ---------------
@@ -145,8 +148,6 @@ fi
 # mergeability, so null is treated as an error (caller should retry).
 
 PR_JSON="$(gh api "/repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER")"
-HEAD_REPO="$(jq -r '.head.repo.full_name' <<< "$PR_JSON")"
-HEAD_SHA="$(jq -r '.head.sha' <<< "$PR_JSON")"
 MERGEABLE="$(jq -r '.mergeable' <<< "$PR_JSON")"
 MERGE_COMMIT_SHA="$(jq -r '.merge_commit_sha' <<< "$PR_JSON")"
 
@@ -158,11 +159,8 @@ fi
 
 {
   echo "resolved_names=$RESOLVED"
-  echo "head_repo=$HEAD_REPO"
-  echo "head_sha=$HEAD_SHA"
   echo "merge_sha=$MERGE_COMMIT_SHA"
 } >> "$OUTPUT"
 
 echo "validated downstreams: $RESOLVED"
-echo "head: $HEAD_REPO@$HEAD_SHA"
 echo "merge: $MERGE_COMMIT_SHA"

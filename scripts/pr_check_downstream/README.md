@@ -65,10 +65,8 @@ Validates the requested downstream names and resolves the PR's merge ref.
 
 | Key | Description |
 |-----|-------------|
-| `resolved_names` | Normalised comma-separated list of validated names |
-| `head_repo` | `owner/repo` of the PR head (differs from base on forks) |
-| `head_sha` | HEAD SHA of the PR branch |
-| `merge_sha` | Resolved SHA of `refs/pull/N/merge` (the would-be-merged tree) |
+| `resolved_names` | Normalised comma-separated list of validated names (with `@lkg` suffixes preserved) |
+| `merge_sha` | Resolved SHA of `refs/pull/N/merge` (the would-be-merged tree). Lives on `leanprover-community/mathlib4` even for fork PRs; the dispatched workflow clones the base repo and derives the PR's base/head from this commit's two parents — no head-repo plumbing needed. |
 
 ### `post_ack_comment.sh`
 
