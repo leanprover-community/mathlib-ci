@@ -93,9 +93,12 @@ Validates the requested downstream entries and resolves the PR's merge ref.
 
 ### `post_ack_comment.sh`
 
-Posts (or edits in place) a short acknowledgement comment on the mathlib4 PR.
+Posts a short acknowledgement comment on the mathlib4 PR. One ack per
+dispatch — multiple `!downstream-check` comments on the same PR leave
+their own ack lines so each dispatch has its own audit trail (entries
+listed + run link).
 
-**Called by:** the `Post / update ack comment` step.
+**Called by:** the `Post ack comment` step.
 
 **Inputs (env):**
 
@@ -108,6 +111,3 @@ Posts (or edits in place) a short acknowledgement comment on the mathlib4 PR.
 | `MERGE_SHA`          | Resolved merge SHA (displayed as a short SHA in the comment).                                                                |
 | `GITHUB_SERVER_URL`  | *(standard Actions var)* Used to construct the run link.                                                                     |
 | `GITHUB_RUN_ID`      | *(standard Actions var)* Used to construct the run link.                                                                     |
-
-The comment is identified by a hidden HTML marker so re-triggers edit the same
-comment rather than stacking new ones.
