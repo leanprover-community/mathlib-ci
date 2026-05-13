@@ -9,8 +9,9 @@ When a mathlib4 PR receives a `!downstream-check …` comment from an
 authorised user (OWNER / MEMBER / COLLABORATOR), the workflow:
 
 1. Calls **`validate_names.sh`** to parse each comma-separated entry,
-   validate the bare names against the inventory, and resolve the PR's
-   merge ref.
+   validate the grammar, and resolve the PR's merge ref. Downstream-name
+   lookups happen in the dispatched workflow — this side stays
+   inventory-agnostic so the source of truth lives in one place.
 2. Dispatches the heavy validation workflow in
    `leanprover-community/downstream-reports` (no heavy work happens here).
 3. Calls **`post_ack_comment.sh`** to leave an acknowledgement comment on
@@ -24,16 +25,22 @@ then one section per entry.
 ## Comment grammar
 
 ```
-!downstream-check <name>[@<rev>] [--merge-branch][, <name>[@<rev>] [--merge-branch] ...]
+!downstream-check <name-or-slug>[@<rev>] [--merge-branch][, <name-or-slug>[@<rev>] [--merge-branch] ...]
 ```
 
 Each comma-separated entry:
 
-| Token              | Meaning                                                                                                                              |
-|--------------------|--------------------------------------------------------------------------------------------------------------------------------------|
-| `<name>`           | Required. Must match an `inventory.downstreams[*].name` (case-sensitive).                                                            |
-| `@<rev>`           | Optional. Any git refspec (branch / tag / commit SHA) for the downstream's checkout. Defaults to the inventory's `default_branch`.   |
-| `--merge-branch`   | Optional, per entry. Flips that single entry to merge mode — i.e. test against the PR's would-be-merged tree instead of the default. |
+| Token             | Meaning                                                                                                                                                          |
+|-------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `<name-or-slug>`  | Required. Either the downstream's short inventory name (e.g. `FLT`) or its GitHub `owner/repo` slug (e.g. `leanprover-community/FLT`). Resolved downstream.      |
+| `@<rev>`          | Optional. Any git refspec (branch / tag / commit SHA) for the downstream's checkout. Defaults to the inventory's `default_branch`.                               |
+| `--merge-branch`  | Optional, per entry. Flips that single entry to merge mode — i.e. test against the PR's would-be-merged tree instead of the default.                             |
+
+The bare token is passed through verbatim to the dispatched workflow,
+which looks it up in `downstream-reports`' inventory and emits a clear
+error if it matches neither a name nor a slug. The short-name match is
+case-sensitive; the slug match is case-insensitive (mirroring GitHub's
+URL semantics).
 
 **Default mode is LKG**: the PR's commits get cherry-picked onto the
 downstream's last-known-good mathlib commit (from the published
@@ -51,6 +58,7 @@ Examples:
 | Comment                                                          | Effect                                                                              |
 |------------------------------------------------------------------|-------------------------------------------------------------------------------------|
 | `!downstream-check FLT`                                          | FLT, LKG mode, default branch.                                                      |
+| `!downstream-check leanprover-community/FLT`                     | Same downstream by slug.                                                            |
 | `!downstream-check FLT, Toric`                                   | Both LKG mode, default branches.                                                    |
 | `!downstream-check FLT@v1.2.3`                                   | FLT at tag `v1.2.3`, LKG mode.                                                      |
 | `!downstream-check FLT --merge-branch`                           | FLT in merge mode (default branch).                                                 |
@@ -64,16 +72,19 @@ the full design.
 
 ### `validate_names.sh`
 
-Validates the requested downstream entries and resolves the PR's merge ref.
+Validates the grammar of each entry, dedups, and resolves the PR's merge
+ref. The bare `<name-or-slug>` token is passed through verbatim — the
+dispatched workflow holds the inventory and reports unknown names from
+there.
 
-**Called by:** the `Validate downstreams against inventory` step.
+**Called by:** the `Validate downstream entries` step.
 
 **Inputs (CLI flags):**
 
-| Flag        | Description                                                          |
-|-------------|----------------------------------------------------------------------|
-| `--names`   | Comma-separated `<name>[@<rev>] [--merge-branch]` entries.           |
-| `--output`  | File to append `KEY=VALUE` pairs to (pass `$GITHUB_OUTPUT`).         |
+| Flag        | Description                                                                  |
+|-------------|------------------------------------------------------------------------------|
+| `--names`   | Comma-separated `<name-or-slug>[@<rev>] [--merge-branch]` entries.           |
+| `--output`  | File to append `KEY=VALUE` pairs to (pass `$GITHUB_OUTPUT`).                 |
 
 **Inputs (env):**
 
@@ -82,7 +93,6 @@ Validates the requested downstream entries and resolves the PR's merge ref.
 | `PR_NUMBER`                 | PR number on `leanprover-community/mathlib4`.                     |
 | `GITHUB_REPOSITORY`         | `owner/repo` of the calling workflow.                             |
 | `GH_TOKEN` / `GITHUB_TOKEN` | Token for `gh api` (needs PR read access).                        |
-| `INVENTORY_URL`             | *(optional)* Override the inventory URL for testing.              |
 
 **Outputs (written to `--output`):**
 

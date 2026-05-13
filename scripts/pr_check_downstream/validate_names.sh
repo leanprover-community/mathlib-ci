@@ -1,12 +1,17 @@
 #!/usr/bin/env bash
-# Validate the downstream entries parsed from a `!downstream-check` comment,
-# then resolve the PR's merge ref.
+# Validate the grammar of the entries parsed from a `!downstream-check`
+# comment, then resolve the PR's merge ref.
 #
 # Comment grammar (each comma-separated entry):
 #
-#   <name>[@<rev>] [--merge-branch]
+#   <name-or-slug>[@<rev>] [--merge-branch]
 #
-# - <name>          must match an inventory entry (case-sensitive).
+# - <name-or-slug>  the downstream's short name (e.g. `FLT`) or its GitHub
+#                   slug (e.g. `leanprover-community/FLT`). Either is
+#                   accepted here verbatim and resolved against the
+#                   downstream-reports inventory by the dispatched
+#                   workflow; unknown names surface there with a clear
+#                   error rather than from this script.
 # - @<rev>          optional. Any git refspec (branch / tag / commit SHA)
 #                   for the downstream's checkout; defaults to the
 #                   inventory's default_branch when absent.
@@ -23,7 +28,6 @@
 #   PR_NUMBER         — PR number on leanprover-community/mathlib4
 #   GITHUB_REPOSITORY — owner/repo of the calling workflow
 #   GH_TOKEN / GITHUB_TOKEN — used by `gh api` for PR metadata
-#   INVENTORY_URL     — (optional) override the inventory URL for testing
 #
 # Outputs (appended to --output as KEY=VALUE):
 #   resolved_names — normalised comma-separated list of validated entries,
@@ -35,11 +39,9 @@
 #
 # Exits non-zero with a `::error::` annotation on any failure. Authorization
 # (OWNER/MEMBER/COLLABORATOR) is gated upstream in the mathlib4 workflow.
+# Downstream-name lookups happen in the dispatched workflow.
 
 set -euo pipefail
-
-# Allow tests to point at a local or branch copy of the inventory.
-INVENTORY_URL="${INVENTORY_URL:-https://raw.githubusercontent.com/leanprover-community/downstream-reports/main/ci/inventory/downstreams.json}"
 
 NAMES=""
 OUTPUT=""
@@ -56,37 +58,18 @@ done
 : "${PR_NUMBER:?PR_NUMBER must be set}"
 : "${GITHUB_REPOSITORY:?GITHUB_REPOSITORY must be set}"
 
-INVENTORY="$(mktemp)"
-trap 'rm -f "$INVENTORY"' EXIT
-
-if ! curl -sSfL "$INVENTORY_URL" -o "$INVENTORY"; then
-  echo "::error::could not fetch inventory at $INVENTORY_URL"
-  exit 1
-fi
-
-# ---- Parse and validate entries ---------------------------------------------
+# ---- Parse and validate grammar ---------------------------------------------
 #
 # Each comma-separated entry is itself whitespace-delimited:
-#   <name>[@<rev>] [--merge-branch]
+#   <name-or-slug>[@<rev>] [--merge-branch]
 #
 # We canonicalise each entry to:
-#   <name>[@<rev>][ --merge-branch]
-# (single spaces, no leading/trailing whitespace), validate the bare name
-# against the inventory, reject unknown flags, and round-trip the result.
-
-# Sanity-check the inventory shape before pulling the name list. `jq -e`
-# on `.downstreams` exits non-zero when the key is missing or null, so a
-# truncated download, an HTML 200 from a CDN error page, or a schema
-# regression all surface as a clean `::error::` annotation rather than
-# raw jq stderr.
-if ! jq -e '.downstreams' "$INVENTORY" >/dev/null 2>&1; then
-  echo "::error::inventory at $INVENTORY_URL is malformed or missing .downstreams"
-  exit 1
-fi
-KNOWN="$(jq -r '.downstreams[].name' "$INVENTORY" | sort -u)"
+#   <name-or-slug>[@<rev>][ --merge-branch]
+# (single spaces, no leading/trailing whitespace) and reject unknown flags
+# / empty bare names. The bare token can be a short inventory name or an
+# `owner/repo` slug; we don't look at its content here.
 
 RESOLVED_ENTRIES=()
-UNKNOWN_NAMES=""
 UNKNOWN_FLAGS=""
 
 # Iterate commas. Use IFS to split into an array; do not splat directly since
@@ -100,7 +83,7 @@ for raw in "${REQ[@]}"; do
   fi
 
   # Split the entry into whitespace-separated tokens: first is the
-  # `<name>[@<rev>]`, the rest are flags.
+  # `<name-or-slug>[@<rev>]`, the rest are flags.
   read -ra parts <<< "$entry"
   name_rev="${parts[0]}"
   flags=("${parts[@]:1}")
@@ -112,10 +95,11 @@ for raw in "${REQ[@]}"; do
     echo "::error::empty downstream name in entry: '$entry'"
     exit 1
   fi
-
-  if ! grep -Fxq "$bare" <<< "$KNOWN"; then
-    UNKNOWN_NAMES="${UNKNOWN_NAMES:+$UNKNOWN_NAMES, }$bare"
-    continue
+  # `@` with nothing after is a grammar error; the dispatched workflow
+  # cannot pin to an empty rev.
+  if [ -n "$suffix" ] && [ "$suffix" = "@" ]; then
+    echo "::error::empty rev after '@' in entry: '$entry'"
+    exit 1
   fi
 
   merge_flag=""
@@ -135,10 +119,6 @@ for raw in "${REQ[@]}"; do
   RESOLVED_ENTRIES+=("${bare}${suffix}${merge_flag}")
 done
 
-if [ -n "$UNKNOWN_NAMES" ]; then
-  echo "::error::unknown downstream(s): $UNKNOWN_NAMES"
-  exit 1
-fi
 if [ -n "$UNKNOWN_FLAGS" ]; then
   echo "::error::unknown flag(s): $UNKNOWN_FLAGS (only --merge-branch is supported)"
   exit 1
