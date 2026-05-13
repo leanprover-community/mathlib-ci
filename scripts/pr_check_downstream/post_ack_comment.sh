@@ -33,7 +33,11 @@ SHORT_SHA="${MERGE_SHA:0:7}"
 # Render each entry as a backtick-quoted, comma-separated token. Entries
 # can carry `@<rev>` suffixes and a trailing `--merge-branch` flag; both
 # are kept inside the backticks so the ack mirrors the user's input.
+# Strip any stray backticks from the rev portion before wrapping — git
+# allows them in refnames and a backtick mid-token would close the
+# Markdown code span and let user-controlled text render unquoted.
 ENTRIES_RENDERED="$(echo "$DOWNSTREAMS" | tr ',' '\n' \
+                      | tr -d '`' \
                       | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//' \
                       | awk 'NF { printf "%s`%s`", (i++ ? ", " : ""), $0 } END { print "" }')"
 

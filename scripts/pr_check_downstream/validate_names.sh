@@ -74,6 +74,15 @@ fi
 # (single spaces, no leading/trailing whitespace), validate the bare name
 # against the inventory, reject unknown flags, and round-trip the result.
 
+# Sanity-check the inventory shape before pulling the name list. `jq -e`
+# on `.downstreams` exits non-zero when the key is missing or null, so a
+# truncated download, an HTML 200 from a CDN error page, or a schema
+# regression all surface as a clean `::error::` annotation rather than
+# raw jq stderr.
+if ! jq -e '.downstreams' "$INVENTORY" >/dev/null 2>&1; then
+  echo "::error::inventory at $INVENTORY_URL is malformed or missing .downstreams"
+  exit 1
+fi
 KNOWN="$(jq -r '.downstreams[].name' "$INVENTORY" | sort -u)"
 
 RESOLVED_ENTRIES=()
