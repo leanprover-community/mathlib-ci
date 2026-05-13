@@ -50,7 +50,8 @@ trap 'rm -f "$BODY_FILE"' EXIT
   echo "Each entry runs in LKG mode by default (the PR's commits are"
   echo "cherry-picked onto the downstream's last-known-good mathlib commit);"
   echo "entries with \`--merge-branch\` are tested against the PR's merge tree"
-  echo "instead. See the linked run / per-entry result comments for details."
+  echo "instead. A single follow-up comment with the full result table"
+  echo "will land here when the run finishes."
   if [ -n "$RUN_URL" ]; then
     echo
     echo "Dispatch: [run]($RUN_URL)"

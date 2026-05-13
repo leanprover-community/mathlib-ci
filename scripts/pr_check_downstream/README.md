@@ -18,7 +18,8 @@ authorised user (OWNER / MEMBER / COLLABORATOR), the workflow:
    accepted.
 
 The actual build results are posted back to the PR by the downstream-reports
-workflow as separate per-entry comments.
+workflow as a single follow-up comment, opening with a summary table and
+then one section per entry.
 
 ## Comment grammar
 
