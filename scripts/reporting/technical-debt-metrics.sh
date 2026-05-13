@@ -159,16 +159,16 @@ report () {
 level=${1}
 
 # Collect the technical debt metrics and the line counts of all deprecated files from current mathlib.
-git checkout -q "${currCommit}"
+git switch -q --detach "${currCommit}"
 new="$(tdc | grep "|${level}$")"
 newDeprecatedFiles="$(git ls-files '**/Deprecated/*.lean' | xargs wc -l | sed 's=^ *==')"
-git switch -q -
+git switch -q --detach -
 
 # collect the technical debts and the line counts of the deprecated file from the reference mathlib
-git checkout -q "${refCommit}"
+git switch -q --detach "${refCommit}"
 old="$(tdc | sed 's=^[0-9]=-&=' | grep "|${level}$")"
 oldDeprecatedFiles="$(git ls-files '**/Deprecated/*.lean' | xargs wc -l | sed 's=^ *=-=')"
-git switch -q -
+git switch -q --detach -
 
 printf '|Current number|Change|Type|\n|-:|:-:|:-|\n'
 printf '%s\n%s\n' "${old}" "${new}" | computeDiff -
