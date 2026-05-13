@@ -1,46 +1,40 @@
 #!/usr/bin/env bash
-# Validate the downstream names parsed from a `/check-downstream` comment,
+# Validate the downstream entries parsed from a `!downstream-check` comment,
 # then resolve the PR's merge ref.
 #
+# Comment grammar (each comma-separated entry):
+#
+#   <name>[@<rev>] [--merge-branch]
+#
+# - <name>          must match an inventory entry (case-sensitive).
+# - @<rev>          optional. Any git refspec (branch / tag / commit SHA)
+#                   for the downstream's checkout; defaults to the
+#                   inventory's default_branch when absent.
+# - --merge-branch  optional, per entry. Flips that single entry from the
+#                   default LKG mode to merge mode (the dispatched workflow
+#                   then tests it against the PR's merge tree instead of
+#                   cherry-picking onto the LKG).
+#
 # Inputs (CLI):
-#   --names <comma-separated list, or "all", or "all@lkg">
-#   --author-association <issue_comment.author_association value>
-#   --output <path to $GITHUB_OUTPUT or another writable file>
+#   --names   <list>          (the comma-separated entries verbatim)
+#   --output  <path>          ($GITHUB_OUTPUT or a writable file)
 #
 # Inputs (env):
-#   PR_NUMBER          — PR number on leanprover-community/mathlib4
-#   GITHUB_REPOSITORY  — owner/repo of the calling workflow
+#   PR_NUMBER         — PR number on leanprover-community/mathlib4
+#   GITHUB_REPOSITORY — owner/repo of the calling workflow
 #   GH_TOKEN / GITHUB_TOKEN — used by `gh api` for PR metadata
-#   INVENTORY_URL      — (optional) override the inventory URL for testing
+#   INVENTORY_URL     — (optional) override the inventory URL for testing
 #
 # Outputs (appended to --output as KEY=VALUE):
-#   resolved_names — comma-separated, normalised, validated downstream names,
-#                    preserving any `@lkg` mode suffix supplied by the user
-#                    (or applied wholesale by `all@lkg`)
-#   merge_sha      — resolved SHA of refs/pull/N/merge (the would-be-merged tree)
+#   resolved_names — normalised comma-separated list of validated entries,
+#                    preserving each entry's `@<rev>` suffix and
+#                    `--merge-branch` flag verbatim
+#   merge_sha      — resolved SHA of refs/pull/N/merge (the would-be-merged
+#                    tree). Lives on leanprover-community/mathlib4 even for
+#                    fork PRs.
 #
-# We do not emit the PR head repo / head SHA: the merge commit lives on
-# leanprover-community/mathlib4 even for fork PRs, and the merge commit's
-# two parents identify the PR base and head, so the downstream-reports
-# workflow needs nothing else.
-#
-# Comment grammar
-# ---------------
-# Per-name optional suffix `@lkg` selects rebase-onto-LKG mode for that
-# downstream — see docs/internal/pr-validation-workflow.md in
-# downstream-reports for the full design.
-#
-#     /check-downstream FLT@lkg, Toric        # FLT in LKG mode, Toric in merge mode
-#     /check-downstream all                    # every enabled downstream, merge mode
-#     /check-downstream all@lkg                # every enabled downstream, LKG mode
-#
-# Authorization model:
-#   `all` and `all@lkg` are gated to OWNER and MEMBER only. COLLABORATORs
-#   must enumerate names explicitly. The calling workflow has already gated
-#   execution to OWNER/MEMBER/COLLABORATOR, so this is purely narrowing
-#   `all`.
-#
-# Exits non-zero with a `::error::` annotation on any failure.
+# Exits non-zero with a `::error::` annotation on any failure. Authorization
+# (OWNER/MEMBER/COLLABORATOR) is gated upstream in the mathlib4 workflow.
 
 set -euo pipefail
 
@@ -48,12 +42,10 @@ set -euo pipefail
 INVENTORY_URL="${INVENTORY_URL:-https://raw.githubusercontent.com/leanprover-community/downstream-reports/main/ci/inventory/downstreams.json}"
 
 NAMES=""
-ASSOC=""
 OUTPUT=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --names) NAMES="$2"; shift 2 ;;
-    --author-association) ASSOC="$2"; shift 2 ;;
     --output) OUTPUT="$2"; shift 2 ;;
     *) echo "::error::unknown arg: $1" >&2; exit 1 ;;
   esac
@@ -72,74 +64,86 @@ if ! curl -sSfL "$INVENTORY_URL" -o "$INVENTORY"; then
   exit 1
 fi
 
-# ---- Resolve names -----------------------------------------------------------
-# We accept three high-level shapes:
-#   1) "all"      — every enabled downstream, merge mode
-#   2) "all@lkg"  — every enabled downstream, LKG mode (suffix applied wholesale)
-#   3) a comma-separated list, where each entry may carry an optional `@lkg`
-#      suffix.
+# ---- Parse and validate entries ---------------------------------------------
+#
+# Each comma-separated entry is itself whitespace-delimited:
+#   <name>[@<rev>] [--merge-branch]
+#
+# We canonicalise each entry to:
+#   <name>[@<rev>][ --merge-branch]
+# (single spaces, no leading/trailing whitespace), validate the bare name
+# against the inventory, reject unknown flags, and round-trip the result.
 
-NAMES_TRIMMED="$(echo "$NAMES" | tr -d '[:space:]')"
+KNOWN="$(jq -r '.downstreams[].name' "$INVENTORY" | sort -u)"
 
-if [ "$NAMES_TRIMMED" = "all" ] || [ "$NAMES_TRIMMED" = "all@lkg" ]; then
-  case "$ASSOC" in
-    OWNER|MEMBER) ;;
-    *)
-      echo "::error::author_association=$ASSOC is not allowed to use 'all' / 'all@lkg'; enumerate names instead"
-      exit 1
-      ;;
-  esac
-  ALL_NAMES="$(jq -r '[.downstreams[] | select(.enabled // true) | .name] | join(",")' \
-                  "$INVENTORY")"
-  if [ -z "$ALL_NAMES" ]; then
-    echo "::error::inventory has no enabled downstreams"
+RESOLVED_ENTRIES=()
+UNKNOWN_NAMES=""
+UNKNOWN_FLAGS=""
+
+# Iterate commas. Use IFS to split into an array; do not splat directly since
+# entries can contain spaces (we want each comma-delimited entry whole).
+IFS=',' read -ra REQ <<< "$NAMES"
+for raw in "${REQ[@]}"; do
+  # Trim whitespace around the whole entry.
+  entry="$(echo "$raw" | sed -E 's/^[[:space:]]+//;s/[[:space:]]+$//')"
+  if [ -z "$entry" ]; then
+    continue
+  fi
+
+  # Split the entry into whitespace-separated tokens: first is the
+  # `<name>[@<rev>]`, the rest are flags.
+  read -ra parts <<< "$entry"
+  name_rev="${parts[0]}"
+  flags=("${parts[@]:1}")
+
+  bare="${name_rev%%@*}"
+  suffix="${name_rev#"$bare"}"   # "" or "@<rev>"
+
+  if [ -z "$bare" ]; then
+    echo "::error::empty downstream name in entry: '$entry'"
     exit 1
   fi
-  if [ "$NAMES_TRIMMED" = "all@lkg" ]; then
-    # Tack `@lkg` onto every name.
-    RESOLVED="$(echo "$ALL_NAMES" | awk -F',' '{
-      for (i=1; i<=NF; i++) printf "%s%s@lkg", (i>1 ? "," : ""), $i
-    }')"
-  else
-    RESOLVED="$ALL_NAMES"
+
+  if ! grep -Fxq "$bare" <<< "$KNOWN"; then
+    UNKNOWN_NAMES="${UNKNOWN_NAMES:+$UNKNOWN_NAMES, }$bare"
+    continue
   fi
-else
-  # Strip whitespace, drop empties, deduplicate while preserving order.
-  RESOLVED="$(echo "$NAMES" | tr ',' '\n' \
-                | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//' \
-                | awk 'NF && !seen[$0]++' \
-                | paste -sd',' -)"
-  if [ -z "$RESOLVED" ]; then
-    echo "::error::no downstream names provided"
-    exit 1
-  fi
-  # Validate each name against the inventory (case-sensitive). Tokens may
-  # carry an optional `@lkg` suffix; only the bare name is matched against
-  # the inventory, but the suffix is preserved verbatim in $RESOLVED.
-  KNOWN="$(jq -r '.downstreams[].name' "$INVENTORY" | sort -u)"
-  UNKNOWN=""
-  BAD_SUFFIX=""
-  IFS=',' read -ra REQ <<< "$RESOLVED"
-  for token in "${REQ[@]}"; do
-    bare="${token%%@*}"
-    suffix="${token#"$bare"}"   # "" or "@<mode>"
-    if [ -n "$suffix" ] && [ "$suffix" != "@lkg" ]; then
-      BAD_SUFFIX="${BAD_SUFFIX:+$BAD_SUFFIX, }$token"
-      continue
-    fi
-    if ! grep -Fxq "$bare" <<< "$KNOWN"; then
-      UNKNOWN="${UNKNOWN:+$UNKNOWN, }$bare"
-    fi
+
+  merge_flag=""
+  for f in "${flags[@]}"; do
+    case "$f" in
+      --merge-branch)
+        merge_flag=" --merge-branch"
+        ;;
+      "")
+        ;;
+      *)
+        UNKNOWN_FLAGS="${UNKNOWN_FLAGS:+$UNKNOWN_FLAGS, }$f"
+        ;;
+    esac
   done
-  if [ -n "$BAD_SUFFIX" ]; then
-    echo "::error::unknown mode suffix on: $BAD_SUFFIX (only @lkg is supported)"
-    exit 1
-  fi
-  if [ -n "$UNKNOWN" ]; then
-    echo "::error::unknown downstream(s): $UNKNOWN"
-    exit 1
-  fi
+
+  RESOLVED_ENTRIES+=("${bare}${suffix}${merge_flag}")
+done
+
+if [ -n "$UNKNOWN_NAMES" ]; then
+  echo "::error::unknown downstream(s): $UNKNOWN_NAMES"
+  exit 1
 fi
+if [ -n "$UNKNOWN_FLAGS" ]; then
+  echo "::error::unknown flag(s): $UNKNOWN_FLAGS (only --merge-branch is supported)"
+  exit 1
+fi
+if [ ${#RESOLVED_ENTRIES[@]} -eq 0 ]; then
+  echo "::error::no downstream entries provided"
+  exit 1
+fi
+
+# Dedup while preserving order (entries with different flags / revs are
+# already textually distinct, so a strict string-equality dedup is enough).
+RESOLVED="$(printf '%s\n' "${RESOLVED_ENTRIES[@]}" \
+              | awk 'NF && !seen[$0]++' \
+              | paste -sd',' -)"
 
 # ---- Resolve the PR merge ref ------------------------------------------------
 # We use the merge_commit_sha from the PR API rather than refs/pull/N/merge
@@ -162,5 +166,5 @@ fi
   echo "merge_sha=$MERGE_COMMIT_SHA"
 } >> "$OUTPUT"
 
-echo "validated downstreams: $RESOLVED"
+echo "validated entries: $RESOLVED"
 echo "merge: $MERGE_COMMIT_SHA"

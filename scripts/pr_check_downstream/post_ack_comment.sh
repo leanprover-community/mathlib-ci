@@ -6,7 +6,9 @@
 #   GITHUB_TOKEN      — token with issues:write on leanprover-community/mathlib4
 #   GITHUB_REPOSITORY — owner/repo of the calling workflow
 #   PR_NUMBER         — PR number
-#   DOWNSTREAMS       — comma-separated downstream names being validated
+#   DOWNSTREAMS       — comma-separated validation entries as resolved by
+#                       validate_names.sh; each may carry an @<rev> suffix
+#                       and/or a trailing --merge-branch flag.
 #   MERGE_SHA         — resolved merge SHA (displayed as a 7-char short SHA)
 #   GITHUB_SERVER_URL — (standard Actions var) used to build the run link
 #   GITHUB_RUN_ID     — (standard Actions var) used to build the run link
@@ -25,10 +27,12 @@ set -euo pipefail
 MARKER="<!-- pr-check-downstream:ack -->"
 SHORT_SHA="${MERGE_SHA:0:7}"
 
-# Render each downstream name as a backtick-quoted, comma-separated token.
-NAMES_RENDERED="$(echo "$DOWNSTREAMS" | tr ',' '\n' \
-                    | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//' \
-                    | awk 'NF { printf "%s`%s`", (i++ ? ", " : ""), $0 } END { print "" }')"
+# Render each entry as a backtick-quoted, comma-separated token. Entries
+# can carry `@<rev>` suffixes and a trailing `--merge-branch` flag; both
+# are kept inside the backticks so the ack mirrors the user's input.
+ENTRIES_RENDERED="$(echo "$DOWNSTREAMS" | tr ',' '\n' \
+                      | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//' \
+                      | awk 'NF { printf "%s`%s`", (i++ ? ", " : ""), $0 } END { print "" }')"
 
 RUN_URL=""
 if [ -n "${GITHUB_SERVER_URL:-}" ] && [ -n "${GITHUB_RUN_ID:-}" ]; then
@@ -41,11 +45,16 @@ trap 'rm -f "$BODY_FILE"' EXIT
 {
   echo "**Downstream validation triggered**"
   echo
-  echo "Testing this PR (merge ref \`$SHORT_SHA\`) against: $NAMES_RENDERED."
+  echo "Validating this PR (merge ref \`$SHORT_SHA\`) against: $ENTRIES_RENDERED."
+  echo
+  echo "Each entry runs in LKG mode by default (the PR's commits are"
+  echo "cherry-picked onto the downstream's last-known-good mathlib commit);"
+  echo "entries with \`--merge-branch\` are tested against the PR's merge tree"
+  echo "instead. See the linked run / per-entry result comments for details."
   if [ -n "$RUN_URL" ]; then
+    echo
     echo "Dispatch: [run]($RUN_URL)"
   fi
-  echo "Results will be posted as a separate comment per downstream."
   echo
   echo "$MARKER"
 } > "$BODY_FILE"
