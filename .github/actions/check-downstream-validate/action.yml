@@ -1,0 +1,76 @@
+name: Validate !downstream-check directive
+description: >-
+  Parse the `!downstream-check` entry grammar and resolve the PR's
+  merge SHA.  Posts a comment on the PR if the directive is malformed,
+  then fails the step.  Runtime errors (unknown downstream, build
+  failures, etc.) are not in scope and are reported by the dispatched
+  workflow.
+
+inputs:
+  names:
+    description: >-
+      Comma-separated `<name-or-slug>[@<rev>] [--merge-branch]`
+      entries, with the `!downstream-check` prefix already stripped
+      (the calling workflow handles the strip).
+    required: true
+  pr-number:
+    description: PR number on `repo`.
+    required: true
+  repo:
+    description: >-
+      `owner/repo` of the PR.  Used for the merge-SHA lookup and the
+      error-comment POST.
+    required: true
+  commenter:
+    description: >-
+      Login of the user who triggered the directive.  Used to
+      @-mention them in the error comment on grammar failures.  Safe
+      to leave empty for `workflow_dispatch` invocations.
+    required: false
+    default: ''
+  github-token:
+    description: >-
+      Token with `issues:write` (for the error comment) and
+      `pull-requests:read` (for the merge-SHA lookup) on `repo`.
+    required: true
+
+outputs:
+  resolved_names:
+    description: >-
+      Normalised comma-separated entries (same grammar going in, dedup'd
+      and canonicalised).
+    value: ${{ steps.run.outputs.resolved_names }}
+  merge_sha:
+    description: Resolved SHA of `refs/pull/N/merge` for the PR.
+    value: ${{ steps.run.outputs.merge_sha }}
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v6.2.0
+      with:
+        python-version: '3.x'
+    - name: Run validator
+      id: run
+      shell: bash
+      # Every input flows through `env:` rather than `${{ … }}`
+      # expansion inside `run:`.  GitHub renders `${{ … }}` directly
+      # into the shell script before bash sees it, so a value
+      # containing `$(...)` or backticks would execute as command
+      # substitution even inside double quotes — and `names` in
+      # particular is the verbatim text the user typed in their
+      # `!downstream-check` comment.
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+        NAMES: ${{ inputs.names }}
+        PR_NUMBER: ${{ inputs.pr-number }}
+        REPO: ${{ inputs.repo }}
+        COMMENTER: ${{ inputs.commenter }}
+      run: |
+        python3 "${{ github.action_path }}/validate.py" \
+          --names "$NAMES" \
+          --pr-number "$PR_NUMBER" \
+          --repo "$REPO" \
+          --commenter "$COMMENTER" \
+          --output "$GITHUB_OUTPUT"
