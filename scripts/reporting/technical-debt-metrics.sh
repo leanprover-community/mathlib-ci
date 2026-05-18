@@ -89,7 +89,7 @@ titlesPathsAndRegexes=(
   "maxHeartBeats modifications"    ":^MathlibTest" "^ *set_option .*maxHeartbeats.* [0-9][0-9]*" "strong"
   "CommRing (Fin n) instances"     "*"      "^open Fin.CommRing " "strong"
   "NatCast (Fin n) instances"      "*"      "^open Fin.NatCast " "strong"
-  "exposed public sections"        "*"      "^@\[expose\] public (meta |noncomputable )*section" "weak"
+  "exposed public sections"        "*"      "^@\[expose\] public \(meta \|noncomputable \)*section" "weak"
 )
 
 for i in ${!titlesPathsAndRegexes[@]}; do
