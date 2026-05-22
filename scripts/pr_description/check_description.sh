@@ -1,14 +1,26 @@
 #!/usr/bin/env bash
-# Check that a PR description begins with the literal phrase "This PR".
+# Check that a PR description begins with a sentence starting "This PR ".
 #
 # Usage:
 #   ./scripts/pr_description/check_description.sh <path-to-body-file>
 #   ./scripts/pr_description/check_description.sh -        # read body from stdin
 #
 # Exit codes:
-#   0 - first non-blank line begins with "This PR"
-#   1 - description is empty or first non-blank line does not begin with "This PR"
+#   0 - the first content line begins with "This PR " (a literal space after `PR`)
+#   1 - description is empty or the first content line does not begin with "This PR "
 #   2 - usage error
+#
+# Leading blank lines and HTML comments (single- or multi-line `<!-- ... -->`,
+# possibly with whitespace around them) are skipped before the check, so a PR
+# template that opens with `<!-- ... -->` on its own line(s) does not trip the
+# check. The first content line is then matched as-is (after stripping a
+# trailing CR from CRLF line endings) -- leading whitespace on a content line
+# is intentionally NOT stripped, so an indented markdown code block beginning
+# with "This PR" does not pass.
+#
+# The companion workflow that invokes this script should run only on open
+# pull requests, so this check does not fire on closed/merged PRs (whose
+# bodies can be rewritten by bots after merge).
 #
 # The failure message printed on stderr is also the message intended for the
 # sticky PR comment, so keep it short and self-explanatory.
@@ -26,15 +38,47 @@ else
   body=$(cat -- "$1")
 fi
 
-# First non-blank line, stripped of leading whitespace.
-first_line=$(printf '%s\n' "$body" | awk 'NF { sub(/^[[:space:]]+/, ""); print; exit }')
+first_line=$(printf '%s\n' "$body" | awk '
+  BEGIN { in_comment = 0 }
+  {
+    sub(/\r$/, "")
+    line = $0
 
-if [[ "$first_line" == This\ PR* ]]; then
+    while (1) {
+      if (in_comment) {
+        idx = index(line, "-->")
+        if (idx == 0) { line = ""; break }
+        line = substr(line, idx + 3)
+        in_comment = 0
+      }
+      # Peek at the line ignoring leading whitespace: if blank, drop the line;
+      # if it starts with an HTML comment, consume the comment in place.
+      peek = line
+      sub(/^[[:space:]]+/, "", peek)
+      if (peek == "") { line = ""; break }
+      if (substr(peek, 1, 4) != "<!--") break
+      sub(/^[[:space:]]*<!--/, "", line)
+      idx = index(line, "-->")
+      if (idx == 0) {
+        in_comment = 1
+        line = ""
+      } else {
+        line = substr(line, idx + 3)
+      }
+    }
+
+    if (line == "" || line ~ /^[[:space:]]*$/) next
+    print line
+    exit
+  }
+')
+
+if [[ "$first_line" == "This PR "* ]]; then
   exit 0
 fi
 
 cat >&2 <<'EOF'
-PR description must begin with a sentence starting "This PR ...".
+PR description must start with a sentence beginning "This PR ...".
 
 For example: "This PR adds ...", "This PR fixes ...", "This PR refactors ...".
 That first sentence is what gets incorporated into the release notes, so it
