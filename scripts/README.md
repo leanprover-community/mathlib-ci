@@ -4,6 +4,7 @@ This directory contains CI automation scripts consumed by mathlib4 workflows.
 
 Layout:
 - `scripts/pr_summary/`: PR summary and import/declaration analysis helpers.
+- `scripts/pr_description/`: PR description format checks.
 - `scripts/reporting/`: reporting scripts for debt, file size, import lints, and build reports.
 - `scripts/maintainer/`: maintainer merge/delegate and PR-testing helper scripts.
 - `scripts/nightly/`: nightly branch automation scripts.
@@ -25,6 +26,13 @@ Layout:
   or declaration ranges differ), added, or removed. Takes four arguments:
   `<base_lib_dir> <head_lib_dir> <comment_file> <full_file>`, where `base_lib_dir` and
   `head_lib_dir` are paths to `.lake/build/lib/lean` for the base and PR builds respectively.
+
+## `pr_description/`
+- `check_description.sh` checks that a PR description begins with a sentence
+  starting "This PR ...". The first argument is a path to a file containing
+  the PR body, or `-` to read it from stdin. Exits 0 if the check passes,
+  1 if it fails (printing a concise failure message on stderr suitable for
+  use as a sticky PR comment), or 2 on a usage error.
 
 ## `reporting/`
 - `technical-debt-metrics.sh`
