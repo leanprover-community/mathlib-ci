@@ -220,15 +220,51 @@ def parse_tsv(path: Path) -> dict[str, list[dict]]:
 # --- markdown rendering ----------------------------------------------------
 
 
-def md_escape(s: str) -> str:
-    """Escape a cell for a Markdown table: pipe → entity, newlines → space.
-    We are paranoid about input that originated in PR code, even though by
-    this point it has been through Lean's parser and our TSV parser.
-    Backticks are preserved to keep `inline code` rendering."""
+def md_cell_escape(s: str) -> str:
+    """Escape a cell for a Markdown table, preserving inline `code`.
+    Used for upstream-derived snippets and titles (Wikidata/Stacks/Kerodon)
+    that have already been through the upstream's own sanitiser. We collapse
+    line breaks, neutralise pipes, and drop carriage returns."""
     return (s.replace("\r", " ")
              .replace("\n", " ")
              .replace("|", "&#124;")
              .strip())
+
+
+# Markdown metacharacters we backslash-escape when the input is untrusted
+# (PR-author comments). `|` becomes the table-cell entity instead; `<` and
+# `>` get HTML-entity-escaped to keep raw HTML from rendering.
+_MD_SPECIAL = "\\`*_{}[]()#+-.!~"
+_TRANSLATION = str.maketrans({c: "\\" + c for c in _MD_SPECIAL})
+
+
+def md_author_escape(s: str) -> str:
+    """Stricter escape for fields that originate in PR-author code (e.g. the
+    optional comment string after a `@[wikidata Q42 "comment"]` attribute).
+    Neutralises Markdown metacharacters, HTML angle brackets, and `@` mentions
+    so a comment can't render arbitrary links, fake bot output, or notify
+    arbitrary users when the bot comment posts."""
+    s = s.replace("\r", " ").replace("\n", " ").strip()
+    s = s.replace("<", "&lt;").replace(">", "&gt;")
+    s = s.translate(_TRANSLATION)
+    # Insert a zero-width space after `@` so GitHub doesn't @-mention people.
+    s = s.replace("@", "@​")
+    s = s.replace("|", "&#124;")
+    return s
+
+
+def _doc_url(file: str, decl_name: str) -> str:
+    """Build a leanprover-community/mathlib4_docs URL for a declaration.
+    Path goes from `Mathlib/Foo/Bar.lean` → `Mathlib/Foo/Bar.html`; the
+    fragment is the fully-qualified declaration name. Both are URL-encoded
+    so unusual characters in declaration names don't break the link."""
+    if file.endswith(".lean"):
+        html_path = file[: -len(".lean")] + ".html"
+    else:
+        html_path = file + ".html"
+    quoted_path = urllib.parse.quote(html_path, safe="/")
+    quoted_frag = urllib.parse.quote(decl_name, safe="")
+    return f"https://leanprover-community.github.io/mathlib4_docs/{quoted_path}#{quoted_frag}"
 
 
 def render_section(database: str, rows: list[dict],
@@ -239,20 +275,18 @@ def render_section(database: str, rows: list[dict],
            "|---|---|---|---|---|"]
     for row in rows:
         tag = row["tag"]
-        decl_link = (f"[`{row['decl_name']}`]"
-                     f"(https://leanprover-community.github.io/mathlib4_docs/"
-                     f"{row['file'].replace('.lean', '.html')}"
-                     f"#{row['decl_name']})")
+        decl_link = f"[`{row['decl_name']}`]({_doc_url(row['file'], row['decl_name'])})"
         title, description = snippets.get(tag, ("ERROR", "no response"))
         if title == "ERROR":
             title_md = "⚠ **NOT FOUND**" if description == "missing" else f"⚠ {description}"
             desc_md = ""
         else:
-            title_md = md_escape(title)
-            desc_md = md_escape(description)
-        link = f"[{tag}]({base_url}{tag})"
+            title_md = md_cell_escape(title)
+            desc_md = md_cell_escape(description)
+        link = f"[{tag}]({urllib.parse.quote(base_url + tag, safe=':/?&=#%')})"
         out.append("| " + " | ".join([
-            link, md_escape(decl_link), title_md, desc_md, md_escape(row["comment"])
+            link, md_cell_escape(decl_link), title_md, desc_md,
+            md_author_escape(row["comment"])
         ]) + " |")
     out.append("")
     return "\n".join(out)
