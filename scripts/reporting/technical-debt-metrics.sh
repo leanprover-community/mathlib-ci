@@ -142,6 +142,7 @@ printf '%s|disabled deprecation lints|weak\n' "$(( deprecs - doubleDeprecs ))" #
 printf '%s|%s|strong\n' "$({ git grep -c 'set_option warning.simp.varHead false' -- Mathlib Archive Counterexamples || true; } | awk -F: 'BEGIN{s=0}{s+=$2} END{print s}')" "disabled varHead simp warnings"
 
 printf '%s|%s|strong\n' "$(grep -c 'docBlame' scripts/nolints.json)" "documentation nolint entries"
+printf '%s|%s\n' "$(grep -c 'defsWithUnderscore' scripts/nolints.json)" "misnamed declarations: definition names with an underscore"
 printf '%s|%s|strong\n' "$(grep -c 'tacticDocs' scripts/nolints.json)" "undocumented tactics"
 # We count the number of large files, making sure to avoid counting the test file `MathlibTest/Lint.lean`.
 printf '%s|%s|weak\n' "$(git grep '^set_option linter.style.longFile [0-9]*' Mathlib | wc -l)" "large files"
