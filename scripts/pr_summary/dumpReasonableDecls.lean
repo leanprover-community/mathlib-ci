@@ -28,7 +28,8 @@ If neither is given, defaults to `--out reasonable_decls.txt`.
 
 Positional `ROOT` arguments are Lean module names (e.g. `Mathlib`,
 `Plausible`). Each is imported and used as a `Name`-prefix filter on
-both outputs. Default: `Mathlib`.
+both outputs. At least one `ROOT` is required for the dumps to be
+non-empty.
 
 ## Usage
 
@@ -72,7 +73,8 @@ Outputs (any combination; both can run in one env load):
 If no output flag is given, defaults to `-o reasonable_decls.txt`.
 
 Each ROOT (e.g. Mathlib) is imported, and both outputs are filtered to
-modules under the root prefix. Default: Mathlib.
+modules under the root prefix. At least one ROOT is required for the
+dumps to be non-empty.
 
 Options:
   -o, --out FILE        decls output file
@@ -178,7 +180,6 @@ unsafe def runDump (cfg : Config) : IO UInt32 := do
 
 def main (args : List String) : IO UInt32 := do
   let mut cfg ← parseArgs args {}
-  if cfg.roots.isEmpty then cfg := { cfg with roots := #[`Mathlib] }
   if cfg.declsOut.isNone && cfg.importsOut.isNone then
     cfg := { cfg with declsOut := some "reasonable_decls.txt" }
   unsafe runDump cfg
