@@ -90,7 +90,8 @@ def parseOutEq? (arg : String) : Option String :=
 
 partial def parseArgs : List String → Config → IO Config
   | [],                                  cfg => pure cfg
-  | (("-h" | "--help") :: _),            _   => do IO.println helpText; IO.Process.exit 0
+  | "-h"     :: _,                       _
+  | "--help" :: _,                       _   => do IO.println helpText; IO.Process.exit 0
   | ("-o" :: f :: rest),                 cfg => parseArgs rest { cfg with declsOut := some f }
   | ("--out" :: f :: rest),              cfg => parseArgs rest { cfg with declsOut := some f }
   | ("--imports-out" :: f :: rest),      cfg => parseArgs rest { cfg with importsOut := some f }
