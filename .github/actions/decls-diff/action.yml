@@ -88,7 +88,7 @@ runs:
           echo "diff-file=$DIFF_FILE"
           echo "plus-count=$PLUS"
           echo "minus-count=$MINUS"
-        } >> "$GITHUB_OUTPUT"
+        } | tee -a "$GITHUB_OUTPUT"
 
         SHORT="${IN_NEW_SHA:0:7}"
         {
