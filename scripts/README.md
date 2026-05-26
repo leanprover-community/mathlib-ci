@@ -18,6 +18,11 @@ Layout:
   It is used by the `PR_summary` workflow to maintain an up-to-date report with a searchable history.
 - `count-trans-deps.py`, `import-graph-report.py` and `import_trans_difference.sh` produce various
   summaries of changes in transitive imports that the `PR_summary` message incorporates.
+- `dumpReasonableDecls.lean` writes (to `--out`) a sorted list of every "reasonable"
+  declaration in the imported environment and (to `--imports-out`) a single-line JSON of
+  per-module transitive-import counts (format-compatible with `count-trans-deps.py`). Both
+  outputs are produced from a single Lean env load. Invoked post-build by
+  `mathlib4`'s `build_template.yml` to populate the `import-graph` artifact.
 - `olean_diff.py` compares the `.olean` build outputs of two Lean builds and writes two markdown
   reports: a truncated one suitable for posting as a GitHub comment, and a full one for upload as
   a workflow artifact. Modules are classified as having public interface changes (exported
