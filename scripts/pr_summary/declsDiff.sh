@@ -1,20 +1,24 @@
 #!/usr/bin/env bash
-# declsDiff.sh — given two pre-computed `decls.txt` dumps (produced by
-# `dumpReasonableDecls.lean`), emit the `+NAME` / `-NAME` diff and a
-# Markdown override snippet for the `#### Declarations diff` section.
-#
-# Inputs:
-#   --ref-decls FILE       declarations dump of the reference commit
-#   --new-decls FILE       declarations dump of the new commit
-#   --new-sha SHA          full SHA of the new commit (for the stamp)
-#
-# Outputs (any combination):
-#   --decls-override FILE  Markdown override snippet
-#   --diff-out FILE        raw `+NAME` / `-NAME` lines
-#   --counts-file FILE     `<plus> <minus>\n`
-#
-# Misc:
-#   -h, --help
+
+# Module doc — also served verbatim by `-h`/`--help`.
+read -r -d '' moduleDocs <<'EOF' || true
+declsDiff.sh — given two pre-computed `decls.txt` dumps (produced by
+`dumpReasonableDecls.lean`), emit the `+NAME` / `-NAME` diff and a
+Markdown override snippet for the `#### Declarations diff` section.
+
+Inputs:
+  --ref-decls FILE       declarations dump of the reference commit
+  --new-decls FILE       declarations dump of the new commit
+  --new-sha SHA          full SHA of the new commit (for the stamp)
+
+Outputs (any combination):
+  --decls-override FILE  Markdown override snippet
+  --diff-out FILE        raw `+NAME` / `-NAME` lines
+  --counts-file FILE     `<plus> <minus>\n`
+
+Misc:
+  -h, --help
+EOF
 
 set -euo pipefail
 
@@ -40,7 +44,7 @@ while [ $# -gt 0 ]; do
     --counts-file)       COUNTS_FILE="$2";     shift 2 ;;
     --counts-file=*)     COUNTS_FILE="${1#*=}"; shift   ;;
     -h|--help)
-      sed -n '2,18p' "$0" | sed 's/^# \{0,1\}//'
+      printf '%s\n' "$moduleDocs"
       exit 0 ;;
     *)
       echo "declsDiff.sh: unknown argument: $1" >&2
