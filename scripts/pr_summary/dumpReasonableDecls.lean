@@ -152,7 +152,7 @@ private def writeImportsDump (env : Environment) (roots : Array Name)
     fullGraph.foldl (init := ({} : NameMap (Array Name))) fun acc src deps =>
       if roots.any (·.isPrefixOf src) then acc.insert src deps
       else acc
-  let closure := Lean.NameMap.transitiveClosure restricted
+  let closure := restricted.transitiveClosure
   -- Restrict to strict descendants of a root (drops the root itself and
   -- any non-root keys that snuck in). Sort by key for deterministic bytes.
   let pairs : Array (String × Json) :=
