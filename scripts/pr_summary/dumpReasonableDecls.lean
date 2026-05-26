@@ -53,7 +53,8 @@ structure Config where
   declsOut   : Option System.FilePath := none
   /-- Path for the transitive-import counts JSON; `none` means "don't dump imports". -/
   importsOut : Option System.FilePath := none
-  /-- Module roots to import and filter by. Empty → default to `[Mathlib]`. -/
+  /-- Module roots to import (via `withImportModules`) and use as a
+  `Name`-prefix filter on both outputs. Empty disables the filter. -/
   roots      : Array Name := #[]
   deriving Inhabited
 
@@ -87,8 +88,7 @@ def parseOutEq? (arg : String) : Option String :=
 
 partial def parseArgs : List String → Config → IO Config
   | [],                                  cfg => pure cfg
-  | ("-h" :: _),                         _   => do IO.println helpText; IO.Process.exit 0
-  | ("--help" :: _),                     _   => do IO.println helpText; IO.Process.exit 0
+  | (("-h" | "--help") :: _),            _   => do IO.println helpText; IO.Process.exit 0
   | ("-o" :: f :: rest),                 cfg => parseArgs rest { cfg with declsOut := some f }
   | ("--out" :: f :: rest),              cfg => parseArgs rest { cfg with declsOut := some f }
   | ("--imports-out" :: f :: rest),      cfg => parseArgs rest { cfg with importsOut := some f }
