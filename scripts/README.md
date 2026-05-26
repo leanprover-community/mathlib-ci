@@ -23,6 +23,10 @@ Layout:
   per-module transitive-import counts (format-compatible with `count-trans-deps.py`). Both
   outputs are produced from a single Lean env load. Invoked post-build by
   `mathlib4`'s `build_template.yml` to populate the `import-graph` artifact.
+- `declsDiff.sh` takes two pre-computed `decls.txt` files (from
+  `dumpReasonableDecls.lean`) and emits the `+NAME` / `-NAME` set-difference plus a Markdown
+  body for the `#### Declarations diff` section of the PR summary comment. Pure shell — no
+  Lake/Lean dependency.
 - `olean_diff.py` compares the `.olean` build outputs of two Lean builds and writes two markdown
   reports: a truncated one suitable for posting as a GitHub comment, and a full one for upload as
   a workflow artifact. Modules are classified as having public interface changes (exported
