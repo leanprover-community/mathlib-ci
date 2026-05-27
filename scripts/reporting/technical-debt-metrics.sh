@@ -194,7 +194,6 @@ prSummaryReport () {
   if [ "$(wc -l <<<"${rep}")" -le 5 ]
   then
     printf '<details><summary>No changes to %s technical debt.</summary></details>\n' "${level}"
-    return 1
   else
     printf '%s\n' "${rep}" |  # outputs lines containing `|Current number|Change|Type|`, so
       # `$2` refers to `Current number` and `$3` to `Change`.
@@ -206,7 +205,6 @@ prSummaryReport () {
       if (total == 0) {average=absWeight} else {average=weight/total}
         if(average < 0) {change= "Decrease"; average=-average; weight=-weight} else {change= "Increase"}
         printf("<details><summary>%s in '"${level}"' tech debt: (relative, absolute) = (%4.2f, %4.2f)</summary>\n\n%s\n</details>\n", change, average, weight, rep) }'
-        return 0
   fi
 }
 
