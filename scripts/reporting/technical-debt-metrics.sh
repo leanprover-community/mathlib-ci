@@ -187,27 +187,44 @@ if [[ "${level}" == "weak" ]]; then
 fi
 }
 
+# Filter `report`'s output down to just the data rows whose Change column is
+# a non-zero integer, dropping the table headers, any blank/footer lines, and
+# everything inside fenced ``` blocks (the Deprecated-files spoiler). A "data
+# row" from `computeDiff` is `|N|diff|name|`; `N` may be empty if a counter
+# disappeared in the new commit, so we test the Change column rather than the
+# Current column.
+filterChangedRows () {
+  awk -F'|' '
+    BEGIN { inFence = 0 }
+    /^```/ { inFence = !inFence; next }
+    (!inFence) && ($3+0 == $3) && ($3+0 != 0) { print }
+  '
+}
+
 prSummaryReport () {
   level="${1}"
-  rep="${2}"
+  changedRows="${2}"
 
-  if [ "$(wc -l <<<"${rep}")" -le 5 ]
+  if [ -z "${changedRows}" ]
   then
     printf '<details><summary>No changes to %s technical debt.</summary>\n' "${level}"
     return 1
-  else
-    printf '%s\n' "${rep}" |  # outputs lines containing `|Current number|Change|Type|`, so
-      # `$2` refers to `Current number` and `$3` to `Change`.
-    awk -F '|' -v rep="${rep}" '
-    BEGIN{total=0; weight=0; absWeight=0}
-    {absWeight+=$3+0}
-    (($3+0 == $3) && (!($2+0 == 0))) {total+=1 / $2; weight+=$3 / $2}
-    END{
-      if (total == 0) {average=absWeight} else {average=weight/total}
-        if(average < 0) {change= "Decrease"; average=-average; weight=-weight} else {change= "Increase"}
-        printf("<details><summary>%s in '"${level}"' tech debt: (relative, absolute) = (%4.2f, %4.2f)</summary>\n\n%s\n", change, average, weight, rep) }'
-        return 0
   fi
+
+  # Reconstruct the rendered table with the header rows that the awk filter dropped.
+  rep="$(printf '|Current number|Change|Type|\n|-:|:-:|:-|\n%s\n' "${changedRows}")"
+
+  printf '%s\n' "${rep}" |  # outputs lines containing `|Current number|Change|Type|`, so
+                            # `$2` refers to `Current number` and `$3` to `Change`.
+  awk -F '|' -v rep="${rep}" '
+  BEGIN{total=0; weight=0; absWeight=0}
+  {absWeight+=$3+0}
+  (($3+0 == $3) && (!($2+0 == 0))) {total+=1 / $2; weight+=$3 / $2}
+  END{
+    if (total == 0) {average=absWeight} else {average=weight/total}
+      if(average < 0) {change= "Decrease"; average=-average; weight=-weight} else {change= "Increase"}
+      printf("<details><summary>%s in '"${level}"' tech debt: (relative, absolute) = (%4.2f, %4.2f)</summary>\n\n%s\n", change, average, weight, rep) }'
+  return 0
 }
 
 # What to print at the end of a set of reports.
@@ -221,8 +238,8 @@ if [ "${1:-}" == "pr_summary" ]
 then
   alreadyPrintedFooter="false"
 
-  repStrong="$(report strong | awk -F'|' 'BEGIN{backTicks=0} /^```/{backTicks++} ((!/^```/) && (backTicks % 2 == 0) && !($3 == "0")) {print $0}')"
-  repWeak="$(report weak | awk -F'|' 'BEGIN{backTicks=0} /^```/{backTicks++} ((!/^```/) && (backTicks % 2 == 0) && !($3 == "0")) {print $0}')"
+  repStrong="$(report strong | filterChangedRows)"
+  repWeak="$(report weak | filterChangedRows)"
   if prSummaryReport strong "${repStrong}"; then
     reportFooter
     printf '\nThis script lives in the [`mathlib-ci`](https://github.com/leanprover-community/mathlib-ci) repository. To run it locally, from your `mathlib4` directory:\n```\ngit clone https://github.com/leanprover-community/mathlib-ci.git ../mathlib-ci\n../mathlib-ci/scripts/reporting/technical-debt-metrics.sh pr_summary\n```\n%s\n</details>\n' '* The `relative` value is the weighted *sum* of the differences with weight given by the *inverse* of the current value of the statistic.
