@@ -63,15 +63,6 @@ MAX_FILTERED_ROWS=500
 # render time regardless of row count or upstream latency.
 RENDER_TIMEOUT_SECONDS=180
 
-# Per-database regex tags must match before we let them reach the renderer.
-# Defence in depth: master Mathlib's attribute parsers enforce these, but
-# the producer is PR-controlled and a malicious dump can emit anything.
-declare -A TAG_REGEXES=(
-  [stacks]='^[0-9A-Z]{4}$'
-  [kerodon]='^[0-9A-Z]{4}$'
-  [wikidata]='^Q[0-9]+$'
-)
-
 # --- env validation --------------------------------------------------------
 
 : "${GH_TOKEN:?GH_TOKEN is required}"
@@ -207,7 +198,7 @@ awk -F'\t' -v OFS='\t' '
   files[$4]
 ' "$WORK_DIR/changed.txt" "$TSV_PATH" > "$WORK_DIR/filtered.tsv"
 
-# --- step 5: per-tag regex validation + row-count cap ---------------------
+# --- step 5: per-tag regex validation -------------------------------------
 
 # Reject any row whose tag doesn't match its database's regex. This is
 # defence in depth: the master attribute parsers enforce the same shapes,
@@ -230,17 +221,33 @@ while IFS=$'\t' read -r db tag _decl _file _comment; do
   printf '%s\t%s\t%s\t%s\t%s\n' "$db" "$tag" "$_decl" "$_file" "$_comment"
 done < "$WORK_DIR/filtered.tsv" >> "$VALIDATED"
 
-ROW_COUNT="$(wc -l < "$VALIDATED" | tr -d ' ')"
-echo "Filtered TSV has $ROW_COUNT row(s)."
+# --- step 5b: subtract baseline (rows that already existed at the merge-base) -
+
+# Apply this BEFORE the row-count cap so a maintenance PR that touches
+# many files containing existing tags isn't rejected for "too many rows"
+# when the baseline would have subtracted them all anyway.
+RENDER_TSV="$VALIDATED"
+if [[ -n "$BASELINE_TSV" ]]; then
+  awk 'NR==FNR { seen[$0]=1; next } !seen[$0]' \
+      "$BASELINE_TSV" "$VALIDATED" > "$WORK_DIR/diffed.tsv"
+  RENDER_TSV="$WORK_DIR/diffed.tsv"
+fi
+
+ROW_COUNT="$(wc -l < "$RENDER_TSV" | tr -d ' ')"
+if [[ -n "$BASELINE_TSV" ]]; then
+  echo "After baseline subtraction: $ROW_COUNT row(s) to render."
+else
+  echo "No baseline; rendering $ROW_COUNT validated row(s)."
+fi
 
 if [[ "$ROW_COUNT" -eq 0 ]]; then
-  echo "No cross-reference tags in files this PR touched; nothing to comment."
+  echo "No new or changed cross-reference tags introduced by this PR."
   delete_existing_comment_if_any
   exit 0
 fi
 
 if (( ROW_COUNT > MAX_FILTERED_ROWS )); then
-  echo "Filtered TSV has $ROW_COUNT rows, exceeds cap of $MAX_FILTERED_ROWS." >&2
+  echo "Render set has $ROW_COUNT rows, exceeds cap of $MAX_FILTERED_ROWS." >&2
   echo "Refusing to render — investigate dump_crossref_tags.lean changes." >&2
   exit 1
 fi
@@ -279,15 +286,15 @@ fi
 # --- step 7: render the Markdown comment -----------------------------------
 
 COMMENT_FILE="$WORK_DIR/comment.md"
+# We've already filtered by changed files and subtracted the baseline in
+# the shell above (so the row-count cap is applied to what actually gets
+# rendered, not the pre-subtraction set). The renderer just walks the
+# TSV and fetches snippets — no further filtering needed here.
 RENDER_ARGS=(
-  --tsv "$VALIDATED"
-  --changed-files "$WORK_DIR/changed.txt"
+  --tsv "$RENDER_TSV"
   --strict
   --out "$COMMENT_FILE"
 )
-if [[ -n "$BASELINE_TSV" ]]; then
-  RENDER_ARGS+=(--baseline-tsv "$BASELINE_TSV")
-fi
 
 RENDER_EXIT=0
 timeout --signal=TERM "$RENDER_TIMEOUT_SECONDS" "$RENDER_BIN" "${RENDER_ARGS[@]}" \
