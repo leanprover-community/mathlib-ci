@@ -12,15 +12,20 @@ in mathlib4. That job invokes [`post-comment.sh`](./post-comment.sh) here.
 
 `post-comment.sh`:
 
-1. Filters the TSV to records whose source module is among the PR's changed
-   `.lean` files (via `gh pr diff --name-only`).
-2. Clones [`leanprover-community/external-tags`](https://github.com/leanprover-community/external-tags)
-   at a pinned commit SHA (see `EXTERNAL_TAGS_SHA` at the top of the script).
-3. Builds and runs `crossref-render` from that clone, producing a Markdown
-   comment body.
-4. Uses `scripts/pr_summary/update_PR_comment.sh` to post or update the PR
-   bot comment.
-5. Exits non-zero iff any tag was reported missing upstream, so the
+1. Validates the bridge payload (`PR_NUMBER`, `HEAD_SHA`, TSV size).
+2. Skips if the PR head has moved since the build (force-push between
+   build and comment).
+3. Filters the TSV to records whose source module is among the PR's
+   changed `.lean` files (via `gh pr diff --name-only`).
+4. Resolves `crossref-render`: prefers the prebuilt binary at
+   `$CROSSREF_RENDER_BIN` (the mathlib4 workflow caches this across
+   runs); otherwise clones
+   [`leanprover-community/external-tags`](https://github.com/leanprover-community/external-tags)
+   at the pinned `EXTERNAL_TAGS_SHA` and builds it.
+5. Runs `crossref-render`; the rendered Markdown becomes the bot comment.
+6. Uses `scripts/pr_summary/update_PR_comment.sh` to post or update the
+   PR bot comment.
+7. Exits non-zero iff `crossref-render` reported missing tags, so the
    `workflow_run` check turns red.
 
 **Updating the pinned external-tags SHA.** One-line PR to this repo: bump
