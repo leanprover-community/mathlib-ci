@@ -107,6 +107,30 @@ REPO="${GITHUB_REPOSITORY:-leanprover-community/mathlib4}"
 WORK_DIR="$(mktemp -d -t crossref-review-XXXXXX)"
 trap 'rm -rf "$WORK_DIR"' EXIT
 
+# Marker on the first line of the rendered comment; identifies our prior
+# comment when we look it up to update/delete.
+MARKER="<!-- external-tags:crossref-review -->"
+
+# Return the numeric ID of the existing bot comment with our marker (if any),
+# or empty.
+find_existing_comment_id() {
+  gh api "repos/$REPO/issues/$PR_NUMBER/comments" --paginate \
+    --jq ".[] | select(.body | startswith(\"$MARKER\")) | .id" 2>/dev/null | head -1
+}
+
+# Delete the prior bot comment if one exists. Used on clean-exit paths
+# where this PR has nothing to comment about — without this, a comment
+# from an earlier build of the same PR would linger and mislead the
+# reviewer about the current state.
+delete_existing_comment_if_any() {
+  local id
+  id="$(find_existing_comment_id)"
+  if [[ -n "$id" ]]; then
+    echo "Deleting orphaned bot comment (id=$id)"
+    gh api -X DELETE "repos/$REPO/issues/comments/$id" >/dev/null
+  fi
+}
+
 # --- step 2: stale-run check ----------------------------------------------
 
 # If the PR's head SHA has moved since the build that produced our TSV,
@@ -133,10 +157,13 @@ if [[ -n "$BASE_REF" ]]; then
   MERGE_BASE="$(gh api "repos/$REPO/compare/$BASE_REF...$HEAD_SHA" \
     --jq '.merge_base_commit.sha // empty' 2>/dev/null || true)"
   if [[ -n "$MERGE_BASE" ]]; then
-    # Find a master CI run at that exact merge-base SHA. Try both workflow
-    # names so this works for fork and same-repo PRs.
+    # Find a successful CI run at that exact merge-base SHA. We don't
+    # filter by --branch: the dump output is a pure function of the
+    # elaborated environment at the SHA, so any branch that ran CI on
+    # that commit will have an equivalent baseline artifact (useful for
+    # PRs that target non-master branches).
     for wf in "continuous integration" "continuous integration (mathlib forks)"; do
-      RUN_ID="$(gh run list --repo "$REPO" --branch master --workflow="$wf" \
+      RUN_ID="$(gh run list --repo "$REPO" --workflow="$wf" \
         --status success --commit "$MERGE_BASE" --limit 1 \
         --json databaseId --jq '.[0].databaseId // empty' 2>/dev/null || true)"
       if [[ -n "$RUN_ID" ]]; then break; fi
@@ -170,6 +197,7 @@ grep -E '\.lean$' "$RAW_CHANGED" > "$WORK_DIR/changed.txt" || true
 
 if [[ ! -s "$WORK_DIR/changed.txt" ]]; then
   echo "PR #$PR_NUMBER touched no .lean files; nothing to comment."
+  delete_existing_comment_if_any
   exit 0
 fi
 
@@ -207,6 +235,7 @@ echo "Filtered TSV has $ROW_COUNT row(s)."
 
 if [[ "$ROW_COUNT" -eq 0 ]]; then
   echo "No cross-reference tags in files this PR touched; nothing to comment."
+  delete_existing_comment_if_any
   exit 0
 fi
 
@@ -268,6 +297,7 @@ timeout --signal=TERM "$RENDER_TIMEOUT_SECONDS" "$RENDER_BIN" "${RENDER_ARGS[@]}
 case "$RENDER_EXIT" in
   0)
     echo "crossref-render reported nothing to comment; exiting clean."
+    delete_existing_comment_if_any
     exit 0
     ;;
   1|2) : ;;  # comment was written; fall through
@@ -292,16 +322,27 @@ fi
 
 # --- step 8: post or update the bot comment --------------------------------
 
-# The marker is the first line of the rendered comment and matches the one
-# baked into Crossrefs/Render.lean in external-tags. update_PR_comment.sh
-# matches comments by `startswith($cID)`, so the marker on line 1 is enough.
-MARKER="<!-- external-tags:crossref-review -->"
+# Skip the update if the existing bot comment's body is byte-identical to
+# what we'd post. Avoids the notification each PR push would otherwise
+# generate for an unchanged comment.
+EXISTING_ID="$(find_existing_comment_id)"
+SKIP_UPDATE=0
+if [[ -n "$EXISTING_ID" ]]; then
+  EXISTING_BODY="$(gh api "repos/$REPO/issues/comments/$EXISTING_ID" --jq '.body' 2>/dev/null || true)"
+  NEW_BODY="$(cat "$COMMENT_FILE")"
+  if [[ "$EXISTING_BODY" == "$NEW_BODY" ]]; then
+    echo "Bot comment body unchanged; skipping update to avoid notification."
+    SKIP_UPDATE=1
+  fi
+fi
 
-export GITHUB_REPOSITORY="$REPO"
-bash "$MATHLIB_CI_ROOT/scripts/pr_summary/update_PR_comment.sh" \
-  "$COMMENT_FILE" \
-  "$MARKER" \
-  "$PR_NUMBER"
+if [[ "$SKIP_UPDATE" -eq 0 ]]; then
+  export GITHUB_REPOSITORY="$REPO"
+  bash "$MATHLIB_CI_ROOT/scripts/pr_summary/update_PR_comment.sh" \
+    "$COMMENT_FILE" \
+    "$MARKER" \
+    "$PR_NUMBER"
+fi
 
 # --- step 9: fail the check if any tag is missing -------------------------
 
