@@ -154,7 +154,7 @@ printf '%s|%s|weak\n' "$(printf '%s' "${deprecatedFiles}" | wc -l)" "\`Deprecate
 printf '%s|%s|weak\n\n' "$(printf '%s\n' "${deprecatedFiles}" | grep total | sed 's= total==')"  'total LoC in `Deprecated` files'
 }
 
-# `report $level` reports the differnece in tech debt at indicated level (weak / strong).
+# `report $level` reports the difference in tech debt at indicated level (weak / strong).
 report () {
 level=${1}
 
@@ -193,7 +193,7 @@ prSummaryReport () {
 
   if [ "$(wc -l <<<"${rep}")" -le 5 ]
   then
-    printf '<details><summary>No changes to %s technical debt.</summary>\n' "${level}"
+    printf '<details><summary>No changes to %s technical debt.</summary></details>\n' "${level}"
     return 1
   else
     printf '%s\n' "${rep}" |  # outputs lines containing `|Current number|Change|Type|`, so
@@ -205,7 +205,7 @@ prSummaryReport () {
     END{
       if (total == 0) {average=absWeight} else {average=weight/total}
         if(average < 0) {change= "Decrease"; average=-average; weight=-weight} else {change= "Increase"}
-        printf("<details><summary>%s in '"${level}"' tech debt: (relative, absolute) = (%4.2f, %4.2f)</summary>\n\n%s\n", change, average, weight, rep) }'
+        printf("<details><summary>%s in '"${level}"' tech debt: (relative, absolute) = (%4.2f, %4.2f)</summary>\n\n%s\n</details>\n", change, average, weight, rep) }'
         return 0
   fi
 }
@@ -219,25 +219,13 @@ printf 'Reference commit [%s](%s)\n' "${refCommit:0:10}"  "${baseURL}/${refCommi
 
 if [ "${1:-}" == "pr_summary" ]
 then
-  alreadyPrintedFooter="false"
-
   repStrong="$(report strong | awk -F'|' 'BEGIN{backTicks=0} /^```/{backTicks++} ((!/^```/) && (backTicks % 2 == 0) && !($3 == "0")) {print $0}')"
   repWeak="$(report weak | awk -F'|' 'BEGIN{backTicks=0} /^```/{backTicks++} ((!/^```/) && (backTicks % 2 == 0) && !($3 == "0")) {print $0}')"
-  if prSummaryReport strong "${repStrong}"; then
-    reportFooter
-    printf '\nThis script lives in the [`mathlib-ci`](https://github.com/leanprover-community/mathlib-ci) repository. To run it locally, from your `mathlib4` directory:\n```\ngit clone https://github.com/leanprover-community/mathlib-ci.git ../mathlib-ci\n../mathlib-ci/scripts/reporting/technical-debt-metrics.sh pr_summary\n```\n%s\n</details>\n' '* The `relative` value is the weighted *sum* of the differences with weight given by the *inverse* of the current value of the statistic.
+  prSummaryReport strong "${repStrong}"
+  prSummaryReport weak "${repWeak}"
+  reportFooter
+  printf '\nThis script lives in the [`mathlib-ci`](https://github.com/leanprover-community/mathlib-ci) repository. To run it locally, from your `mathlib4` directory:\n```\ngit clone https://github.com/leanprover-community/mathlib-ci.git ../mathlib-ci\n../mathlib-ci/scripts/reporting/technical-debt-metrics.sh pr_summary\n```\n%s\n' '* The `relative` value is the weighted *sum* of the differences with weight given by the *inverse* of the current value of the statistic.
   * The `absolute` value is the `relative` value divided by the total sum of the inverses of the current values (i.e. the weighted *average* of the differences).'
-    alreadyPrintedFooter="true"
-  fi
-  if prSummaryReport weak "${repWeak}"; then
-    reportFooter
-    if [[ "${alreadyPrintedFooter}" == "true" ]]; then
-      printf '</details>\n'
-    else
-      printf '\nThis script lives in the [`mathlib-ci`](https://github.com/leanprover-community/mathlib-ci) repository. To run it locally, from your `mathlib4` directory:\n```\ngit clone https://github.com/leanprover-community/mathlib-ci.git ../mathlib-ci\n../mathlib-ci/scripts/reporting/technical-debt-metrics.sh pr_summary\n```\n%s\n</details>\n' '* The `relative` value is the weighted *sum* of the differences with weight given by the *inverse* of the current value of the statistic.
-  * The `absolute` value is the `relative` value divided by the total sum of the inverses of the current values (i.e. the weighted *average* of the differences).'
-    fi
-  fi
 else
   report strong
   report weak
