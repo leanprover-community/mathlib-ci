@@ -6,31 +6,34 @@
 # privilege-escalation-bridge has delivered the TSV produced by
 # scripts/dump_crossref_tags.lean.
 #
-# What it does:
-#   1. Validate the bridge payload (PR_NUMBER is decimal; HEAD_SHA is a SHA;
-#      TSV exists and is under MAX_TSV_BYTES).
-#   2. Refuse to post if the PR has moved since the build that produced the
-#      TSV (force-push between build and comment).
-#   3. Ask GitHub which .lean files this PR touched, and filter the TSV
-#      down to records whose source module matches one of them. If nothing
-#      matches, exit clean.
-#   4. Resolve crossref-render: prefer $CROSSREF_RENDER_BIN if set (the
-#      workflow pre-builds and caches it), otherwise clone external-tags
-#      at the pinned SHA and `lake build crossref-render` ourselves.
-#   5. Run crossref-render; capture the Markdown body.
-#   6. Use mathlib-ci's existing update_PR_comment.sh to post-or-update the
-#      bot comment on the PR (deduped by the marker on the first line).
-#   7. Exit non-zero iff crossref-render reported missing tags (exit 1).
+# Pipeline:
+#   1. Validate the bridge payload (PR_NUMBER decimal; HEAD_SHA hex SHA;
+#      TSV present and under MAX_TSV_BYTES).
+#   2. Skip if the PR head has moved since the build that produced our TSV
+#      (force-push between build and comment).
+#   3. Get the PR's merge-base commit on master and, if there's a master CI
+#      run for that exact SHA, download its `crossref-tags-baseline` artifact.
+#      Missing baseline is non-fatal — we just don't subtract anything.
+#   4. Get the PR's changed .lean files via `gh pr diff --name-only` and
+#      filter the TSV by them. If nothing matches, exit clean.
+#   5. Validate every surviving tag against a per-database regex (defence
+#      in depth against a producer that bypasses mathlib's attribute parser).
+#      Cap row count after filtering.
+#   6. Resolve crossref-render: prefer $CROSSREF_RENDER_BIN; otherwise
+#      clone external-tags at the pinned SHA and build it.
+#   7. Run crossref-render under a wall-clock timeout, with --strict (fail
+#      on malformed rows) and --baseline-tsv (subtract baseline rows).
+#   8. Hand off the rendered Markdown to update_PR_comment.sh.
+#   9. Exit non-zero iff any tag was reported missing upstream.
 #
 # Required env vars:
 #   GH_TOKEN     GitHub token with pull-requests:write
-#   PR_NUMBER    The PR to comment on  (validated /^[0-9]+$/)
-#   HEAD_SHA     The PR head SHA the TSV was built from  (validated /^[0-9a-f]{40}$/)
+#   PR_NUMBER    PR to comment on  (validated /^[0-9]+$/)
+#   HEAD_SHA     PR head SHA the TSV was built from  (/^[0-9a-f]{40}$/)
 #   TSV_PATH     Absolute path to crossref-tags.tsv (delivered under .bridge/)
 #
 # Optional env vars:
-#   CROSSREF_RENDER_BIN   Path to a prebuilt crossref-render binary. If set,
-#                         we skip the clone+build and use this instead.
+#   CROSSREF_RENDER_BIN   Path to a prebuilt crossref-render binary.
 
 set -euo pipefail
 IFS=$'\n\t'
@@ -41,16 +44,35 @@ IFS=$'\n\t'
 # can diff external-tags@<OLD>..<NEW>.
 
 EXTERNAL_TAGS_REPO="leanprover-community/external-tags"
-EXTERNAL_TAGS_SHA="3be1259f38231e10c40b8fbe0329d2d43d823006"
+EXTERNAL_TAGS_SHA="4634089069155423f802905f8d649758222e07b5"
 
 # Hard cap on what we'll parse from the bridge artifact. The producer in
 # mathlib4's scripts/dump_crossref_tags.lean caps at 2 MB defensively, but
-# THAT script is PR-controlled (it lives in scripts/ and a malicious PR can
-# remove the cap), so the cap must be enforced again here, in trusted code.
-# 4 MB is comfortable headroom over the current ~55 KB population.
+# THAT script is PR-controlled and a malicious PR can remove the cap, so
+# the trusted cap is enforced again here. 4 MB is ample over the current
+# ~55 KB / 491-row population.
 MAX_TSV_BYTES=$((4 * 1024 * 1024))
 
-# --- env vars + validation -------------------------------------------------
+# Cap on rows after the changed-files + baseline filters. With the
+# baseline filter, a "normal" PR has at most a handful of rows. We allow
+# orders-of-magnitude more in case a PR genuinely adds many new tags.
+MAX_FILTERED_ROWS=500
+
+# Wall-clock cap on the renderer (fetches snippets from external APIs).
+# Each Gerby fetch is one HTTP request with a 10s timeout; this caps total
+# render time regardless of row count or upstream latency.
+RENDER_TIMEOUT_SECONDS=180
+
+# Per-database regex tags must match before we let them reach the renderer.
+# Defence in depth: master Mathlib's attribute parsers enforce these, but
+# the producer is PR-controlled and a malicious dump can emit anything.
+declare -A TAG_REGEXES=(
+  [stacks]='^[0-9A-Z]{4}$'
+  [kerodon]='^[0-9A-Z]{4}$'
+  [wikidata]='^Q[0-9]+$'
+)
+
+# --- env validation --------------------------------------------------------
 
 : "${GH_TOKEN:?GH_TOKEN is required}"
 : "${PR_NUMBER:?PR_NUMBER is required}"
@@ -78,7 +100,6 @@ if (( TSV_SIZE > MAX_TSV_BYTES )); then
   exit 1
 fi
 
-# Where we resolve paths relative to.
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MATHLIB_CI_ROOT="$(cd "$HERE/../.." && pwd)"
 REPO="${GITHUB_REPOSITORY:-leanprover-community/mathlib4}"
@@ -102,12 +123,44 @@ if [[ "$CURRENT_HEAD_SHA" != "$HEAD_SHA" ]]; then
   exit 0
 fi
 
-# --- step 3: filter TSV by changed files ----------------------------------
+# --- step 3: merge-base baseline TSV --------------------------------------
+
+# Find the PR's merge-base on master via the GitHub compare API.
+BASE_REF="$(gh pr view "$PR_NUMBER" --repo "$REPO" \
+  --json baseRefName --jq '.baseRefName' 2>/dev/null || true)"
+BASELINE_TSV=""
+if [[ -n "$BASE_REF" ]]; then
+  MERGE_BASE="$(gh api "repos/$REPO/compare/$BASE_REF...$HEAD_SHA" \
+    --jq '.merge_base_commit.sha // empty' 2>/dev/null || true)"
+  if [[ -n "$MERGE_BASE" ]]; then
+    # Find a master CI run at that exact merge-base SHA. Try both workflow
+    # names so this works for fork and same-repo PRs.
+    for wf in "continuous integration" "continuous integration (mathlib forks)"; do
+      RUN_ID="$(gh run list --repo "$REPO" --branch master --workflow="$wf" \
+        --status success --commit "$MERGE_BASE" --limit 1 \
+        --json databaseId --jq '.[0].databaseId // empty' 2>/dev/null || true)"
+      if [[ -n "$RUN_ID" ]]; then break; fi
+    done
+    if [[ -n "$RUN_ID" ]]; then
+      BASELINE_DIR="$WORK_DIR/baseline"
+      mkdir -p "$BASELINE_DIR"
+      if gh run download "$RUN_ID" --repo "$REPO" \
+         --name crossref-tags-baseline --dir "$BASELINE_DIR" 2>/dev/null \
+         && [[ -f "$BASELINE_DIR/crossref-tags.tsv" ]]; then
+        BASELINE_TSV="$BASELINE_DIR/crossref-tags.tsv"
+        echo "Got baseline TSV from master run $RUN_ID (commit $MERGE_BASE)."
+      fi
+    fi
+  fi
+fi
+if [[ -z "$BASELINE_TSV" ]]; then
+  echo "Baseline TSV unavailable (merge-base build expired or missing); \
+rendering against changed-files filter only."
+fi
+
+# --- step 4: filter TSV by changed files ----------------------------------
 
 echo "Fetching list of changed files for PR #$PR_NUMBER ..."
-# Capture into a temp file so we can distinguish "gh failed" from "no
-# .lean files in the diff" — piping straight through `grep || true` would
-# eat both.
 RAW_CHANGED="$WORK_DIR/changed-raw.txt"
 if ! gh pr diff "$PR_NUMBER" --name-only --repo "$REPO" > "$RAW_CHANGED"; then
   echo "gh pr diff failed for PR #$PR_NUMBER; aborting." >&2
@@ -126,7 +179,30 @@ awk -F'\t' -v OFS='\t' '
   files[$4]
 ' "$WORK_DIR/changed.txt" "$TSV_PATH" > "$WORK_DIR/filtered.tsv"
 
-ROW_COUNT="$(wc -l < "$WORK_DIR/filtered.tsv" | tr -d ' ')"
+# --- step 5: per-tag regex validation + row-count cap ---------------------
+
+# Reject any row whose tag doesn't match its database's regex. This is
+# defence in depth: the master attribute parsers enforce the same shapes,
+# but the producer is PR-controlled.
+VALIDATED="$WORK_DIR/validated.tsv"
+: > "$VALIDATED"
+while IFS=$'\t' read -r db tag _decl _file _comment; do
+  case "$db" in
+    stacks|kerodon)
+      [[ "$tag" =~ ^[0-9A-Z]{4}$ ]] || { echo "rejecting malformed $db tag: $tag" >&2; continue; }
+      ;;
+    wikidata)
+      [[ "$tag" =~ ^Q[0-9]+$ ]] || { echo "rejecting malformed wikidata tag: $tag" >&2; continue; }
+      ;;
+    *)
+      echo "rejecting unknown database: $db" >&2
+      continue
+      ;;
+  esac
+  printf '%s\t%s\t%s\t%s\t%s\n' "$db" "$tag" "$_decl" "$_file" "$_comment"
+done < "$WORK_DIR/filtered.tsv" >> "$VALIDATED"
+
+ROW_COUNT="$(wc -l < "$VALIDATED" | tr -d ' ')"
 echo "Filtered TSV has $ROW_COUNT row(s)."
 
 if [[ "$ROW_COUNT" -eq 0 ]]; then
@@ -134,7 +210,13 @@ if [[ "$ROW_COUNT" -eq 0 ]]; then
   exit 0
 fi
 
-# --- step 4: resolve crossref-render ---------------------------------------
+if (( ROW_COUNT > MAX_FILTERED_ROWS )); then
+  echo "Filtered TSV has $ROW_COUNT rows, exceeds cap of $MAX_FILTERED_ROWS." >&2
+  echo "Refusing to render — investigate dump_crossref_tags.lean changes." >&2
+  exit 1
+fi
+
+# --- step 6: resolve crossref-render ---------------------------------------
 
 # Prefer a prebuilt binary passed in via env (the workflow caches and
 # pre-builds it). Fall back to building from a clone here, so this script
@@ -165,25 +247,37 @@ if [[ ! -x "$RENDER_BIN" ]]; then
   exit 1
 fi
 
-# --- step 5: render the Markdown comment -----------------------------------
+# --- step 7: render the Markdown comment -----------------------------------
 
 COMMENT_FILE="$WORK_DIR/comment.md"
+RENDER_ARGS=(
+  --tsv "$VALIDATED"
+  --changed-files "$WORK_DIR/changed.txt"
+  --strict
+  --out "$COMMENT_FILE"
+)
+if [[ -n "$BASELINE_TSV" ]]; then
+  RENDER_ARGS+=(--baseline-tsv "$BASELINE_TSV")
+fi
+
 RENDER_EXIT=0
-"$RENDER_BIN" \
-  --tsv "$WORK_DIR/filtered.tsv" \
-  --changed-files "$WORK_DIR/changed.txt" \
-  --out "$COMMENT_FILE" \
+timeout --signal=TERM "$RENDER_TIMEOUT_SECONDS" "$RENDER_BIN" "${RENDER_ARGS[@]}" \
   || RENDER_EXIT=$?
 
-# crossref-render exits 0 = nothing to comment, 1 = some missing, 2 = all ok.
-# Anything else is an error.
+# `timeout` returns 124 on TERM, 137 on KILL.
 case "$RENDER_EXIT" in
   0)
     echo "crossref-render reported nothing to comment; exiting clean."
     exit 0
     ;;
-  1|2)
-    : # fall through
+  1|2) : ;;  # comment was written; fall through
+  124|137)
+    echo "crossref-render exceeded ${RENDER_TIMEOUT_SECONDS}s timeout; aborting." >&2
+    exit 1
+    ;;
+  65)
+    echo "crossref-render rejected the TSV as malformed (--strict)." >&2
+    exit 1
     ;;
   *)
     echo "crossref-render failed with exit $RENDER_EXIT" >&2
@@ -196,7 +290,7 @@ if [[ ! -f "$COMMENT_FILE" ]]; then
   exit 1
 fi
 
-# --- step 6: post or update the bot comment --------------------------------
+# --- step 8: post or update the bot comment --------------------------------
 
 # The marker is the first line of the rendered comment and matches the one
 # baked into Crossrefs/Render.lean in external-tags. update_PR_comment.sh
@@ -209,11 +303,9 @@ bash "$MATHLIB_CI_ROOT/scripts/pr_summary/update_PR_comment.sh" \
   "$MARKER" \
   "$PR_NUMBER"
 
-# --- step 7: fail the check if any tag is missing --------------------------
+# --- step 9: fail the check if any tag is missing -------------------------
 
 # Authoritative signal is crossref-render's exit code (1 = missing).
-# Greping the rendered Markdown for a magic string would let PR authors
-# force-red the check via crafted tag comments.
 if [[ "$RENDER_EXIT" -eq 1 ]]; then
   echo "crossref-render reported missing tags; failing the check."
   exit 1
