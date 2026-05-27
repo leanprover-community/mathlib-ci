@@ -41,7 +41,7 @@ IFS=$'\n\t'
 # can diff external-tags@<OLD>..<NEW>.
 
 EXTERNAL_TAGS_REPO="leanprover-community/external-tags"
-EXTERNAL_TAGS_SHA="f56909c70b3ed7cc607a6110c04f25bd19d55731"
+EXTERNAL_TAGS_SHA="3be1259f38231e10c40b8fbe0329d2d43d823006"
 
 # Hard cap on what we'll parse from the bridge artifact. The producer in
 # mathlib4's scripts/dump_crossref_tags.lean caps at 2 MB defensively, but
