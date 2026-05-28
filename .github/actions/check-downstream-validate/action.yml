@@ -54,13 +54,9 @@ runs:
     - name: Run validator
       id: run
       shell: bash
-      # Every input flows through `env:` rather than `${{ … }}`
-      # expansion inside `run:`.  GitHub renders `${{ … }}` directly
-      # into the shell script before bash sees it, so a value
-      # containing `$(...)` or backticks would execute as command
-      # substitution even inside double quotes — and `names` in
-      # particular is the verbatim text the user typed in their
-      # `!downstream-check` comment.
+      # Inputs flow through `env:`, never `${{ … }}` inside `run:`: GitHub
+      # expands `${{ … }}` into the script before bash sees it, so user-typed
+      # text like `names` could execute as command substitution.
       env:
         GITHUB_TOKEN: ${{ inputs.github-token }}
         NAMES: ${{ inputs.names }}

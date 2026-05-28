@@ -49,29 +49,6 @@ def render(*, commenter: str, error: GrammarError) -> str:
     return "\n".join(lines)
 
 
-def post(*, repo: str, pr_number: str, body: str, token: str) -> None:
-    """POST *body* as a new comment on ``repo``'s PR ``pr_number``.
-
-    Always POSTs a fresh comment (no edit-in-place) so retries of a
-    bad directive leave a visible audit trail and the user sees each
-    correction attempt separately.
-    """
-    url = f"https://api.github.com/repos/{repo}/issues/{pr_number}/comments"
-    req = urllib.request.Request(
-        url,
-        method="POST",
-        headers={
-            "Authorization": f"Bearer {token}",
-            "Accept": "application/vnd.github+json",
-            "X-GitHub-Api-Version": "2022-11-28",
-            "User-Agent": "leanprover-community/mathlib-ci check-downstream",
-        },
-        data=json.dumps({"body": body}).encode("utf-8"),
-    )
-    with urllib.request.urlopen(req, timeout=30) as _resp:
-        pass
-
-
 def post_grammar_error(
     *,
     repo: str,
@@ -80,17 +57,29 @@ def post_grammar_error(
     error: GrammarError,
     token: str | None = None,
 ) -> None:
-    """Convenience: render then POST in one call.
+    """Render and POST the grammar-error comment as a fresh comment on the PR.
 
-    *token* defaults to ``$GITHUB_TOKEN`` so the workflow YAML doesn't
-    have to pass it through twice (action input + Python flag).
+    A fresh comment (no edit-in-place) leaves a visible audit trail so the
+    user sees each correction attempt separately.  *token* defaults to
+    ``$GITHUB_TOKEN`` so the workflow YAML doesn't pass it through twice.
     """
-    body = render(commenter=commenter, error=error)
     auth = token or os.environ.get("GITHUB_TOKEN", "")
     if not auth:
         # Fail loudly rather than silently swallow the comment; the
         # composite action's `env: GITHUB_TOKEN:` is required.
-        raise RuntimeError(
-            "GITHUB_TOKEN not set; cannot post grammar-error comment"
-        )
-    post(repo=repo, pr_number=pr_number, body=body, token=auth)
+        raise RuntimeError("GITHUB_TOKEN not set; cannot post grammar-error comment")
+    body = render(commenter=commenter, error=error)
+    url = f"https://api.github.com/repos/{repo}/issues/{pr_number}/comments"
+    req = urllib.request.Request(
+        url,
+        method="POST",
+        headers={
+            "Authorization": f"Bearer {auth}",
+            "Accept": "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28",
+            "User-Agent": "leanprover-community/mathlib-ci check-downstream",
+        },
+        data=json.dumps({"body": body}).encode("utf-8"),
+    )
+    with urllib.request.urlopen(req, timeout=30) as _resp:
+        pass

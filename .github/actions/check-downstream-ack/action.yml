@@ -41,10 +41,9 @@ runs:
         python-version: '3.x'
     - name: Render and POST ack
       shell: bash
-      # Inputs flow through `env:` rather than `${{ … }}` expansion
-      # inside `run:` for the same reason as in the validate action:
-      # `downstreams` contains user-typed text and bare interpolation
-      # would let backticks / `$(...)` execute as command substitution.
+      # Inputs flow through `env:`, never `${{ … }}` inside `run:` — same
+      # command-substitution guard as check-downstream-validate; `downstreams`
+      # is user-typed.
       env:
         GITHUB_TOKEN: ${{ inputs.github-token }}
         REPO: ${{ inputs.repo }}

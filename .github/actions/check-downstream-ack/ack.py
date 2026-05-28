@@ -1,14 +1,8 @@
 """Render and POST the acknowledgement comment after a `!downstream-check` dispatch.
 
-The comment lands on the PR right after the directive is recognised
-and the heavy validation workflow is dispatched.  It confirms what
-got triggered, lists the requested entries verbatim, and links to the
-dispatch run so the requester can follow progress.
-
-One ack per dispatch — no edit-in-place.  Multiple `!downstream-check`
-comments on the same PR therefore leave separate ack lines, each
-pinned by its own dispatch run link, so the audit trail of what got
-triggered survives.
+One ack per dispatch (no edit-in-place): it confirms the requested
+entries, the merge ref, and links to the dispatch run. Multiple
+directives on a PR leave separate ack lines, preserving the audit trail.
 """
 
 from __future__ import annotations

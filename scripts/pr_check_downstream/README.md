@@ -8,11 +8,6 @@ actions under `.github/actions/`:
 | [`check-downstream-validate`](../../.github/actions/check-downstream-validate/) | `grammar.py`, `validate.py`, `error_comment.py` | Parse the directive entry grammar, resolve the PR's `merge_commit_sha`, and POST a user-facing error comment on grammar violations. |
 | [`check-downstream-ack`](../../.github/actions/check-downstream-ack/) | `ack.py` | Render and POST the dispatch acknowledgement comment on the PR after the heavy validation workflow is dispatched. |
 
-The previous `validate_names.sh` and `post_ack_comment.sh` scripts have
-been retired in favour of the actions. Their behaviour lives on:
-`grammar.py` + `validate.py` cover the parsing + merge-SHA resolution;
-`ack.py` covers the ack render-and-POST.
-
 ## Comment grammar
 
 ```
