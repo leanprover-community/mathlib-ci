@@ -1,0 +1,60 @@
+name: Post !downstream-check ack comment
+description: >-
+  Render and POST the acknowledgement comment that lands on the
+  mathlib4 PR right after a `!downstream-check` directive dispatches
+  the downstream-reports validation workflow.  One ack per dispatch
+  (no edit-in-place), so multiple `!downstream-check` comments leave
+  separate ack lines.
+
+inputs:
+  repo:
+    description: '`owner/repo` of the PR.'
+    required: true
+  pr-number:
+    description: PR number on `repo`.
+    required: true
+  downstreams:
+    description: >-
+      Comma-separated normalised entries (the `resolved_names` output
+      of `check-downstream-validate`).
+    required: true
+  merge-sha:
+    description: >-
+      Resolved `merge_commit_sha` from `check-downstream-validate`.
+      Rendered in the comment as a 7-char short SHA.
+    required: true
+  run-url:
+    description: >-
+      URL of the dispatching workflow run, so the PR author can follow
+      progress from the ack.
+    required: true
+  github-token:
+    description: Token with `issues:write` on `repo`.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v6.2.0
+      with:
+        python-version: '3.x'
+    - name: Render and POST ack
+      shell: bash
+      # Inputs flow through `env:`, never `${{ … }}` inside `run:` — same
+      # command-substitution guard as check-downstream-validate; `downstreams`
+      # is user-typed.
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+        REPO: ${{ inputs.repo }}
+        PR_NUMBER: ${{ inputs.pr-number }}
+        DOWNSTREAMS: ${{ inputs.downstreams }}
+        MERGE_SHA: ${{ inputs.merge-sha }}
+        RUN_URL: ${{ inputs.run-url }}
+      run: |
+        python3 "${{ github.action_path }}/ack.py" \
+          --repo "$REPO" \
+          --pr-number "$PR_NUMBER" \
+          --downstreams "$DOWNSTREAMS" \
+          --merge-sha "$MERGE_SHA" \
+          --run-url "$RUN_URL"
