@@ -281,7 +281,9 @@ sweep finds almost nothing to change because events already converged within sec
    workflow in mathlib4 checks out mathlib-ci *at the feature branch ref*, uses
    `mathlib4-config.json`, and runs `reconcile_emojis.py --sweep --dry-run`. Read the logs
    to confirm desired-vs-actual convergence — especially the CI-from-check-rollup
-   derivation, which has no prior art.
+   derivation, which has no prior art. The staged files + apply instructions are in
+   [`docs/deploy/mathlib4/`](deploy/mathlib4/README.md) (they live here rather than in
+   mathlib4 because this environment can't write to the sibling checkout).
 3. **Extract the composite action** once the dry-run looks right.
 4. **Replace mathlib4's 5 workflows with 3 stubs** (PR events, CI status, sweep), dropping
    the bors emoji step and the push-to-master scan. Roll out behind the action, dropping
