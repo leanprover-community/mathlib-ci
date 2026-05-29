@@ -1,11 +1,22 @@
-# mathlib4 dry-run deployment (staged)
+# mathlib4 dry-run deployment
 
-These are the files to install into **`leanprover-community/mathlib4`** to run the
-reconciler's dry-run sweep against real data, per step 2 of the rollout in
-[`../../zulip-emoji-reconcile.md`](../../zulip-emoji-reconcile.md).
+These are the files that go into **`leanprover-community/mathlib4`** to run the reconciler's
+dry-run sweep against real data, per step 2 of the rollout in
+[`../../zulip-emoji-reconcile.md`](../../zulip-emoji-reconcile.md). They are kept here as the
+canonical copies (and a template for future repos / re-application).
 
-They live here (rather than committed in mathlib4) because the working environment that
-produced them could not write to the sibling mathlib4 checkout. Apply them by hand.
+## Current state (handoff)
+
+- **Already applied** to a local mathlib4 branch **`zulip-emoji-reconcile-dryrun`** (one
+  commit: `ci: temporary Zulip emoji reconcile dry-run sweep workflow`). The two files
+  below are committed there.
+- **Not yet pushed.** Remaining steps, in order:
+  1. Push the **mathlib-ci** branch `zulip-emoji-reconcile` to origin (the workflow checks
+     it out at that ref).
+  2. Push the **mathlib4** branch `zulip-emoji-reconcile-dryrun`.
+  3. Dispatch the workflow and read the dry-run log (see *Run it* below).
+- The *Apply* section below is only needed to **re-create** the mathlib4 branch from
+  scratch (e.g. if it's lost or in a fresh checkout).
 
 ## Files
 

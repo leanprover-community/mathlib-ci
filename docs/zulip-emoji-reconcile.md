@@ -277,7 +277,8 @@ sweep finds almost nothing to change because events already converged within sec
 
 1. ✅ **Build the reconcile core + I/O + CLI** in mathlib-ci (done; 111 tests). The old
    `zulip_emoji_reactions.py` stays in place untouched so nothing breaks mid-migration.
-2. **Dry-run sweep on mathlib4** (in progress). A temporary `workflow_dispatch`-only
+2. **Dry-run sweep on mathlib4** (branches created locally, pending push). A temporary
+   `workflow_dispatch`-only
    workflow in mathlib4 checks out mathlib-ci *at the feature branch ref*, uses
    `mathlib4-config.json`, and runs `reconcile_emojis.py --sweep --dry-run`. Read the logs
    to confirm desired-vs-actual convergence — especially the CI-from-check-rollup
