@@ -96,6 +96,10 @@ class Config:
     channels: dict[str, str]
     rss_allow: tuple[str, ...]
     states: tuple[StateRule, ...]
+    # Check-run / workflow / status-context names that count toward the CI emoji. Empty
+    # means "consider every check on the head commit" (the aggregate rollup). Naming the
+    # main CI workflow here keeps the CI emoji from flipping on unrelated checks.
+    ci_check_names: tuple[str, ...] = ()
     # All emoji names this config manages. Reconciliation only ever touches these, so
     # human-added reactions (👍 etc.) are never disturbed.
     managed_emojis: frozenset[str] = field(default_factory=frozenset)
@@ -200,6 +204,11 @@ def parse_config(data: dict[str, Any]) -> Config:
     if dupes:
         raise ConfigError(f"config: duplicate state names: {sorted(dupes)}")
 
+    ci_raw = data.get("ci", {})
+    if not isinstance(ci_raw, dict):
+        raise ConfigError("config: 'ci' must be an object")
+    ci_check_names = tuple(ci_raw.get("check_names", []) or ())
+
     return Config(
         github_repo=github_repo,
         zulip_site=zulip_site,
@@ -207,6 +216,7 @@ def parse_config(data: dict[str, Any]) -> Config:
         channels=channels,
         rss_allow=rss_allow,
         states=rules,
+        ci_check_names=ci_check_names,
         managed_emojis=frozenset(r.emoji for r in rules),
     )
 
