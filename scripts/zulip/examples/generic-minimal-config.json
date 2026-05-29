@@ -1,0 +1,23 @@
+{
+  "_comment": "Minimal reconcile config for a generic community repo: just open/closed/merged plus CI status, using standard unicode emoji (no custom realm emoji, no bors/maintainer-merge). This is roughly the floor a new repo needs. Add rows as the project grows; see mathlib4-config.json for the maximal example.",
+
+  "github_repo": "your-org/your-repo",
+
+  "zulip": {
+    "site": "https://your-org.zulipchat.com",
+    "email": "your-bot@your-org.zulipchat.com"
+  },
+
+  "channels": {
+    "pr_reviews": "PR reviews"
+  },
+
+  "states": [
+    {"name": "merged", "group": "pr", "priority": 30, "source": {"state": "merged"}, "emoji": "checkered_flag"},
+    {"name": "closed", "group": "pr", "priority": 20, "source": {"state": "closed"}, "emoji": "wastebasket"},
+
+    {"name": "ci-running", "group": "ci", "source": {"ci": "running"}, "emoji": "hourglass_flowing_sand"},
+    {"name": "ci-success", "group": "ci", "source": {"ci": "success"}, "emoji": "check_mark"},
+    {"name": "ci-failure", "group": "ci", "source": {"ci": "failure"}, "emoji": "cross_mark"}
+  ]
+}
