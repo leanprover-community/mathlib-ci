@@ -1,0 +1,32 @@
+name: Test zulip emoji reconcile
+
+# Runs the unit-test suite for the `emoji_reconcile` package (config schema,
+# desired_emoji_set, the rate-limit pacer, and per-message reconciliation) on
+# every push / PR that touches its source or its tests.
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - scripts/zulip/emoji_reconcile/**
+      - tests/zulip_emoji/**
+      - .github/workflows/test_zulip_emoji.yml
+  pull_request:
+    paths:
+      - scripts/zulip/emoji_reconcile/**
+      - tests/zulip_emoji/**
+      - .github/workflows/test_zulip_emoji.yml
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6.2.0
+        with:
+          python-version: '3.x'
+      - run: python3 -m pip install --upgrade pip pytest
+      - run: python3 -m pytest tests/zulip_emoji -v
