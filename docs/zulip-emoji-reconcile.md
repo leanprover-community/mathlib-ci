@@ -1,7 +1,31 @@
 # Zulip emoji reactions: reconciliation design
 
-Status: design / proposal. Target consumer: `leanprover-community/mathlib4` first,
-generalizable to any community repo.
+Status: **core implemented; deployment pending.** Target consumer:
+`leanprover-community/mathlib4` first, generalizable to any community repo.
+
+## Implementation status (where to pick up)
+
+The repo-agnostic engine is built and unit-tested (111 tests) under
+`scripts/zulip/emoji_reconcile/`, with the entry point `scripts/zulip/reconcile_emojis.py`:
+
+| Module | Role |
+|---|---|
+| `config.py` | Per-repo config schema + JSON loader/validator (incl. `ci.check_names`). |
+| `pr_state.py` | `PrState` + the pure `desired_emoji_set` (group exclusivity by priority). |
+| `github_state.py` | Fetch `PrState` via `gh` GraphQL; CI derived from head-commit check-run rollup. Single + batched (sweep). |
+| `messages.py` | Pure message↔PR matching (repo-URL links + first message in a `pr_reviews` thread; `rss_allow`). |
+| `zulip_io.py` | Paced `search_pr_messages` (event path) + `fetch_recent_messages` (sweep). |
+| `paced_client.py` | Header-based `RateLimitPacer` + `PacedZulipClient`. |
+| `reconcile.py` | Per-message diff/add/remove (sticky, suppression, dry-run). |
+| `cli.py` | `--pr` / `--sweep` orchestration; `zulip` imported lazily. |
+
+Example configs ship under `scripts/zulip/examples/` (`mathlib4-config.json` is the
+maximal one and reproduces the old script's semantics; `generic-minimal-config.json` is the
+floor). Tests live in `tests/zulip_emoji/`, run by `.github/workflows/test_zulip_emoji.yml`.
+
+**Not yet done:** the composite action wrapper, the per-repo trigger stubs, the live
+dry-run validation on mathlib4, and retiring the old `zulip_emoji_reactions.py`. See
+*Workflow / trigger architecture* and *Rollout / phasing* below.
 
 ## Background
 
@@ -79,7 +103,8 @@ independent toggle (e.g. `maintainer-merge`, `migrated`).
 ## Configuration (lives in each consuming repo)
 
 mathlib-ci stays repo-agnostic; each community repo ships its own `config.json` and passes
-`--config path/to/config.json`.
+`--config path/to/config.json`. The complete, validated mathlib4 config is checked in at
+`scripts/zulip/examples/mathlib4-config.json`; the abbreviated form below is illustrative.
 
 ```jsonc
 {
@@ -117,7 +142,13 @@ mathlib-ci stays repo-agnostic; each community repo ships its own `config.json` 
 - `suppress_in`: skip this emoji in a specific channel/topic (the redundant
   maintainer-merge emoji in "maintainer merge" reviewer threads).
 
-This table *is* the generalization: a new repo onboards by writing its own.
+This table *is* the generalization: a new repo onboards by writing its own. Repo-specific
+emojis (bors, maintainer-merge, custom realm emoji codes) are therefore **data, not code** —
+they appear only as rows in that repo's config; the engine and the composite action never
+name them. The maximal mathlib4 config and a minimal generic one differ only in this table.
+
+Note: PR matching extracts the *full* PR number from `#<n>` / `pull/<n>`, fixing a latent
+substring bug in the original (`#123` previously matched inside `#1234`).
 
 ## GitHub access
 
@@ -125,6 +156,67 @@ The reconciler needs GitHub **read** to fetch PR state (today the script reads n
 In-repo workflows already have `github.token` with `pull-requests: read` + `contents: read`.
 The cross-fork `workflow_run` paths already mint a GitHub App token via the Azure
 app-token action, so they are covered too.
+
+## Workflow / trigger architecture
+
+Because reconcile reads real state, the triggering event no longer needs to carry meaning —
+it only says *"this PR may have changed."* That collapses the trigger matrix. Two of the
+five existing emoji paths disappear entirely:
+
+| Today (delta) | Under reconcile |
+|---|---|
+| `zulip_emoji_labelling` (labeled/unlabeled) | → "reconcile #N" |
+| `zulip_emoji_closed_pr` (closed/reopened) | → "reconcile #N" |
+| `zulip_emoji_merge_delegate` (push scan for merges) | **dropped** — `closed`(merged) event + sweep cover it |
+| bors-command emoji step in `maintainer_bors_wf_run` | **dropped** — bors adds `ready-to-merge`/`delegated` *labels*, which fire the labeled trigger |
+| `zulip_emoji_ci_status` (`workflow_run`) | → "reconcile #N" (CI read from check-run rollup) |
+
+The bors decoupling relies on the fact that labels added via a **GitHub App installation
+token** (mathlib-triage) *do* trigger downstream workflows, whereas `GITHUB_TOKEN`-added
+labels do not. **Verify this in practice** — it is the one assumption behind dropping the
+bors emoji path.
+
+### The hard GitHub constraint
+
+Triggers cannot be centralized: a workflow only runs if its `on:` block lives in that
+repo's `.github/workflows/`. So every consuming repo always needs *some* local trigger
+YAML. What we centralize is everything below the trigger (checkout/setup/run/PR-resolution).
+
+### Onboarding ladder: 1 to 3 stubs
+
+The sweep is a **complete solution on its own** — a repo with only the scheduled sweep gets
+correct, self-healing emojis within ~an hour. Event triggers are purely a latency
+optimization layered on top:
+
+1. **Sweep only (1 stub)** — `schedule` + `workflow_dispatch`. Correct, ≤1h latency.
+2. **+ PR events (2 stubs)** — `pull_request_target: [labeled, unlabeled, closed, reopened]`
+   for few-second latency on labels/close/merge/bors.
+3. **+ CI status (3 stubs)** — `workflow_run` for the 🟡/✅/❌ emoji. The CI workflow names
+   live in this stub's `on:` block (inherently per-repo data).
+
+### Extraction: a composite action (decided)
+
+The logic is extracted into a composite action in mathlib-ci
+(`.github/actions/zulip-emoji-reconcile`), matching the existing `get-mathlib-ci` /
+`azure-create-github-app-token` pattern. The per-repo stubs own only `on:` + `runs-on` +
+`permissions` + a single `uses:` step. The action is fully generic:
+
+```yaml
+inputs:
+  config:         # path to the caller repo's config.json   (data)
+  zulip-api-key:  # secret
+  mode:           # auto | pr | sweep   (default: auto)
+  dry-run:        # default false
+  mathlib-ci-ref: # pin
+# In `auto` mode the run step reads $GITHUB_EVENT_NAME / $GITHUB_EVENT_PATH:
+#   pull_request_target → --pr <event.pull_request.number>
+#   workflow_run        → resolve PR from head_sha, then --pr
+#   schedule/dispatch   → --sweep
+```
+
+A reusable workflow (`workflow_call`) was the considered alternative — it would centralize
+the `permissions` block too — but the composite action keeps consistency with current
+mathlib-ci conventions and is lighter to version.
 
 ## Rate limits and pacing
 
@@ -183,33 +275,48 @@ sweep finds almost nothing to change because events already converged within sec
 
 ## Rollout / phasing (mathlib4 first)
 
-1. Build the reconcile core + `desired_state` + config loader + paced Zulip/GitHub clients
-   in mathlib-ci, behind a `--config` flag. Keep the old `ACTION`-style CLI working in
-   parallel (thin shim) so nothing breaks mid-migration.
-2. Add mathlib4's `config.json` and an hourly `zulip_emoji_sweep.yaml`
-   (`schedule:` + `workflow_dispatch`) using the inverted-loop sweep. Validate convergence
-   in `--dry-run` first (log desired-vs-actual for every message, mutate nothing).
-3. Migrate event triggers to "reconcile PR #N" one at a time: labelling/closed (cheapest),
-   then CI status, then bors, then the push-to-master merge scan.
-4. Retire the delta code once all triggers use reconcile and the sweep has run clean.
-5. Document the config contract in `scripts/README.md` so a second repo can onboard by
-   writing a config.
+1. ✅ **Build the reconcile core + I/O + CLI** in mathlib-ci (done; 111 tests). The old
+   `zulip_emoji_reactions.py` stays in place untouched so nothing breaks mid-migration.
+2. **Dry-run sweep on mathlib4** (in progress). A temporary `workflow_dispatch`-only
+   workflow in mathlib4 checks out mathlib-ci *at the feature branch ref*, uses
+   `mathlib4-config.json`, and runs `reconcile_emojis.py --sweep --dry-run`. Read the logs
+   to confirm desired-vs-actual convergence — especially the CI-from-check-rollup
+   derivation, which has no prior art.
+3. **Extract the composite action** once the dry-run looks right.
+4. **Replace mathlib4's 5 workflows with 3 stubs** (PR events, CI status, sweep), dropping
+   the bors emoji step and the push-to-master scan. Roll out behind the action, dropping
+   `--dry-run`, ideally one stub at a time.
+5. **Retire** `zulip_emoji_reactions.py` once all triggers use reconcile and the sweep has
+   run clean.
+6. **Document the config contract** in `scripts/README.md` so a second repo can onboard by
+   writing a config (sweep-only stub first).
 
 ## Open questions / decisions
 
-- **CI status source.** Derive CI emoji from GitHub's combined check-runs on the head SHA
-  (so the sweep can self-heal it), rather than only from `workflow_run` events. Requires a
-  small config mapping from mathlib's check names to running/success/failure.
-- **"Recently closed" window** for the sweep (messages from last N days, or PRs closed
-  within N days). Make it a config/CLI value.
-- **`reopened` / `cancelled`** become trivial under reconcile (current state simply has no
-  closed / no running emoji), removing several special-case branches.
+- **CI status source** — *decided*: derive the CI emoji from the head commit's check-run
+  rollup (`github_state.py`), scoped by `ci.check_names`, so the sweep self-heals it.
+  Precedence among checks: running > failure > success > none; cancelled/skipped/neutral
+  are ignored (matching the old "cancelled clears the running emoji" behavior).
+- **"Recently closed" window** — *decided for now*: implicit in the sweep's `--sweep-messages`
+  bound (the older end of the fetched batch is the lookback horizon), rather than an
+  explicit date filter. Revisit if the message volume makes the horizon too short.
+- **`reopened` / `cancelled`** become trivial under reconcile (no closed / no running emoji
+  in the current state), removing several special-case branches.
+- **App-token label cascade** — *to verify in practice*: that App-installation-token label
+  additions trigger the `pull_request_target: labeled` stub (see *Workflow / trigger
+  architecture*).
+- **Write-burst safety valves** (per-run mutation cap, wall-clock budget) are specified
+  under *Header-based self-pacing* but not yet implemented in the CLI; add before enabling
+  live writes on the sweep.
 
 ## Decisions locked in
 
 - Full reconcile model (not delta-plus-sweep).
-- Per-repo config lives in the consuming repo; mathlib-ci stays repo-agnostic.
-- Keep fast event triggers **and** add an ~hourly sweep over open + recently-closed PRs,
-  plus `workflow_dispatch`.
-- Header-based self-pacing is part of the design, in front of the existing retry/backoff.
+- Per-repo config lives in the consuming repo; mathlib-ci stays repo-agnostic. Repo-specific
+  emojis are config data, not engine code.
+- Keep fast event triggers **and** add an ~hourly sweep, plus `workflow_dispatch`.
+- Header-based self-pacing, in front of the existing retry/backoff.
+- Centralize logic in a **composite action**; per-repo **trigger stubs** (1–3, sweep is the
+  floor). CI derived from the check-run rollup.
+- Validate via **dry-run sweep on mathlib4 first**, then extract, then full 3-stub rollout.
 - mathlib4 first; design for generality, exercise with a second repo later.
