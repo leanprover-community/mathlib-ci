@@ -1,0 +1,34 @@
+name: Test decls-diff scripts
+
+# Runs the unit-test suite for `scripts/pr_summary/declsDiff.py` and the
+# `decls-diff` composite action on every push / PR that touches their
+# source or their tests.
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - scripts/pr_summary/declsDiff.py
+      - .github/actions/decls-diff/**
+      - tests/decls_diff/**
+      - .github/workflows/test_decls_diff.yml
+  pull_request:
+    paths:
+      - scripts/pr_summary/declsDiff.py
+      - .github/actions/decls-diff/**
+      - tests/decls_diff/**
+      - .github/workflows/test_decls_diff.yml
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6.2.0
+        with:
+          python-version: '3.x'
+      - run: python3 -m pip install --upgrade pip pytest
+      - run: python3 -m pytest tests/decls_diff -v

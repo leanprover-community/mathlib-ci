@@ -60,7 +60,7 @@ runs:
           echo "decls-diff action: CI_SCRIPTS_DIR is unset. Run the get-mathlib-ci action before invoking this action." >&2
           exit 1
         fi
-        DRIVER="${CI_SCRIPTS_DIR}/pr_summary/declsDiff.sh"
+        DRIVER="${CI_SCRIPTS_DIR}/pr_summary/declsDiff.py"
         if [ ! -x "$DRIVER" ]; then
           echo "decls-diff action: expected driver at $DRIVER" >&2
           exit 1
@@ -71,7 +71,7 @@ runs:
         DIFF_FILE="$STAGE/decls_diff.txt"
         COUNTS="$STAGE/decls_counts.txt"
 
-        "$DRIVER" \
+        python3 "$DRIVER" \
           --ref-decls      "$IN_REF_DECLS" \
           --new-decls      "$IN_NEW_DECLS" \
           --new-sha        "$IN_NEW_SHA" \
