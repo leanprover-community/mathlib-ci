@@ -170,7 +170,7 @@ old="$(tdc | sed 's=^[0-9]=-&=' | grep "|${level}$")"
 oldDeprecatedFiles="$(git ls-files '**/Deprecated/*.lean' | xargs wc -l | sed 's=^ *=-=')"
 git switch -q --detach -
 
-printf '|Current number|Change|Type|\n|-:|:-:|:-|\n'
+printf "|Current number|Change|Type (${level})|\n|-:|:-:|:-|\n"
 printf '%s\n%s\n' "${old}" "${new}" | computeDiff -
 
 # Deprecated files count as weak tech debt.
@@ -185,6 +185,7 @@ if [[ "${level}" == "weak" ]]; then
       } END {printf("%s\n", total)}'
     )"
 fi
+printf '\n'
 }
 
 prSummaryReport () {
