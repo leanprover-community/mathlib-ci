@@ -225,7 +225,7 @@ then
   prSummaryReport weak "${repWeak}"
   reportFooter
   printf '\nThis script lives in the [`mathlib-ci`](https://github.com/leanprover-community/mathlib-ci) repository. To run it locally, from your `mathlib4` directory:\n```\ngit clone https://github.com/leanprover-community/mathlib-ci.git ../mathlib-ci\n../mathlib-ci/scripts/reporting/technical-debt-metrics.sh pr_summary\n```\n%s\n' '* The `relative` value is the weighted *sum* of the differences with weight given by the *inverse* of the current value of the statistic.
-  * The `absolute` value is the `relative` value divided by the total sum of the inverses of the current values (i.e. the weighted *average* of the differences).'
+* The `absolute` value is the `relative` value divided by the total sum of the inverses of the current values (i.e. the weighted *average* of the differences).'
 else
   report strong
   report weak
