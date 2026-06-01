@@ -82,6 +82,7 @@ tdc () {
 titlesPathsAndRegexes=(
   "porting notes"                  "*"      "Porting note" "strong"
   "flexible linter exceptions"     ":^MathlibTest"      "set_option linter.flexible" "weak"
+  "disabled overlappingInstances linter" ":^MathlibTest" "set_option linter.overlappingInstances" "weak"
   "adaptation notes"               ":^Mathlib/Tactic/AdaptationNote.lean :^Mathlib/Tactic/Linter"
                                             "^[· ]*#adaptation_note" "strong"
   "disabled simpNF lints"          "*"      "nolint simpNF" "strong"
