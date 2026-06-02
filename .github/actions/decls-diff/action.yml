@@ -1,0 +1,108 @@
+# Precondition: the calling workflow must have already run mathlib's
+# `get-mathlib-ci` action (or otherwise exported `CI_SCRIPTS_DIR` pointing
+# at this repo's `scripts/` directory) before invoking this action.
+
+name: 'Declarations diff (post-build)'
+description: 'Compute the Lean-aware declarations diff from two pre-computed `decls.txt` files and emit a Markdown override snippet.'
+author: 'Damiano Testa'
+
+inputs:
+  reference-decls-file:
+    description: 'Path to the file containing the declarations in the reference commit.'
+    required: true
+  new-decls-file:
+    description: 'Path to the file containing the declarations in the new commit.'
+    required: true
+  reference-imports-file:
+    description: 'Path to the `imports.json` file for the reference commit.'
+    required: true
+  new-imports-file:
+    description: 'Path to the `imports.json` file for the new commit.'
+    required: true
+  new-sha:
+    description: 'Full SHA of the new commit.'
+    required: false
+    default: ${{ github.sha }}
+
+outputs:
+  decls-override-file:
+    description: 'Path to the Markdown override snippet for the `#### Declarations diff` section.'
+    value: ${{ steps.run.outputs.decls-override-file }}
+  diff-file:
+    description: 'Path to the raw `+NAME` / `-NAME` diff file.'
+    value: ${{ steps.run.outputs.diff-file }}
+  base-json:
+    description: 'Path to the `imports.json` file for the reference commit.'
+    value: ${{ inputs.reference-imports-file }}
+  head-json:
+    description: 'Path to the `imports.json` file for the new commit.'
+    value: ${{ inputs.new-imports-file }}
+  plus-count:
+    description: 'Number of declarations present only in the new commit.'
+    value: ${{ steps.run.outputs.plus-count }}
+  minus-count:
+    description: 'Number of declarations present only in the reference commit.'
+    value: ${{ steps.run.outputs.minus-count }}
+
+runs:
+  using: 'composite'
+  steps:
+    - id: run
+      shell: bash
+      env:
+        IN_REF_DECLS:   ${{ inputs.reference-decls-file }}
+        IN_NEW_DECLS:   ${{ inputs.new-decls-file }}
+        IN_NEW_SHA:     ${{ inputs.new-sha }}
+      run: |
+        set -euo pipefail
+
+        if [ -z "${CI_SCRIPTS_DIR:-}" ]; then
+          echo "decls-diff action: CI_SCRIPTS_DIR is unset. Run the get-mathlib-ci action before invoking this action." >&2
+          exit 1
+        fi
+        DRIVER="${CI_SCRIPTS_DIR}/pr_summary/declsDiff.py"
+        if [ ! -x "$DRIVER" ]; then
+          echo "decls-diff action: expected driver at $DRIVER" >&2
+          exit 1
+        fi
+
+        STAGE="$(mktemp -d "${RUNNER_TEMP:-/tmp}/decls-diff.XXXXXX")"
+        DECLS_OVERRIDE="$STAGE/decls_override.md"
+        DIFF_FILE="$STAGE/decls_diff.txt"
+        COUNTS="$STAGE/decls_counts.txt"
+
+        python3 "$DRIVER" \
+          --ref-decls      "$IN_REF_DECLS" \
+          --new-decls      "$IN_NEW_DECLS" \
+          --new-sha        "$IN_NEW_SHA" \
+          --decls-override "$DECLS_OVERRIDE" \
+          --diff-out       "$DIFF_FILE" \
+          --counts-file    "$COUNTS"
+
+        PLUS=0; MINUS=0
+        read -r PLUS MINUS < "$COUNTS" || true
+        : "${PLUS:=0}"; : "${MINUS:=0}"
+
+        {
+          echo "decls-override-file=$DECLS_OVERRIDE"
+          echo "diff-file=$DIFF_FILE"
+          echo "plus-count=$PLUS"
+          echo "minus-count=$MINUS"
+        } | tee -a "$GITHUB_OUTPUT"
+
+        SHORT="${IN_NEW_SHA:0:7}"
+        {
+          echo "## Declarations diff"
+          echo
+          echo "* new:       \`$IN_NEW_SHA\` (\`$SHORT\`)"
+          echo "* ref decls: \`$IN_REF_DECLS\`"
+          echo "* new decls: \`$IN_NEW_DECLS\`"
+          echo
+          echo "**+$PLUS** new / **−$MINUS** removed"
+          echo
+          echo "<details><summary>Override snippet</summary>"
+          echo
+          cat "$DECLS_OVERRIDE"
+          echo
+          echo "</details>"
+        } >> "$GITHUB_STEP_SUMMARY"
