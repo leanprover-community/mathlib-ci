@@ -4,7 +4,12 @@ from __future__ import annotations
 
 import pytest
 
-from declsDiff import MAX_RENDERED_LINES, render_override, sanitize
+from declsDiff import (
+    DETAILS_LINE_THRESHOLD,
+    MAX_RENDERED_LINES,
+    render_override,
+    sanitize,
+)
 
 
 class TestRenderOverride:
@@ -78,3 +83,25 @@ class TestSanitize:
         for line in body.splitlines():
             assert not line.startswith("## Phishing")
         assert r"+foo\n## Phishing" in body
+
+
+class TestWithHeading:
+    def test_default_omits_heading_and_wrap(self) -> None:
+        """Without the flag the output is just the body — no heading, no <details>."""
+        body = render_override(1, 0, [("+", "A")], head_sha=None)
+        assert "#### Declarations diff" not in body
+        assert "<details>" not in body
+
+    def test_flag_adds_heading(self) -> None:
+        """`with_heading=True` prepends the section heading."""
+        body = render_override(0, 0, [], head_sha=None, with_heading=True)
+        assert body.lstrip().startswith("#### Declarations diff")
+        assert "<details>" not in body  # short body stays inline
+
+    def test_long_body_is_details_wrapped(self) -> None:
+        """A body exceeding the newline threshold is wrapped in <details>."""
+        diff = [("+", f"A{i:03d}") for i in range(DETAILS_LINE_THRESHOLD + 5)]
+        body = render_override(len(diff), 0, diff, head_sha=None, with_heading=True)
+        assert "<details><summary>" in body
+        assert "#### Declarations diff" in body
+        assert body.rstrip().endswith("</details>")
