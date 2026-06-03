@@ -8,6 +8,7 @@ from updateDeclsDiffSection import (
     PR_SUMMARY_PREFIX,
     WARNING_MARKER,
     build_warning,
+    find_summary_comment,
     splice_success,
     splice_warning,
 )
@@ -79,3 +80,26 @@ class TestSpliceWarning:
     def test_summary_prefix_preserved(self) -> None:
         body = splice_warning(comment("regex diff\n"), build_warning("master"))
         assert body.startswith(PR_SUMMARY_PREFIX)
+
+
+class TestFindSummaryComment:
+    def test_finds_the_summary_among_others(self) -> None:
+        """The `### PR summary` comment is picked out of a list of comments."""
+        comments = [
+            {"body": "a normal review comment"},
+            {"body": f"{PR_SUMMARY_PREFIX} [abc](url)\n\nbody"},
+            {"body": "another comment"},
+        ]
+        assert find_summary_comment(comments)["body"].startswith(PR_SUMMARY_PREFIX)
+
+    def test_returns_none_when_absent(self) -> None:
+        assert find_summary_comment([{"body": "nope"}]) is None
+        assert find_summary_comment([]) is None
+
+    def test_tolerates_null_body(self) -> None:
+        """A comment with a `null` body (allowed by the API) is skipped, not fatal."""
+        comments = [
+            {"body": None},
+            {"body": f"{PR_SUMMARY_PREFIX}\n\nbody"},
+        ]
+        assert find_summary_comment(comments)["body"].startswith(PR_SUMMARY_PREFIX)

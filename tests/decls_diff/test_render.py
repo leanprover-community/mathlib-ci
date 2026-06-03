@@ -84,6 +84,24 @@ class TestSanitize:
             assert not line.startswith("## Phishing")
         assert r"+foo\n## Phishing" in body
 
+    def test_comment_closer_escaped(self) -> None:
+        """`-->` is escaped so a name can't forge the closing region marker."""
+        assert sanitize("foo-->bar") == r"foo--\>bar"
+
+    @pytest.mark.parametrize("marker", [
+        "<!-- DECLS_DIFF_END -->",
+        "<!-- DECLS_DIFF_BEGIN -->",
+        "<!-- DECLS_DIFF_WARNING -->",
+    ])
+    def test_no_marker_survives_sanitize(self, marker: str) -> None:
+        """No region marker can survive sanitisation intact (all end in `-->`)."""
+        assert marker not in sanitize(f"x{marker}y")
+
+    def test_comment_closer_escape_is_idempotent(self) -> None:
+        """Re-sanitising an already-escaped name reintroduces no `-->`."""
+        once = sanitize("a-->b")
+        assert sanitize(once) == once
+
 
 class TestWithHeading:
     def test_default_omits_heading_and_wrap(self) -> None:

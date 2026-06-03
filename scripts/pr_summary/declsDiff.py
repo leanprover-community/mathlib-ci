@@ -41,6 +41,16 @@ _LINE_BREAK_ESCAPES = {
 }
 
 
+# The HTML-comment closer. The comment patcher delimits this section with
+# HTML-comment markers (`<!-- DECLS_DIFF_BEGIN/END/WARNING -->`); a declaration
+# name carrying a literal `-->` could otherwise forge the END marker and
+# truncate the region when the patcher re-parses the comment. Every marker ends
+# in `-->`, so escaping the closer defeats every forgery. The escaped form
+# contains no `-->`, so re-escaping is a no-op.
+_COMMENT_CLOSER = "-->"
+_COMMENT_CLOSER_ESCAPE = r"--\>"
+
+
 def read_decls(path: Path) -> set[str]:
     """Read a `decls.txt` dump into a set of declaration names.
 
@@ -69,11 +79,12 @@ def sanitize(name: str) -> str:
     A Lean `Name` is in principle any string (e.g. via `Name.mkSimple`).
     Names that contain `\\n` or `\\r` would otherwise split the rendered diff
     across multiple physical lines, only the first of which gets a leading
-    `+`/`-` — the rest would be attacker-controlled raw Markdown.
+    `+`/`-` — the rest would be attacker-controlled raw Markdown. Likewise a
+    name containing `-->` could forge the region's closing HTML-comment marker.
     """
     for ch, esc in _LINE_BREAK_ESCAPES.items():
         name = name.replace(ch, esc)
-    return name
+    return name.replace(_COMMENT_CLOSER, _COMMENT_CLOSER_ESCAPE)
 
 
 def render_override(

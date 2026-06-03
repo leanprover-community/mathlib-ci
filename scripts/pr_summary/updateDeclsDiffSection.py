@@ -79,6 +79,16 @@ def splice_warning(body: str, warning_md: str) -> str:
     return body[: m.start()] + BEGIN + new_inner + END + body[m.end():]
 
 
+def find_summary_comment(comments: list[dict]) -> dict | None:
+    """Return the first comment whose body starts with `### PR summary`, else
+    `None`. Tolerates a `null` body (the GitHub API permits it) by treating it
+    as empty rather than raising."""
+    return next(
+        (c for c in comments if (c.get("body") or "").startswith(PR_SUMMARY_PREFIX)),
+        None,
+    )
+
+
 def gh_json(*args: str) -> object:
     out = subprocess.run(
         ["gh", "api", *args], check=True, text=True, capture_output=True,
@@ -127,11 +137,13 @@ def main() -> int:
         return 0
 
     try:
-        comments = gh_json(f"repos/{repo}/issues/{pr}/comments")
+        # `--paginate` so the summary comment is found even on PRs with more
+        # comments than fit on the first API page.
+        comments = gh_json("--paginate", f"repos/{repo}/issues/{pr}/comments")
     except subprocess.CalledProcessError as e:
         print(f"updateDeclsDiffSection: gh api failed: {e.stderr}", file=sys.stderr)
         return 1
-    target = next((c for c in comments if c["body"].startswith(PR_SUMMARY_PREFIX)), None)
+    target = find_summary_comment(comments)
     if target is None:
         print(f"updateDeclsDiffSection: no '{PR_SUMMARY_PREFIX}' comment on PR #{pr}; "
               "pre-build workflow may not have run yet — skipping.")
