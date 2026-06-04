@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
-"""Patch the `#### Declarations diff` section of a PR's `### PR summary`
+"""Patch the `#### Declarations diff (Lean)` section of a PR's `### PR summary`
 comment with the post-build, Lean-aware diff.
 
-The section is delimited in the comment by the marker pair below, which
-`mathlib4`'s `PR_summary.yml` emits around the declarations-diff part. Because
-the markers are always present, patching is a single replace of the region
-between them — no header matching, no first-patch special case.
+The comment carries two declarations-diff blocks emitted by `mathlib4`'s
+`PR_summary.yml`: the regex `#### Declarations diff (regex)` block (owned by
+`PR_summary.yml`) and a `#### Declarations diff (Lean -- pending)` placeholder
+delimited by the marker pair below. This script touches only the marked Lean
+region; the regex block is left untouched. Because the markers are always
+present, patching is a single replace of the region between them — no header
+matching, no first-patch special case.
 
 Inputs (environment variables):
     GH_TOKEN        passed through to the `gh` CLI
@@ -17,10 +20,10 @@ Inputs (environment variables):
                       `declsDiff.py --with-heading`
     DEFAULT_BRANCH  warning mode: branch named in the rebase hint (default `master`)
 
-Modes:
-    success — replace the marked region with the rendered Lean-aware section.
-    warning — append a cache-miss notice inside the region, leaving the
-              pre-build (regex) diff visible. Idempotent via WARNING_MARKER.
+Modes (both replace the Lean region wholesale):
+    success — the rendered Lean-aware section (heading `(Lean)`).
+    warning — a cache-miss block (heading `(Lean -- unavailable)`); the regex
+              block elsewhere in the comment stays visible.
 
 Exit codes:
     0 — patched, or nothing to do (no summary comment / no markers / unchanged)
@@ -36,47 +39,32 @@ import subprocess
 import sys
 from pathlib import Path
 
-BEGIN = "<!-- DECLS_DIFF_BEGIN -->"
-END = "<!-- DECLS_DIFF_END -->"
-WARNING_MARKER = "<!-- DECLS_DIFF_WARNING -->"
+LEAN_BEGIN = "<!-- DECLS_DIFF_LEAN_BEGIN -->"
+LEAN_END = "<!-- DECLS_DIFF_LEAN_END -->"
 PR_SUMMARY_PREFIX = "### PR summary"
 
-_REGION_RE = re.compile(re.escape(BEGIN) + r"(.*?)" + re.escape(END), re.DOTALL)
+_REGION_RE = re.compile(re.escape(LEAN_BEGIN) + r"(.*?)" + re.escape(LEAN_END), re.DOTALL)
 
 
 def build_warning(default_branch: str) -> str:
-    """Render the cache-miss notice appended in `warning` mode."""
+    """Render the cache-miss block that replaces the Lean region on a miss.
+    The heading carries the `(Lean -- unavailable)` status."""
     return "\n".join([
-        WARNING_MARKER,
+        "#### Declarations diff (Lean -- unavailable)",
         "",
-        f"> ⚠️ **Lean-aware diff unavailable** — the Mathlib cache for this PR's "
-        f"merge-base isn't on the server (typically a bors-batch intermediate that "
-        f"CI never built). Merge `{default_branch}` into this PR and push to refresh.",
+        f"> ⚠️ The Mathlib cache for this PR's merge-base isn't on the server "
+        f"(typically a bors-batch intermediate that CI never built). "
+        f"Merge `{default_branch}` into this PR and push to refresh.",
     ])
 
 
-def splice_success(body: str, section: str) -> str:
-    """Replace the marked region with `section` (a complete, heading-wrapped
-    `#### Declarations diff` block). Returns `body` unchanged when the markers
-    are absent."""
+def splice(body: str, block: str) -> str:
+    """Replace the Lean-marked region's content with `block`. Returns `body`
+    unchanged when the markers are absent. Idempotent for a given `block`."""
     if not _REGION_RE.search(body):
         return body
-    region = f"{BEGIN}\n{section.strip()}\n{END}"
+    region = f"{LEAN_BEGIN}\n{block.strip()}\n{LEAN_END}"
     return _REGION_RE.sub(lambda _m: region, body, count=1)
-
-
-def splice_warning(body: str, warning_md: str) -> str:
-    """Append `warning_md` inside the marked region, keeping its existing
-    content. Idempotent: a region already carrying WARNING_MARKER is left
-    unchanged. Returns `body` unchanged when the markers are absent."""
-    m = _REGION_RE.search(body)
-    if m is None:
-        return body
-    inner = m.group(1)
-    if WARNING_MARKER in inner:
-        return body
-    new_inner = inner.rstrip() + "\n\n" + warning_md + "\n"
-    return body[: m.start()] + BEGIN + new_inner + END + body[m.end():]
 
 
 def find_summary_comment(comments: list[dict]) -> dict | None:
@@ -150,15 +138,14 @@ def main() -> int:
         return 0
 
     if mode == "warning":
-        new_body = splice_warning(
-            target["body"], build_warning(os.environ.get("DEFAULT_BRANCH", "master")))
+        block = build_warning(os.environ.get("DEFAULT_BRANCH", "master"))
     else:
         override = os.environ.get("OVERRIDE_FILE", "")
-        section = Path(override).read_text() if override and Path(override).is_file() else ""
-        if not section.strip():
+        block = Path(override).read_text() if override and Path(override).is_file() else ""
+        if not block.strip():
             print("updateDeclsDiffSection: empty OVERRIDE_FILE; nothing to patch.")
             return 0
-        new_body = splice_success(target["body"], section)
+    new_body = splice(target["body"], block)
 
     if new_body == target["body"]:
         print(f"updateDeclsDiffSection: comment already up-to-date (mode={mode}).")

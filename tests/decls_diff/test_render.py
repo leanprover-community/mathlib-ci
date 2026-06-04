@@ -89,9 +89,8 @@ class TestSanitize:
         assert sanitize("foo-->bar") == r"foo--\>bar"
 
     @pytest.mark.parametrize("marker", [
-        "<!-- DECLS_DIFF_END -->",
-        "<!-- DECLS_DIFF_BEGIN -->",
-        "<!-- DECLS_DIFF_WARNING -->",
+        "<!-- DECLS_DIFF_LEAN_END -->",
+        "<!-- DECLS_DIFF_LEAN_BEGIN -->",
     ])
     def test_no_marker_survives_sanitize(self, marker: str) -> None:
         """No region marker can survive sanitisation intact (all end in `-->`)."""

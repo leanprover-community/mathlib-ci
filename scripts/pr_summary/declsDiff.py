@@ -42,7 +42,7 @@ _LINE_BREAK_ESCAPES = {
 
 
 # The HTML-comment closer. The comment patcher delimits this section with
-# HTML-comment markers (`<!-- DECLS_DIFF_BEGIN/END/WARNING -->`); a declaration
+# HTML-comment markers (`<!-- DECLS_DIFF_LEAN_BEGIN/END -->`); a declaration
 # name carrying a literal `-->` could otherwise forge the END marker and
 # truncate the region when the patcher re-parses the comment. Every marker ends
 # in `-->`, so escaping the closer defeats every forgery. The escaped form
@@ -103,9 +103,9 @@ def render_override(
 
     With `with_heading=False` (the default) the heading and outer `<details>`
     wrap are the caller's responsibility. With `with_heading=True` the result
-    is the complete section — `#### Declarations diff` heading plus, when the
-    body exceeds `DETAILS_LINE_THRESHOLD` newlines, a `<details>` wrap — so a
-    consumer (the comment patcher) can splice it in verbatim.
+    is the complete section — `#### Declarations diff (Lean)` heading plus, when
+    the body exceeds `DETAILS_LINE_THRESHOLD` newlines, a `<details>` wrap — so a
+    consumer (the comment patcher) can splice it into the Lean region verbatim.
     """
     short_sha = head_sha[:7] if head_sha else None
     stamp = (
@@ -141,7 +141,7 @@ def render_override(
         wrapped = "\n".join([
             "<details><summary>",
             "",
-            "#### Declarations diff",
+            "#### Declarations diff (Lean)",
             "",
             "</summary>",
             "",
@@ -150,7 +150,7 @@ def render_override(
             "</details>",
         ])
     else:
-        wrapped = "\n".join(["#### Declarations diff", "", body])
+        wrapped = "\n".join(["#### Declarations diff (Lean)", "", body])
     return wrapped + "\n"
 
 
