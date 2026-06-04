@@ -277,14 +277,27 @@ sweep finds almost nothing to change because events already converged within sec
 
 1. ✅ **Build the reconcile core + I/O + CLI** in mathlib-ci (done; 111 tests). The old
    `zulip_emoji_reactions.py` stays in place untouched so nothing breaks mid-migration.
-2. **Dry-run sweep on mathlib4** (branches created locally, pending push). A temporary
-   `workflow_dispatch`-only
-   workflow in mathlib4 checks out mathlib-ci *at the feature branch ref*, uses
-   `mathlib4-config.json`, and runs `reconcile_emojis.py --sweep --dry-run`. Read the logs
-   to confirm desired-vs-actual convergence — especially the CI-from-check-rollup
-   derivation, which has no prior art. The staged files + apply instructions are in
-   [`docs/deploy/mathlib4/`](deploy/mathlib4/README.md) (they live here rather than in
-   mathlib4 because this environment can't write to the sibling checkout).
+2. **Dry-run sweep on mathlib4.** A temporary `workflow_dispatch`-only validation workflow
+   in mathlib4 checks out mathlib-ci *at the feature branch ref*, uses `mathlib4-config.json`,
+   and runs `reconcile_emojis.py --sweep --dry-run`. Read the logs to confirm
+   desired-vs-actual convergence — especially the CI-from-check-rollup derivation, which has
+   no prior art. To set it up in a mathlib4 checkout:
+
+   ```sh
+   git switch -c zulip-emoji-reconcile-dryrun
+   mkdir -p .github/workflows
+   # workflow body: see the dry-run validation workflow committed on this branch
+   cp /path/to/mathlib-ci/scripts/zulip/examples/mathlib4-config.json .github/zulip-emoji-config.json
+   git add .github/workflows/zulip_emoji_reconcile_dryrun.yml .github/zulip-emoji-config.json
+   git commit -m "ci: temporary Zulip emoji reconcile dry-run sweep workflow"
+   ```
+
+   Prerequisites: push the mathlib-ci feature branch first (the workflow checks it out at
+   that ref), and confirm the `ZULIP_API_KEY` secret exists in mathlib4 (the existing emoji
+   workflows already use it). Then dispatch via **Actions → "Zulip emoji reconcile (dry-run
+   sweep)" → Run workflow**. Defaults (`mode=sweep`, `dry_run=true`, `sweep_messages=5000`)
+   read only and write nothing; flip `dry_run=false` only once the logged plan looks correct.
+   Delete the workflow once the composite-action stubs (step 3) land — it is validation-only.
 3. **Extract the composite action** once the dry-run looks right.
 4. **Replace mathlib4's 5 workflows with 3 stubs** (PR events, CI status, sweep), dropping
    the bors emoji step and the push-to-master scan. Roll out behind the action, dropping
