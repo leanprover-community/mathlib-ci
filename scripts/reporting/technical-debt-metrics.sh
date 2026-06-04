@@ -197,7 +197,7 @@ prSummaryReport () {
 
   if [ "$(wc -l <<<"${rep}")" -le 5 ]
   then
-    printf '<details><summary>No changes to %s technical debt.</summary></details>\n' "${level}"
+    printf 'No changes to %s technical debt.\n\n' "${level}"
   else
     printf '%s\n' "${rep}" |  # outputs lines containing `|Current number|Change|Type|`, so
       # `$2` refers to `Current number` and `$3` to `Change`.
