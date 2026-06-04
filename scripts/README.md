@@ -25,7 +25,13 @@ Layout:
   `mathlib4`'s `build_template.yml` to populate the `import-graph` artifact.
 - `declsDiff.py` takes two pre-computed `decls.txt` files (from
   `dumpReasonableDecls.lean`) and emits the `+NAME` / `-NAME` set-difference plus a Markdown
-  body for the `#### Declarations diff` section of the PR summary comment.
+  body for the `#### Declarations diff` section of the PR summary comment. With `--with-heading`
+  it also emits the `#### Declarations diff (Lean)` heading and `<details>` wrap, for splicing
+  into the comment.
+- `updateDeclsDiffSection.py` PATCHes the `#### Declarations diff (Lean)` block of a PR's
+  `### PR summary` comment with the Lean-aware diff, by replacing the region between the
+  `<!-- DECLS_DIFF_LEAN_BEGIN/END -->` markers (the regex block is left untouched). Invoked
+  post-build by `mathlib4`'s `decls-diff.yml`.
 - `olean_diff.py` compares the `.olean` build outputs of two Lean builds and writes two markdown
   reports: a truncated one suitable for posting as a GitHub comment, and a full one for upload as
   a workflow artifact. Modules are classified as having public interface changes (exported

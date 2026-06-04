@@ -17,6 +17,11 @@ from pathlib import Path
 # "(showing first N of TOTAL lines)" note.
 MAX_RENDERED_LINES = 200
 
+# Newline-count threshold above which the `--with-heading` output wraps the
+# section in `<details>`. Matches `PR_summary.yml`'s `wc -l > 15` heuristic for
+# the declarations-diff part, so the post-build comment collapses the same way.
+DETAILS_LINE_THRESHOLD = 15
+
 # Hint shown when one of the input dumps is missing or empty — the most
 # common cause is that the master-side artifact for the merge-base wasn't
 # found in CI's artifact store.
@@ -34,6 +39,16 @@ _LINE_BREAK_ESCAPES = {
     " ": r" ",  # Unicode LINE SEPARATOR
     " ": r" ",  # Unicode PARAGRAPH SEPARATOR
 }
+
+
+# The HTML-comment closer. The comment patcher delimits this section with
+# HTML-comment markers (`<!-- DECLS_DIFF_LEAN_BEGIN/END -->`); a declaration
+# name carrying a literal `-->` could otherwise forge the END marker and
+# truncate the region when the patcher re-parses the comment. Every marker ends
+# in `-->`, so escaping the closer defeats every forgery. The escaped form
+# contains no `-->`, so re-escaping is a no-op.
+_COMMENT_CLOSER = "-->"
+_COMMENT_CLOSER_ESCAPE = r"--\>"
 
 
 def read_decls(path: Path) -> set[str]:
@@ -64,11 +79,12 @@ def sanitize(name: str) -> str:
     A Lean `Name` is in principle any string (e.g. via `Name.mkSimple`).
     Names that contain `\\n` or `\\r` would otherwise split the rendered diff
     across multiple physical lines, only the first of which gets a leading
-    `+`/`-` — the rest would be attacker-controlled raw Markdown.
+    `+`/`-` — the rest would be attacker-controlled raw Markdown. Likewise a
+    name containing `-->` could forge the region's closing HTML-comment marker.
     """
     for ch, esc in _LINE_BREAK_ESCAPES.items():
         name = name.replace(ch, esc)
-    return name
+    return name.replace(_COMMENT_CLOSER, _COMMENT_CLOSER_ESCAPE)
 
 
 def render_override(
@@ -76,14 +92,20 @@ def render_override(
     minus: int,
     diff: list[tuple[str, str]],
     head_sha: str | None,
+    with_heading: bool = False,
 ) -> str:
     """Render the Markdown body for the `#### Declarations diff` section.
 
     The body opens with a `> ✅` blockquote stamping the new-side SHA,
     follows with `**+N** new` / `**−M** removed` counts, and (when there
     are any differences) a ```diff fenced block containing the first
-    `MAX_RENDERED_LINES` rows. The heading and the outer `<details>`
-    wrap are the caller's responsibility.
+    `MAX_RENDERED_LINES` rows.
+
+    With `with_heading=False` (the default) the heading and outer `<details>`
+    wrap are the caller's responsibility. With `with_heading=True` the result
+    is the complete section — `#### Declarations diff (Lean)` heading plus, when
+    the body exceeds `DETAILS_LINE_THRESHOLD` newlines, a `<details>` wrap — so a
+    consumer (the comment patcher) can splice it into the Lean region verbatim.
     """
     short_sha = head_sha[:7] if head_sha else None
     stamp = (
@@ -112,7 +134,24 @@ def render_override(
         for sign, name in diff[:MAX_RENDERED_LINES]:
             lines.append(f"{sign}{sanitize(name)}")
         lines.append("```")
-    return "\n".join(lines) + "\n"
+    body = "\n".join(lines)
+    if not with_heading:
+        return body + "\n"
+    if body.count("\n") > DETAILS_LINE_THRESHOLD:
+        wrapped = "\n".join([
+            "<details><summary>",
+            "",
+            "#### Declarations diff (Lean)",
+            "",
+            "</summary>",
+            "",
+            body,
+            "",
+            "</details>",
+        ])
+    else:
+        wrapped = "\n".join(["#### Declarations diff (Lean)", "", body])
+    return wrapped + "\n"
 
 
 def validate_input(path: Path, flag: str) -> str | None:
@@ -142,6 +181,9 @@ def parse_args(argv: list[str] | None) -> argparse.Namespace:
                    help="write the raw `+NAME` / `-NAME` lines here")
     p.add_argument("--counts-file", type=Path,
                    help="write the `<plus> <minus>` counts here")
+    p.add_argument("--with-heading", action="store_true",
+                   help="emit the `#### Declarations diff` heading and "
+                        "`<details>` wrap in the override snippet")
     return p.parse_args(argv)
 
 
@@ -163,7 +205,8 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.decls_override is not None:
         args.decls_override.write_text(
-            render_override(plus, minus, diff, args.new_sha or None))
+            render_override(plus, minus, diff, args.new_sha or None,
+                            with_heading=args.with_heading))
     if args.diff_out is not None:
         args.diff_out.write_text(
             "".join(f"{sign}{name}\n" for sign, name in diff))

@@ -23,6 +23,10 @@ inputs:
     description: 'Full SHA of the new commit.'
     required: false
     default: ${{ github.sha }}
+  with-heading:
+    description: 'Include the `#### Declarations diff` heading and `<details>` wrap in the override snippet (for splicing into the PR-summary comment).'
+    required: false
+    default: 'false'
 
 outputs:
   decls-override-file:
@@ -50,9 +54,10 @@ runs:
     - id: run
       shell: bash
       env:
-        IN_REF_DECLS:   ${{ inputs.reference-decls-file }}
-        IN_NEW_DECLS:   ${{ inputs.new-decls-file }}
-        IN_NEW_SHA:     ${{ inputs.new-sha }}
+        IN_REF_DECLS:     ${{ inputs.reference-decls-file }}
+        IN_NEW_DECLS:     ${{ inputs.new-decls-file }}
+        IN_NEW_SHA:       ${{ inputs.new-sha }}
+        IN_WITH_HEADING:  ${{ inputs.with-heading }}
       run: |
         set -euo pipefail
 
@@ -71,13 +76,19 @@ runs:
         DIFF_FILE="$STAGE/decls_diff.txt"
         COUNTS="$STAGE/decls_counts.txt"
 
+        HEADING_ARG=()
+        if [ "${IN_WITH_HEADING:-false}" = "true" ]; then
+          HEADING_ARG=(--with-heading)
+        fi
+
         python3 "$DRIVER" \
           --ref-decls      "$IN_REF_DECLS" \
           --new-decls      "$IN_NEW_DECLS" \
           --new-sha        "$IN_NEW_SHA" \
           --decls-override "$DECLS_OVERRIDE" \
           --diff-out       "$DIFF_FILE" \
-          --counts-file    "$COUNTS"
+          --counts-file    "$COUNTS" \
+          "${HEADING_ARG[@]}"
 
         PLUS=0; MINUS=0
         read -r PLUS MINUS < "$COUNTS" || true
