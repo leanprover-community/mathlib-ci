@@ -91,7 +91,7 @@ titlesPathsAndRegexes=(
   "proofs using auxiliary lemmas"  ":^MathlibTest" "set_option linter.style.auxLemma" "strong"
   "CommRing (Fin n) instances"     "*"      "^open Fin.CommRing " "strong"
   "NatCast (Fin n) instances"      "*"      "^open Fin.NatCast " "strong"
-  "exposed public sections"        "*"      "^@\[expose\] public (meta |noncomputable )*section" "weak"
+  "exposed public sections"        "*"      "^@\[expose\] public \(meta \|noncomputable \)*section" "weak"
 )
 
 for i in ${!titlesPathsAndRegexes[@]}; do
