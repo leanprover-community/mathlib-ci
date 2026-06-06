@@ -65,7 +65,7 @@ def reconcile_pr(
     if pr_state is None:
         log(f"PR #{pr_number}: not found on GitHub; skipping")
         return []
-    messages = search_pr_messages(client, pr_number, config, log=log)
+    messages = search_pr_messages(client, pr_number, log=log)
     targets = messages_for_pr(messages, pr_number, config)
     return _reconcile_pr_messages(pr_state, targets, config, client, dry_run=dry_run, log=log)
 
@@ -80,7 +80,7 @@ def run_sweep(
     log: Callable[[str], None] = print,
 ) -> list[ReconcileResult]:
     """Sweep: reconcile every PR referenced by a bounded batch of recent messages."""
-    messages = fetch_recent_messages(client, config, num_before=num_before, log=log)
+    messages = fetch_recent_messages(client, num_before=num_before, log=log)
     index = index_messages_by_pr(messages, config)
     log(f"Sweep: {len(messages)} message(s) reference {len(index)} PR(s)")
     if not index:

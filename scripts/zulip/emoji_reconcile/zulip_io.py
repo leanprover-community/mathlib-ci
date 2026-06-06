@@ -20,7 +20,6 @@ from __future__ import annotations
 
 from typing import Callable
 
-from .config import Config
 from .paced_client import PacedZulipClient
 
 # Zulip caps a single get_messages page at 5000; we never ask for more in one call.
@@ -67,7 +66,6 @@ def _dedup_by_id(messages: list[dict]) -> list[dict]:
 def search_pr_messages(
     client: PacedZulipClient,
     pr_number: int,
-    config: Config,
     *,
     num_before: int = MAX_PAGE,
     log: Callable[[str], None] = print,
@@ -99,7 +97,6 @@ def search_pr_messages(
 
 def fetch_recent_messages(
     client: PacedZulipClient,
-    config: Config,
     *,
     num_before: int = MAX_PAGE,
     log: Callable[[str], None] = print,

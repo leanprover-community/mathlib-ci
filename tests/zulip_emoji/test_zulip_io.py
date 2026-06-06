@@ -34,7 +34,7 @@ def m(message_id):
 
 
 class TestSearchPrMessages:
-    def test_public_and_private_combined(self, sample_config) -> None:
+    def test_public_and_private_combined(self) -> None:
         client = FakeClient(
             subscriptions=[
                 {"name": "secret", "invite_only": True},
@@ -45,15 +45,15 @@ class TestSearchPrMessages:
                 ("secret", "#123"): [m(3)],
             },
         )
-        result = search_pr_messages(client, 123, sample_config, log=lambda _x: None)
+        result = search_pr_messages(client, 123, log=lambda _x: None)
         assert sorted(msg["id"] for msg in result) == [1, 2, 3]
 
-    def test_only_invite_only_channels_searched_privately(self, sample_config) -> None:
+    def test_only_invite_only_channels_searched_privately(self) -> None:
         client = FakeClient(
             subscriptions=[{"name": "general", "invite_only": False}],
             by_narrow={("public", "#5"): [m(1)]},
         )
-        search_pr_messages(client, 5, sample_config, log=lambda _x: None)
+        search_pr_messages(client, 5, log=lambda _x: None)
         # public search + no private search (general is not invite_only)
         searched_channels = [
             {n["operator"]: n["operand"] for n in c["narrow"]}.get("channel")
@@ -61,26 +61,26 @@ class TestSearchPrMessages:
         ]
         assert searched_channels == [None]  # only the public (channels) query ran
 
-    def test_dedup_across_channels(self, sample_config) -> None:
+    def test_dedup_across_channels(self) -> None:
         client = FakeClient(
             subscriptions=[{"name": "secret", "invite_only": True}],
             by_narrow={("public", "#9"): [m(1)], ("secret", "#9"): [m(1)]},
         )
-        result = search_pr_messages(client, 9, sample_config, log=lambda _x: None)
+        result = search_pr_messages(client, 9, log=lambda _x: None)
         assert [msg["id"] for msg in result] == [1]
 
 
 class TestFetchRecentMessages:
-    def test_combines_public_and_private(self, sample_config) -> None:
+    def test_combines_public_and_private(self) -> None:
         client = FakeClient(
             subscriptions=[{"name": "secret", "invite_only": True}],
             recent={"public": [m(1), m(2)], "secret": [m(3)]},
         )
-        result = fetch_recent_messages(client, sample_config, log=lambda _x: None)
+        result = fetch_recent_messages(client, log=lambda _x: None)
         assert sorted(msg["id"] for msg in result) == [1, 2, 3]
 
-    def test_respects_num_before_cap(self, sample_config) -> None:
+    def test_respects_num_before_cap(self) -> None:
         client = FakeClient(recent={"public": [m(1)]})
-        fetch_recent_messages(client, sample_config, num_before=999999, log=lambda _x: None)
+        fetch_recent_messages(client, num_before=999999, log=lambda _x: None)
         # capped at MAX_PAGE
         assert client.get_messages_calls[0]["num_before"] == 5000
