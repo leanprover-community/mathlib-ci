@@ -124,7 +124,6 @@ _PR_FIELDS = """
   commits(last: 1) {
     nodes {
       commit {
-        statusCheckRollup { state }
         status { contexts { context state } }
         checkSuites(first: 30) {
           nodes {
