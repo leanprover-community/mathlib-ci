@@ -210,14 +210,18 @@ cross-fork `workflow_run` triggers need a token minted from a GitHub App install
 
 ## Rate limits
 
-The tool paces itself from each service's rate-limit response headers, ahead of the usual
-retry-on-429 backoff, so a long run self-throttles instead of sprinting into the limit:
+The two services are handled differently — Zulip calls are actively paced, while GitHub reads
+stay cheap by batching:
 
-- **Zulip** limits are per bot user. The sweep inverts the naive loop — it fetches recent
-  messages once and indexes them by PR, so reads scale with channels × pages rather than with
-  the number of PRs. The main cost is the one-time write burst on a first sweep (or one after
-  an outage); in steady state events have already converged and the sweep finds little to do.
-- **GitHub** reads use batched GraphQL for the sweep (many PRs per query, a few queries total)
-  and honor the GraphQL `rateLimit` budget and REST `x-ratelimit-*` headers. Scheduled runs
-  are best-effort — cron can be delayed and is disabled after long repo inactivity — which is
-  why the sweep is a safety net and events stay the primary path.
+- **Zulip** limits are per bot user. The client paces itself proactively from the
+  `X-RateLimit-Remaining` / `X-RateLimit-Reset` response headers (ahead of the retry-on-429
+  backoff), spreading a long write burst toward the window reset rather than sprinting into the
+  limit. The sweep also inverts the naive loop — it fetches recent messages once and indexes
+  them by PR, so reads scale with channels × pages rather than with the number of PRs. The main
+  cost is the one-time write burst on a first sweep (or one after an outage); in steady state
+  events have already converged and the sweep finds little to do.
+- **GitHub** reads go through `gh api graphql`; the sweep batches up to 50 PRs per query (a few
+  low-cost queries in total), so even a full sweep stays well inside the GraphQL hourly point
+  budget without extra throttling. Scheduled runs are themselves best-effort — cron can be
+  delayed and is disabled after long repo inactivity — which is why the sweep is a safety net
+  and events stay the primary path.
