@@ -152,6 +152,58 @@ complete solution, and events are a latency optimization on top:
 3. **+ CI status** — `workflow_run` on your CI workflow(s), running `--pr <number>` for the PR
    at the run's head commit, so the CI emoji updates promptly.
 
+The sweep-only floor (level 1) is a complete workflow on its own:
+
+```yaml
+# .github/workflows/zulip_emoji_reconcile.yml
+name: Zulip emoji reconcile
+
+on:
+  schedule:
+    - cron: "37 * * * *"   # hourly safety net (offset to dodge top-of-hour load)
+  workflow_dispatch: {}     # manual full resync
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  reconcile:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out this repo's config        # for .github/zulip-emoji-config.json
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github/zulip-emoji-config.json
+          sparse-checkout-cone-mode: false
+
+      - name: Check out mathlib-ci                 # the reconciler
+        uses: actions/checkout@v4
+        with:
+          repository: leanprover-community/mathlib-ci
+          ref: <pin a tag or commit SHA>
+          path: ci-tools
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - run: pip install -r ci-tools/scripts/zulip/requirements.txt
+
+      - name: Reconcile
+        env:
+          ZULIP_API_KEY: ${{ secrets.ZULIP_API_KEY }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python ci-tools/scripts/zulip/reconcile_emojis.py \
+            --config .github/zulip-emoji-config.json --sweep
+```
+
+To climb the ladder, add triggers and swap the final command's mode: a `pull_request_target`
+job runs `--pr ${{ github.event.pull_request.number }}`, and a `workflow_run` job resolves the
+PR from the run's head SHA and passes it to `--pr`. Add `--dry-run` while validating a new
+config — it logs the planned changes and writes nothing.
+
 GitHub access: the reconciler needs read access to PR state (`pull-requests: read`,
 `contents: read`). In-repo event triggers get this from the default `GITHUB_TOKEN`;
 cross-fork `workflow_run` triggers need a token minted from a GitHub App installation.
