@@ -195,7 +195,11 @@ prSummaryReport () {
   level="${1}"
   rep="${2}"
 
-  if [ "$(wc -l <<<"${rep}")" -le 5 ]
+  # Count actual changed counters (rows whose Change field is a non-zero number),
+  # rather than total lines — robust to header/footer line-count changes.
+  nChanges="$(awk -F'|' '($3+0 == $3) && ($3+0 != 0){c++} END{print c+0}' <<<"${rep}")"
+
+  if [ "${nChanges}" -eq 0 ]
   then
     printf 'No changes to %s technical debt.\n\n' "${level}"
   else
