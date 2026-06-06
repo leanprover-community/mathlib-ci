@@ -195,7 +195,8 @@ prSummaryReport () {
   level="${1}"
   rep="${2}"
 
-  if [ "$(wc -l <<<"${rep}")" -le 5 ]
+  # the first two lines are the header, so we filter out header-only reports
+  if [ "$(wc -l <<<"${rep}")" -le 2 ]
   then
     printf 'No changes to %s technical debt.\n\n' "${level}"
   else
