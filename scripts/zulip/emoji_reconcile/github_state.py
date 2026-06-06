@@ -182,7 +182,7 @@ def gh_graphql_runner(query: str) -> dict:
         check=True,
     )
     payload = json.loads(proc.stdout)
-    if "errors" in payload and payload["errors"]:
+    if payload.get("errors"):
         raise RuntimeError(f"GitHub GraphQL errors: {payload['errors']}")
     return payload.get("data") or {}
 
