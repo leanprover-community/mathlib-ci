@@ -172,19 +172,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out this repo's config        # for .github/zulip-emoji-config.json
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           sparse-checkout: .github/zulip-emoji-config.json
           sparse-checkout-cone-mode: false
 
       - name: Check out mathlib-ci                 # the reconciler
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: leanprover-community/mathlib-ci
           ref: <pin a tag or commit SHA>
           path: ci-tools
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: '3.x'
 
