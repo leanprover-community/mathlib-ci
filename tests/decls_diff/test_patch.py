@@ -2,15 +2,20 @@
 
 from __future__ import annotations
 
+from declsDiff import render_override
 from updateDeclsDiffSection import (
     LEAN_BEGIN,
     LEAN_END,
     PR_SUMMARY_PREFIX,
+    SUMMARY_COMMENT_AUTHOR,
     build_warning,
     carry_forward,
     find_summary_comment,
     splice,
 )
+
+BOT = {"login": SUMMARY_COMMENT_AUTHOR}
+HUMAN = {"login": "not-the-bot"}
 
 # A success block as produced by `declsDiff.py --with-heading`.
 SECTION = "#### Declarations diff (Lean)\n\n> ✅ **Lean-aware diff**\n\n* **+1** new declarations\n"
@@ -128,25 +133,56 @@ class TestCarryForward:
         body = splice(comment(PLACEHOLDER), build_warning("master"))
         assert "(Lean -- unavailable)" in body
 
+    def test_real_producer_output_is_carryable(self) -> None:
+        """Contract guard against stamp drift: a section rendered by the *real*
+        producer (`render_override`, the same code path the post-build action
+        runs) must satisfy `carry_forward`. The hand-written `SECTION` fixture
+        cannot catch a reworded stamp in declsDiff.py — this can."""
+        produced = render_override(
+            plus=1, minus=0, diff=[("+", "Foo.bar")],
+            head_sha="abc1234def", with_heading=True,
+        )
+        assert carry_forward(produced, STALE_HEADING) is not None
+
+    def test_heading_with_regex_metachars_is_literal(self) -> None:
+        """A heading containing backslashes is substituted literally, not as a
+        regex replacement template."""
+        out = carry_forward(SECTION, r"#### Declarations diff (Lean \g<0> \1)")
+        assert r"\g<0>" in out
+
 
 class TestFindSummaryComment:
     def test_finds_the_summary_among_others(self) -> None:
-        """The `### PR summary` comment is picked out of a list of comments."""
+        """The bot's `### PR summary` comment is picked out of a list of comments."""
         comments = [
-            {"body": "a normal review comment"},
-            {"body": f"{PR_SUMMARY_PREFIX} [abc](url)\n\nbody"},
-            {"body": "another comment"},
+            {"body": "a normal review comment", "user": HUMAN},
+            {"body": f"{PR_SUMMARY_PREFIX} [abc](url)\n\nbody", "user": BOT},
+            {"body": "another comment", "user": HUMAN},
         ]
         assert find_summary_comment(comments)["body"].startswith(PR_SUMMARY_PREFIX)
 
     def test_returns_none_when_absent(self) -> None:
-        assert find_summary_comment([{"body": "nope"}]) is None
+        assert find_summary_comment([{"body": "nope", "user": BOT}]) is None
         assert find_summary_comment([]) is None
 
     def test_tolerates_null_body(self) -> None:
         """A comment with a `null` body (allowed by the API) is skipped, not fatal."""
         comments = [
-            {"body": None},
-            {"body": f"{PR_SUMMARY_PREFIX}\n\nbody"},
+            {"body": None, "user": BOT},
+            {"body": f"{PR_SUMMARY_PREFIX}\n\nbody", "user": BOT},
         ]
         assert find_summary_comment(comments)["body"].startswith(PR_SUMMARY_PREFIX)
+
+    def test_ignores_non_bot_impostor(self) -> None:
+        """A non-bot comment starting with the prefix is skipped in favour of the
+        bot's — so attacker-authored region content is never read or carried forward."""
+        comments = [
+            {"body": f"{PR_SUMMARY_PREFIX}\n\n{LEAN_BEGIN}fake{LEAN_END}", "user": HUMAN},
+            {"body": f"{PR_SUMMARY_PREFIX} [real](url)\n\nbody", "user": BOT},
+        ]
+        sel = find_summary_comment(comments)
+        assert sel is not None and sel["user"]["login"] == SUMMARY_COMMENT_AUTHOR
+
+    def test_tolerates_missing_user(self) -> None:
+        """A comment with no `user` key is skipped, not fatal."""
+        assert find_summary_comment([{"body": f"{PR_SUMMARY_PREFIX}\n\nx"}]) is None

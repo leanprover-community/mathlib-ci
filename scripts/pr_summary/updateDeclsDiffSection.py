@@ -51,6 +51,9 @@ from pathlib import Path
 LEAN_BEGIN = "<!-- DECLS_DIFF_LEAN_BEGIN -->"
 LEAN_END = "<!-- DECLS_DIFF_LEAN_END -->"
 PR_SUMMARY_PREFIX = "### PR summary"
+# The summary comment is posted/patched by `update_PR_comment.sh` with the
+# default `GITHUB_TOKEN`, so it is always authored by this account.
+SUMMARY_COMMENT_AUTHOR = "github-actions[bot]"
 
 _REGION_RE = re.compile(re.escape(LEAN_BEGIN) + r"(.*?)" + re.escape(LEAN_END), re.DOTALL)
 
@@ -85,7 +88,17 @@ def carry_forward(region: str, new_heading: str) -> str | None:
     the heading line rewritten to `new_heading`. Otherwise return `None`."""
     if not new_heading or LEAN_DIFF_STAMP not in region:
         return None
-    return _HEADING_RE.sub(new_heading.strip(), region, count=1).strip()
+    # Substitute `new_heading` literally (via a lambda), NOT as a regex
+    # replacement template, so a heading containing `\` or `\g` cannot corrupt it.
+    relabelled, n = _HEADING_RE.subn(lambda _m: new_heading.strip(), region, count=1)
+    if n == 0:
+        # Stamp present but no `(Lean…)` heading matched: a NEW_HEADING was added
+        # that `_HEADING_RE` doesn't recognise. Carry the body forward unrelabelled
+        # rather than silently no-op, and make the drift visible in the logs.
+        print("updateDeclsDiffSection: carry_forward: diff stamp present but no "
+              "'#### Declarations diff (Lean…)' heading matched; check _HEADING_RE "
+              "against the NEW_HEADING values.", file=sys.stderr)
+    return relabelled.strip()
 
 
 def emit_placeholder(repo: str, head_sha: str) -> int:
@@ -120,11 +133,18 @@ def splice(body: str, block: str) -> str:
 
 
 def find_summary_comment(comments: list[dict]) -> dict | None:
-    """Return the first comment whose body starts with `### PR summary`, else
-    `None`. Tolerates a `null` body (the GitHub API permits it) by treating it
-    as empty rather than raising."""
+    """Return the first `github-actions[bot]` comment whose body starts with
+    `### PR summary`, else `None`. Tolerates a `null` body (the GitHub API
+    permits it) by treating it as empty rather than raising.
+
+    The author check matters: anyone can post a comment starting with
+    `### PR summary`, and under `pull_request_target` this script reads that
+    comment's Lean region and carries it forward into the comment it maintains.
+    Requiring the bot author keeps attacker-authored content out of that loop."""
     return next(
-        (c for c in comments if (c.get("body") or "").startswith(PR_SUMMARY_PREFIX)),
+        (c for c in comments
+         if (c.get("body") or "").startswith(PR_SUMMARY_PREFIX)
+         and (c.get("user") or {}).get("login") == SUMMARY_COMMENT_AUTHOR),
         None,
     )
 
