@@ -76,9 +76,9 @@ def build_warning(default_branch: str) -> str:
     return "\n".join([
         "#### Declarations diff (Lean -- unavailable)",
         "",
-        f"> ⚠️ The Mathlib cache for this PR's merge-base isn't on the server "
-        f"(typically a bors-batch intermediate that CI never built). "
-        f"Merge `{default_branch}` into this PR and push to refresh.",
+        f"> ⚠️ No declarations diff yet: there is no built `{default_branch}` snapshot "
+        f"at this PR's merge-base (typically a bors-batch intermediate that CI never "
+        f"built). Merge `{default_branch}` into this PR and push to refresh.",
     ])
 
 

@@ -21,7 +21,7 @@ HUMAN = {"login": "not-the-bot"}
 SECTION = "#### Declarations diff (Lean)\n\n> ✅ **Lean-aware diff**\n\n* **+1** new declarations\n"
 
 STALE_HEADING = "#### Declarations diff (Lean -- stale, waiting for the new build)"
-MISS_HEADING = "#### Declarations diff (Lean -- cache miss, showing previous diff)"
+MISS_HEADING = "#### Declarations diff (Lean -- stale; merge master and push to refresh)"
 
 
 def comment(inner: str) -> str:
