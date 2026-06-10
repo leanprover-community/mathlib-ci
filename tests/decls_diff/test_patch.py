@@ -7,12 +7,16 @@ from updateDeclsDiffSection import (
     LEAN_END,
     PR_SUMMARY_PREFIX,
     build_warning,
+    carry_forward,
     find_summary_comment,
     splice,
 )
 
 # A success block as produced by `declsDiff.py --with-heading`.
 SECTION = "#### Declarations diff (Lean)\n\n> ✅ **Lean-aware diff**\n\n* **+1** new declarations\n"
+
+STALE_HEADING = "#### Declarations diff (Lean -- stale, waiting for the new build)"
+MISS_HEADING = "#### Declarations diff (Lean -- cache miss, showing previous diff)"
 
 
 def comment(inner: str) -> str:
@@ -78,6 +82,51 @@ class TestWarning:
 
     def test_summary_prefix_preserved(self) -> None:
         assert splice(comment(PLACEHOLDER), build_warning("master")).startswith(PR_SUMMARY_PREFIX)
+
+
+class TestCarryForward:
+    def test_real_diff_relabelled_body_kept(self) -> None:
+        """A real diff is carried forward: heading swapped, stamp and counts kept."""
+        out = carry_forward(SECTION, STALE_HEADING)
+        assert out is not None
+        assert out.startswith(STALE_HEADING)
+        assert "✅ **Lean-aware diff**" in out
+        assert "**+1** new declarations" in out
+        assert "(Lean -- pending)" not in out
+
+    def test_survives_repeated_relabels(self) -> None:
+        """Keyed on the body stamp (not the heading), so a stale diff can be
+        relabelled again (e.g. on a later cache miss) without being lost."""
+        stale = carry_forward(SECTION, STALE_HEADING)
+        miss = carry_forward(stale, MISS_HEADING)
+        assert miss is not None
+        assert miss.startswith(MISS_HEADING)
+        assert "**+1** new declarations" in miss
+
+    def test_pending_not_carryable(self) -> None:
+        """The pending placeholder has no diff stamp, so there is nothing to keep."""
+        assert carry_forward(PLACEHOLDER, STALE_HEADING) is None
+
+    def test_empty_heading_never_carries(self) -> None:
+        assert carry_forward(SECTION, "") is None
+
+    def test_warning_keeps_prior_diff(self) -> None:
+        """Warning mode carries a prior real diff forward under the cache-miss
+        heading instead of blanking it to `unavailable`."""
+        prior = splice(comment(PLACEHOLDER), SECTION)
+        kept = carry_forward(SECTION, MISS_HEADING)
+        assert kept is not None
+        body = splice(prior, kept)
+        assert MISS_HEADING in body
+        assert "**+1** new declarations" in body
+        assert "(Lean -- unavailable)" not in body
+
+    def test_warning_falls_back_when_no_prior_diff(self) -> None:
+        """With only the pending placeholder present, warning mode still shows
+        the unavailable block."""
+        assert carry_forward(PLACEHOLDER, MISS_HEADING) is None
+        body = splice(comment(PLACEHOLDER), build_warning("master"))
+        assert "(Lean -- unavailable)" in body
 
 
 class TestFindSummaryComment:
