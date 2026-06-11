@@ -1,8 +1,8 @@
 name: Test zulip emoji reconcile
 
 # Runs the unit-test suite for the `emoji_reconcile` package (config schema,
-# desired_emoji_set, the rate-limit pacer, and per-message reconciliation) on
-# every push / PR that touches its source or its tests.
+# desired_emoji_set, the retrying Zulip client, and per-message reconciliation)
+# on every push / PR that touches its source or its tests.
 
 on:
   push:

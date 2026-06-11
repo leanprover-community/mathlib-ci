@@ -17,8 +17,9 @@ For a given PR, the tool reads the PR's current state from GitHub, computes the 
 of emoji from your config, and then adds or removes reactions on the matching Zulip messages
 so they match that set. It is idempotent and self-healing: re-running simply re-asserts the
 correct state, so a missed event or transient outage is repaired on the next run. It only
-ever touches the emoji your config names — human-added reactions (👍 and the like) are left
-alone.
+ever touches the *bot's own* reactions, and only for the emoji your config names —
+human-added reactions (👍 and the like, but also a human's copy of a managed emoji) are
+left alone.
 
 There are two ways to invoke it, sharing the same core:
 
@@ -79,7 +80,7 @@ data — they appear only as config rows; the engine knows none of them by name.
 |---|---|
 | `github_repo` | `owner/name` of the repo whose PRs drive the emoji. |
 | `zulip.site` / `zulip.email` | The Zulip realm URL and the bot user's email. The API key is supplied separately (see *Running it*). |
-| `channels` | Maps *logical keys* (used elsewhere in the config) to actual Zulip channel names, so renaming a channel is a one-line change. `pr_reviews` enables thread matching; `rss_allow` is a list of RSS topics to include rather than skip. |
+| `channels` | Maps *logical keys* (used elsewhere in the config) to actual Zulip channel names, so renaming a channel is a one-line change. `pr_reviews` enables thread matching; `rss` names the feed channel to skip (default `rss`); `rss_allow` is a list of RSS topics to include rather than skip. |
 | `ci.check_names` | Check-run / workflow / status-context names that count toward the CI emoji. Empty means "every check on the head commit"; naming your main CI workflow keeps the emoji from flipping on unrelated checks. |
 | `states` | The emoji table — one rule per emoji (below). |
 
@@ -96,7 +97,7 @@ Each rule says "when this predicate holds for a PR, this emoji should be present
 | `group` | Mutual-exclusion class: at most one emoji from a group is shown at a time. `group: null` is an independent toggle, driven solely by its own predicate. |
 | `priority` | Within a group, the matching rule with the highest priority wins (ties broken by config order). |
 | `sticky` | If true, the emoji is never removed once present (e.g. a "migrated from a fork" marker). |
-| `suppress_in` | Skip this emoji on messages in a given channel/topic where it would be redundant. Takes `{"channel": "<logical key>", "subject_prefix": "..."}` (or a list). |
+| `suppress_in` | Leave this emoji entirely alone (never added, never removed) on messages in a given channel/topic where it would be redundant. Takes `{"channel": "<logical key>", "subject_prefix": "..."}` (or a list). |
 
 The CI emoji is derived from the head commit's check-run rollup, scoped by `ci.check_names`,
 with precedence running > failure > success > none (cancelled/skipped/neutral are ignored).
@@ -110,8 +111,14 @@ A Zulip message is associated with a PR if either:
 - it is the *first* message of a thread in the `pr_reviews` channel whose topic references
   `#<n>` (these threads are one-per-PR; only the opener is reacted to).
 
-Messages in an `rss` channel are skipped unless their topic is listed in `channels.rss_allow`.
-PR numbers are matched as whole tokens, so `#1234` resolves only to PR 1234.
+Messages in the rss channel (`channels.rss`, default `rss`) are skipped unless their topic
+is listed in `channels.rss_allow`. PR numbers are matched as whole tokens, so `#1234`
+resolves only to PR 1234.
+
+Topic-matched candidates are confirmed against Zulip before reacting (is this really the
+oldest message of its topic?), because in a bounded sweep window a long-lived thread's true
+opener may predate the window. Confirmations cost one extra read per distinct topic and are
+cached within a run; link-matched messages need no confirmation.
 
 ## Running it
 
@@ -133,8 +140,9 @@ python scripts/zulip/reconcile_emojis.py --config config.json --sweep
 
 `--dry-run` logs the planned add/remove for every message and writes nothing — always start
 here when validating a new config. `--sweep-messages N` (default 5000) bounds how many recent
-messages the sweep scans per channel; it also sets the effective "recently closed" lookback
-horizon, since the oldest message in the batch is as far back as the sweep looks.
+messages the sweep scans: one combined window of N across all public channels, plus N per
+subscribed private channel. It also sets the effective "recently closed" lookback horizon,
+since the oldest message in the batch is as far back as the sweep looks.
 
 ## Wiring it into CI
 
@@ -213,15 +221,17 @@ cross-fork `workflow_run` triggers need a token minted from a GitHub App install
 The two services are handled differently — Zulip calls are actively paced, while GitHub reads
 stay cheap by batching:
 
-- **Zulip** limits are per bot user. The client paces itself proactively from the
-  `X-RateLimit-Remaining` / `X-RateLimit-Reset` response headers (ahead of the retry-on-429
-  backoff), spreading a long write burst toward the window reset rather than sprinting into the
-  limit. The sweep also inverts the naive loop — it fetches recent messages once and indexes
-  them by PR, so reads scale with channels × pages rather than with the number of PRs. The main
-  cost is the one-time write burst on a first sweep (or one after an outage); in steady state
-  events have already converged and the sweep finds little to do.
+- **Zulip** limits are per bot user. Every call retries on HTTP 429, sleeping out the
+  server's `retry-after` — sufficient because the event path makes only a handful of calls
+  and the sweep is a cron job nobody is waiting on. The sweep also inverts the naive loop —
+  it fetches recent messages once and indexes them by PR, so reads scale with channels ×
+  pages rather than with the number of PRs. The main cost is the one-time write burst on a
+  first sweep (or one after an outage), which simply glides through a few retry pauses; in
+  steady state events have already converged and the sweep finds little to do.
 - **GitHub** reads go through `gh api graphql`; the sweep batches up to 50 PRs per query (a few
   low-cost queries in total), so even a full sweep stays well inside the GraphQL hourly point
-  budget without extra throttling. Scheduled runs are themselves best-effort — cron can be
-  delayed and is disabled after long repo inactivity — which is why the sweep is a safety net
-  and events stay the primary path.
+  budget without extra throttling. A `#N` that turns out not to be a PR (an issue number, a
+  deleted PR) is tolerated: the query's partial data is kept and that number is simply
+  skipped. Scheduled runs are themselves best-effort — cron can be delayed and is disabled
+  after long repo inactivity — which is why the sweep is a safety net and events stay the
+  primary path.
