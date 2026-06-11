@@ -1,7 +1,7 @@
 """Zulip read helpers: fetch the messages the reconciler needs to look at.
 
-Two access patterns, both built on :class:`PacedZulipClient` so every call is rate-limited
-and retried:
+Three access patterns, all built on :class:`RetryingZulipClient` so every call is retried
+on rate limits:
 
   * :func:`search_pr_messages` — the event path. Search public channels (and each private
     channel the bot is subscribed to) for ``#<n>``, returning candidate messages for one
@@ -11,22 +11,25 @@ and retried:
     channels and from each subscribed private channel, bounded by ``num_before``. This is
     the "invert the loop" strategy: fetch a bounded batch once, then index by PR, instead
     of issuing a search per open PR.
+  * :func:`first_message_id_in_topic` — confirm that a candidate thread opener really is
+    the oldest message of its topic (batch order alone can't tell when the true opener
+    predates the fetched window).
 
-Both are deliberately defensive: a failed fetch logs a warning and is skipped rather than
+All are deliberately defensive: a failed fetch logs a warning and is skipped rather than
 aborting the run, because emoji updates are cosmetic and must never wedge.
 """
 
 from __future__ import annotations
 
-from typing import Callable
+from typing import Callable, Optional
 
-from .paced_client import PacedZulipClient
+from .zulip_client import RetryingZulipClient
 
 # Zulip caps a single get_messages page at 5000; we never ask for more in one call.
 MAX_PAGE = 5000
 
 
-def _private_channel_names(client: PacedZulipClient, log: Callable[[str], None]) -> list[str]:
+def _private_channel_names(client: RetryingZulipClient, log: Callable[[str], None]) -> list[str]:
     """Names of the invite-only channels the bot is subscribed to."""
     response = client.get_subscriptions()
     if response.get("result") != "success":
@@ -39,7 +42,7 @@ def _private_channel_names(client: PacedZulipClient, log: Callable[[str], None])
     ]
 
 
-def _get_messages(client: PacedZulipClient, narrow: list[dict], num_before: int) -> list[dict]:
+def _get_messages(client: RetryingZulipClient, narrow: list[dict], num_before: int) -> list[dict]:
     response = client.get_messages({
         "anchor": "newest",
         "num_before": min(num_before, MAX_PAGE),
@@ -64,7 +67,7 @@ def _dedup_by_id(messages: list[dict]) -> list[dict]:
 
 
 def search_pr_messages(
-    client: PacedZulipClient,
+    client: RetryingZulipClient,
     pr_number: int,
     *,
     num_before: int = MAX_PAGE,
@@ -96,7 +99,7 @@ def search_pr_messages(
 
 
 def fetch_recent_messages(
-    client: PacedZulipClient,
+    client: RetryingZulipClient,
     *,
     num_before: int = MAX_PAGE,
     log: Callable[[str], None] = print,
@@ -117,3 +120,23 @@ def fetch_recent_messages(
         messages.extend(found)
 
     return _dedup_by_id(messages)
+
+
+def first_message_id_in_topic(
+    client: RetryingZulipClient, channel: str, topic: str
+) -> Optional[int]:
+    """The id of the oldest message in a channel topic, or None if the lookup fails."""
+    response = client.get_messages({
+        "anchor": "oldest",
+        "num_before": 0,
+        "num_after": 1,
+        "narrow": [
+            {"operator": "channel", "operand": channel},
+            {"operator": "topic", "operand": topic},
+        ],
+    })
+    if response.get("result") != "success":
+        return None
+    messages = response.get("messages", [])
+    return messages[0]["id"] if messages else None
+

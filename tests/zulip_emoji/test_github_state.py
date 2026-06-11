@@ -11,10 +11,9 @@ from emoji_reconcile.github_state import (
     _classify_check_run,
     _classify_status_context,
     build_batch_query,
-    build_single_query,
     ci_from_head_commit,
-    fetch_pr_state,
     fetch_pr_states,
+    gh_graphql_runner,
     pr_state_from_node,
 )
 from emoji_reconcile.pr_state import CI_NONE
@@ -160,22 +159,15 @@ class TestPrStateFromNode:
 
 
 class TestFetch:
-    def test_fetch_pr_state(self, sample_config) -> None:
+    def test_fetch_single_pr(self, sample_config) -> None:
         node = pr_node(number=42, state="OPEN", labels=["delegated"])
 
         def runner(query):
-            assert "pullRequest(number: 42)" in query
-            return {"repository": {"pullRequest": node}}
+            assert "pr42: pullRequest(number: 42)" in query
+            return {"repository": {"pr42": node}}
 
-        state = fetch_pr_state("leanprover-community/mathlib4", 42, sample_config, runner)
-        assert state.number == 42 and state.labels == frozenset({"delegated"})
-
-    def test_fetch_pr_state_missing_returns_none(self, sample_config) -> None:
-        state = fetch_pr_state(
-            "leanprover-community/mathlib4", 42, sample_config,
-            runner=lambda q: {"repository": {"pullRequest": None}},
-        )
-        assert state is None
+        states = fetch_pr_states("leanprover-community/mathlib4", [42], sample_config, runner)
+        assert states[42].number == 42 and states[42].labels == frozenset({"delegated"})
 
     def test_fetch_pr_states_batches_and_chunks(self, sample_config) -> None:
         calls = []
@@ -208,16 +200,51 @@ class TestFetch:
 
 
 class TestQueryBuilders:
-    def test_single_query_shape(self) -> None:
-        q = build_single_query("owner/repo", 7)
-        assert 'repository(owner: "owner", name: "repo")' in q
-        assert "pullRequest(number: 7)" in q
-
     def test_batch_query_has_aliases(self) -> None:
         q = build_batch_query("owner/repo", [1, 2])
+        assert 'repository(owner: "owner", name: "repo")' in q
         assert "pr1: pullRequest(number: 1)" in q
         assert "pr2: pullRequest(number: 2)" in q
 
     def test_bad_repo_raises(self) -> None:
         with pytest.raises(ValueError, match="owner/name"):
-            build_single_query("not-a-slug", 1)
+            build_batch_query("not-a-slug", [1])
+
+
+class FakeProc:
+    def __init__(self, stdout="", stderr="", returncode=0):
+        self.stdout = stdout
+        self.stderr = stderr
+        self.returncode = returncode
+
+
+class TestGhGraphqlRunner:
+    """gh exits non-zero whenever the payload has errors; partial data must survive."""
+
+    def _patch(self, monkeypatch, proc):
+        import emoji_reconcile.github_state as gs
+        monkeypatch.setattr(gs.subprocess, "run", lambda *a, **k: proc)
+
+    def test_success(self, monkeypatch) -> None:
+        self._patch(monkeypatch, FakeProc(stdout='{"data": {"repository": {}}}'))
+        assert gh_graphql_runner("query {}") == {"repository": {}}
+
+    def test_not_found_errors_tolerated_with_partial_data(self, monkeypatch) -> None:
+        # One missing PR in a batch: gh exits 1 but stdout has the other PRs' data.
+        payload = ('{"data": {"repository": {"pr1": {"number": 1}, "pr2": null}}, '
+                   '"errors": [{"type": "NOT_FOUND", "message": "no PR 2"}]}')
+        self._patch(monkeypatch, FakeProc(stdout=payload, returncode=1))
+        data = gh_graphql_runner("query {}")
+        assert data["repository"]["pr1"] == {"number": 1}
+        assert data["repository"]["pr2"] is None
+
+    def test_other_errors_raise(self, monkeypatch) -> None:
+        payload = '{"data": null, "errors": [{"type": "RATE_LIMITED", "message": "slow down"}]}'
+        self._patch(monkeypatch, FakeProc(stdout=payload, returncode=1))
+        with pytest.raises(RuntimeError, match="RATE_LIMITED"):
+            gh_graphql_runner("query {}")
+
+    def test_no_output_raises(self, monkeypatch) -> None:
+        self._patch(monkeypatch, FakeProc(stdout="", stderr="gh: network unreachable", returncode=1))
+        with pytest.raises(RuntimeError, match="network unreachable"):
+            gh_graphql_runner("query {}")

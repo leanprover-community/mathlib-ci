@@ -116,7 +116,11 @@ def pr_state_from_node(node: dict, config: Config) -> PrState:
     return PrState.make(number=number, status=status, labels=labels, ci=ci)
 
 
-# The set of fields fetched for each PR. Reused for single and batched queries.
+# The set of fields fetched for each PR. The first-N limits are not paginated: a head
+# commit with more than 30 check suites (or 100 runs in one suite) could hide the named CI
+# check, which would read as "no CI signal" and clear a correct CI emoji. Raise them before
+# adding pagination if that ever bites; batched queries put ~3k nodes per PR against
+# GitHub's 500k-node query ceiling, so there is room.
 _PR_FIELDS = """
   number
   state
@@ -144,17 +148,6 @@ def _split_repo(repo: str) -> tuple[str, str]:
     return owner, name
 
 
-def build_single_query(repo: str, number: int) -> str:
-    owner, name = _split_repo(repo)
-    return f'''query {{
-  repository(owner: "{owner}", name: "{name}") {{
-    pullRequest(number: {int(number)}) {{
-      {_PR_FIELDS}
-    }}
-  }}
-}}'''
-
-
 def build_batch_query(repo: str, numbers: Iterable[int]) -> str:
     """A single query fetching several PRs via aliased pullRequest fields."""
     owner, name = _split_repo(repo)
@@ -174,31 +167,34 @@ def gh_graphql_runner(query: str) -> dict:
 
     Relies on ``gh`` being installed and authenticated (``GH_TOKEN``/``GITHUB_TOKEN``),
     matching how the existing workflows call GitHub.
+
+    ``gh`` exits non-zero whenever the GraphQL payload carries *any* error, even though
+    stdout still holds the response — including usable partial data (e.g. a batch query
+    where one aliased PR number is an issue or was deleted yields NOT_FOUND for that alias
+    and full data for the rest). So: parse stdout regardless of exit code, tolerate
+    NOT_FOUND (the caller just sees a missing node), and raise only when there is no
+    response at all or the errors are of some other kind.
     """
     proc = subprocess.run(
         ["gh", "api", "graphql", "-f", f"query={query}"],
         capture_output=True,
         text=True,
-        check=True,
+        check=False,
     )
-    payload = json.loads(proc.stdout)
-    if payload.get("errors"):
-        raise RuntimeError(f"GitHub GraphQL errors: {payload['errors']}")
+    try:
+        payload = json.loads(proc.stdout) if proc.stdout.strip() else None
+    except json.JSONDecodeError:
+        payload = None
+    if not isinstance(payload, dict):
+        stderr = proc.stderr.strip()
+        raise RuntimeError(
+            f"gh api graphql produced no response (exit {proc.returncode})"
+            + (f": {stderr}" if stderr else "")
+        )
+    errors = [e for e in payload.get("errors") or [] if e.get("type") != "NOT_FOUND"]
+    if errors:
+        raise RuntimeError(f"GitHub GraphQL errors: {errors}")
     return payload.get("data") or {}
-
-
-def fetch_pr_state(
-    repo: str,
-    number: int,
-    config: Config,
-    runner: GraphQLRunner = gh_graphql_runner,
-) -> Optional[PrState]:
-    """Fetch one PR's state. Returns None if the PR can't be found."""
-    data = runner(build_single_query(repo, number))
-    node = ((data.get("repository") or {}).get("pullRequest")) if data else None
-    if not node:
-        return None
-    return pr_state_from_node(node, config)
 
 
 def fetch_pr_states(

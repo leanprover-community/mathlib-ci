@@ -49,10 +49,9 @@ class StateRule:
 
     name: str
     emoji: str
-    # Predicate: exactly one of these is set, mirroring SOURCE_KINDS.
-    source_label: str | None = None
-    source_state: str | None = None
-    source_ci: str | None = None
+    # Predicate: a kind from SOURCE_KINDS and the label name / state / CI value to match.
+    source_kind: str
+    source_value: str
     # Mutual-exclusion class; None means an independent toggle.
     group: str | None = None
     # Within a group, the matching rule with the largest priority wins (ties: config order).
@@ -67,14 +66,11 @@ class StateRule:
 
     def matches(self, pr_state: Any) -> bool:
         """Whether this rule's predicate holds for ``pr_state`` (a ``PrState``)."""
-        if self.source_label is not None:
-            return self.source_label in pr_state.labels
-        if self.source_state is not None:
-            return pr_state.status == self.source_state
-        if self.source_ci is not None:
-            return pr_state.ci == self.source_ci
-        # Validation guarantees exactly one source is set, so this is unreachable.
-        return False
+        if self.source_kind == "label":
+            return self.source_value in pr_state.labels
+        if self.source_kind == "state":
+            return pr_state.status == self.source_value
+        return pr_state.ci == self.source_value  # "ci" (validation allows nothing else)
 
     def reaction_request(self, message_id: int) -> dict[str, Any]:
         """Build the kwargs for a Zulip add/remove-reaction call for this emoji."""
@@ -159,9 +155,8 @@ def _parse_rule(raw: dict[str, Any], known_channels: set[str]) -> StateRule:
     return StateRule(
         name=name,
         emoji=emoji,
-        source_label=value if kind == "label" else None,
-        source_state=value if kind == "state" else None,
-        source_ci=value if kind == "ci" else None,
+        source_kind=kind,
+        source_value=value,
         group=raw.get("group"),
         priority=int(raw.get("priority", 0)),
         emoji_code=raw.get("emoji_code"),

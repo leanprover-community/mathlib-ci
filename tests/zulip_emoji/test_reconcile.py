@@ -1,4 +1,5 @@
-"""Tests for per-message reconciliation: diff, add/remove, sticky, suppression, dry-run."""
+"""Tests for per-message reconciliation: diff, add/remove, sticky, suppression,
+bot-reaction ownership, API-failure tracking, dry-run."""
 
 from __future__ import annotations
 
@@ -7,19 +8,23 @@ from emoji_reconcile.reconcile import reconcile_message
 
 
 class FakeReactor:
-    """Records add/remove requests instead of calling Zulip."""
+    """Records add/remove requests instead of calling Zulip; optionally fails them."""
 
-    def __init__(self) -> None:
+    def __init__(self, *, fail: bool = False) -> None:
         self.added: list[dict] = []
         self.removed: list[dict] = []
+        self._response = (
+            {"result": "error", "msg": "simulated failure"} if fail
+            else {"result": "success"}
+        )
 
     def add_reaction(self, request: dict) -> dict:
         self.added.append(request)
-        return {"result": "success"}
+        return self._response
 
     def remove_reaction(self, request: dict) -> dict:
         self.removed.append(request)
-        return {"result": "success"}
+        return self._response
 
 
 def make_message(reactions=None, recipient="PR reviews", subject="#123: a PR", message_id=500):
@@ -41,9 +46,9 @@ def reaction(emoji_name, emoji_code=None, reaction_type=None):
     return rx
 
 
-def reconcile(pr, config, message, **kwargs):
+def reconcile(pr, config, message, reactor=None, **kwargs):
     """Run desired_emoji_set + reconcile_message together against a FakeReactor."""
-    reactor = FakeReactor()
+    reactor = reactor or FakeReactor()
     desired = desired_emoji_set(pr, config)
     result = reconcile_message(message, desired, config, reactor, log=lambda _m: None, **kwargs)
     return result, reactor
@@ -141,6 +146,61 @@ class TestSuppression:
         msg = make_message(recipient="PR reviews", subject="maintainer merge: foo")
         result, _reactor = reconcile(pr, sample_config, msg)
         assert result.added == ["hammer"]
+
+    def test_suppressed_but_present_left_alone(self, sample_config) -> None:
+        # A hammer already on a suppressed-context message is hands-off: not removed,
+        # whether or not the PR still has the label (the old script's `continue` semantics).
+        for labels in ([], ["maintainer-merge"]):
+            pr = PrState.make(123, "open", labels=labels)
+            msg = make_message(recipient="mathlib reviewers", subject="maintainer merge: foo",
+                               reactions=[reaction("hammer")])
+            result, reactor = reconcile(pr, sample_config, msg)
+            assert reactor.removed == []
+            assert reactor.added == []
+            assert not result.changed
+
+
+class TestBotOwnership:
+    def test_only_bot_reactions_removed(self, sample_config) -> None:
+        # The lingering writing reaction belongs to user 7, not the bot (99): leave it.
+        pr = PrState.make(123, "open")
+        msg = make_message(reactions=[reaction("writing")])  # user_id 7
+        _result, reactor = reconcile(pr, sample_config, msg, bot_user_id=99)
+        assert reactor.removed == []
+
+    def test_human_copy_does_not_satisfy_desired(self, sample_config) -> None:
+        # User 7's writing reaction doesn't count as the bot's: the bot adds its own.
+        pr = PrState.make(123, "open", labels=["awaiting-author"])
+        msg = make_message(reactions=[reaction("writing")])
+        result, reactor = reconcile(pr, sample_config, msg, bot_user_id=99)
+        assert result.added == ["writing"]
+        assert reactor.removed == []
+
+    def test_bot_reaction_recognized(self, sample_config) -> None:
+        pr = PrState.make(123, "open", labels=["awaiting-author"])
+        msg = make_message(reactions=[reaction("writing")])  # user_id 7 == bot
+        result, reactor = reconcile(pr, sample_config, msg, bot_user_id=7)
+        assert not result.changed
+        assert reactor.added == [] and reactor.removed == []
+
+    def test_unknown_bot_id_falls_back_to_any_user(self, sample_config) -> None:
+        # bot_user_id=None: any user's reaction counts (legacy behavior).
+        pr = PrState.make(123, "open")
+        msg = make_message(reactions=[reaction("writing")])
+        _result, reactor = reconcile(pr, sample_config, msg, bot_user_id=None)
+        assert [r["emoji_name"] for r in reactor.removed] == ["writing"]
+
+
+class TestFailureTracking:
+    def test_failed_calls_tallied_not_counted(self, sample_config) -> None:
+        pr = PrState.make(123, "open", labels=["ready-to-merge"])
+        msg = make_message(reactions=[reaction("writing")])
+        result, reactor = reconcile(pr, sample_config, msg, reactor=FakeReactor(fail=True))
+        # Both calls were attempted, both failed: nothing claimed as done.
+        assert len(reactor.removed) == 1 and len(reactor.added) == 1
+        assert result.removed == [] and result.added == []
+        assert sorted(result.failed) == ["bors", "writing"]
+        assert not result.changed
 
 
 class TestDryRun:
