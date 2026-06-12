@@ -56,7 +56,7 @@ data — they appear only as config rows; the engine knows none of them by name.
     "rss_allow":  ["bot notifications topic"]    // RSS topics to include
   },
   "ci": {
-    "check_names": ["continuous integration"]   // which checks feed the CI emoji
+    "check_names": ["continuous integration"]   // substring match; see "How the CI emoji is computed"
   },
   "states": [
     {"name": "merged",  "group": "pr", "priority": 30, "source": {"state": "merged"}, "emoji": "checkered_flag"},
@@ -81,7 +81,7 @@ data — they appear only as config rows; the engine knows none of them by name.
 | `github_repo` | `owner/name` of the repo whose PRs drive the emoji. |
 | `zulip.site` / `zulip.email` | The Zulip realm URL and the bot user's email. The API key is supplied separately (see *Running it*). |
 | `channels` | Maps *logical keys* (used elsewhere in the config) to actual Zulip channel names, so renaming a channel is a one-line change. `pr_reviews` enables thread matching; `rss` names the feed channel to skip (default `rss`); `rss_allow` is a list of RSS topics to include rather than skip. |
-| `ci.check_names` | Check-run / workflow / status-context names that count toward the CI emoji. Empty means "every check on the head commit"; naming your main CI workflow keeps the emoji from flipping on unrelated checks. |
+| `ci.check_names` | Names selecting which checks feed the CI emoji, matched as case-insensitive **substrings** of the check-run name, the workflow name, or the status context (see *How the CI emoji is computed*). Empty means "every check on the head commit"; naming your gating jobs or workflows keeps the emoji from flipping on unrelated checks. |
 | `states` | The emoji table — one rule per emoji (below). |
 
 ### State rules
@@ -99,9 +99,34 @@ Each rule says "when this predicate holds for a PR, this emoji should be present
 | `sticky` | If true, the emoji is never removed once present (e.g. a "migrated from a fork" marker). |
 | `suppress_in` | Leave this emoji entirely alone (never added, never removed) on messages in a given channel/topic where it would be redundant. Takes `{"channel": "<logical key>", "subject_prefix": "..."}` (or a list). |
 
-The CI emoji is derived from the head commit's check-run rollup, scoped by `ci.check_names`,
-with precedence running > failure > success > none (cancelled/skipped/neutral are ignored).
-Because it is read from live state, the sweep self-heals it.
+### How the CI emoji is computed
+
+The CI value is not event-driven: every reconcile recomputes it from scratch off the PR's
+head commit, in three steps.
+
+1. **Select.** Every check run and legacy status context on the head commit is a candidate.
+   If `ci.check_names` is non-empty, a candidate counts only when one of those names is a
+   case-insensitive substring of its check-run name, its workflow name, or its status
+   context. Substring matching lets you name a job inside a reusable workflow without the
+   caller-job prefix: `"Build"` matches the check runs `ci / Build` and `ci (fork) / Build`.
+2. **Classify** each selected check: not yet completed → `running`; conclusion `SUCCESS` →
+   `success`; `FAILURE`, `TIMED_OUT`, `STARTUP_FAILURE`, or `ACTION_REQUIRED` → `failure`;
+   `CANCELLED`, `SKIPPED`, `NEUTRAL`, or `STALE` → no signal at all (as if the check didn't
+   exist).
+3. **Reduce** the signals to one value by precedence **failure > running > success**, or
+   `none` when no selected check produced a signal.
+
+The PR's `ci` value is then matched by `source: {"ci": ...}` rules like any other predicate;
+`none` matches no rule, so any stale CI emoji is removed. Consequences worth knowing:
+
+- A failure surfaces as soon as any selected check fails, even while others are still
+  running; green appears only once every selected check has finished.
+- Skipped jobs never fail the emoji and never block a green. A PR whose selected checks are
+  *all* skipped or absent gets **no** CI emoji rather than a green one.
+- A check that never runs contributes nothing, so it is harmless to list checks that only
+  trigger on some PRs (e.g. a workflow-lint job that runs only when CI workflows change —
+  on those PRs it becomes the CI signal, on every other PR it is invisible).
+- Because the value is read from live state, the sweep self-heals a missed event.
 
 ### Message matching
 

@@ -94,9 +94,18 @@ class TestCiFromHeadCommit:
         commit = head_commit([check_run("build", "COMPLETED", "SUCCESS")])
         assert ci_from_head_commit(commit, ()) == "success"
 
-    def test_running_outranks_failure_and_success(self) -> None:
+    def test_failure_outranks_running_and_success(self) -> None:
+        # A failure surfaces immediately, even while another check is still in progress.
         commit = head_commit([
             check_run("a", "COMPLETED", "FAILURE"),
+            check_run("b", "IN_PROGRESS", None),
+            check_run("c", "COMPLETED", "SUCCESS"),
+        ])
+        assert ci_from_head_commit(commit, ()) == "failure"
+
+    def test_running_outranks_success(self) -> None:
+        # Green only once everything relevant has finished.
+        commit = head_commit([
             check_run("b", "IN_PROGRESS", None),
             check_run("c", "COMPLETED", "SUCCESS"),
         ])
@@ -127,6 +136,16 @@ class TestCiFromHeadCommit:
             check_run("lint", "COMPLETED", "FAILURE"),
         ])
         assert ci_from_head_commit(commit, ("continuous integration",)) == "running"
+
+    def test_check_names_match_substrings_case_insensitively(self) -> None:
+        # 'build' selects the reusable-workflow jobs 'ci / Build' and 'ci (fork) / Build'
+        # without naming the caller-job prefix; the unrelated failing run stays invisible.
+        commit = head_commit([
+            check_run("ci / Build", "COMPLETED", "SUCCESS"),
+            check_run("ci (fork) / Build", "COMPLETED", "SKIPPED"),
+            check_run("set_pr_emoji", "COMPLETED", "FAILURE"),
+        ])
+        assert ci_from_head_commit(commit, ("build",)) == "success"
 
 
 class TestPrStateFromNode:

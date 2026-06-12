@@ -32,7 +32,7 @@ class TestMathlib4Config:
 
     def test_ci_check_names_scope(self) -> None:
         assert self.config.ci_check_names == (
-            "continuous integration", "continuous integration (mathlib forks)",
+            "Build", "Lint style", "Post-Build Step", "Check workflows",
         )
 
     def test_reproduces_original_semantics(self) -> None:

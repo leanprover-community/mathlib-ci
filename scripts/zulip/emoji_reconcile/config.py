@@ -92,9 +92,10 @@ class Config:
     channels: dict[str, str]
     rss_allow: tuple[str, ...]
     states: tuple[StateRule, ...]
-    # Check-run / workflow / status-context names that count toward the CI emoji. Empty
+    # Names that select which checks feed the CI emoji, matched as case-insensitive
+    # substrings of the check-run name, the workflow name, or the status context. Empty
     # means "consider every check on the head commit" (the aggregate rollup). Naming the
-    # main CI workflow here keeps the CI emoji from flipping on unrelated checks.
+    # gating jobs/workflows here keeps the CI emoji from flipping on unrelated checks.
     ci_check_names: tuple[str, ...] = ()
     # All emoji names this config manages. Reconciliation only ever touches these, so
     # human-added reactions (👍 etc.) are never disturbed.

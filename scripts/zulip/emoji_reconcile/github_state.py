@@ -7,8 +7,8 @@ graphql``) is a thin, injectable layer.
 
 CI status is derived from the check-run rollup on the PR's head commit rather than from
 ``workflow_run`` events, so a periodic sweep can self-heal a stuck CI emoji. If the config
-names specific checks (``ci.check_names``), only those count; otherwise every check on the
-head commit is considered.
+names specific checks (``ci.check_names``, matched as case-insensitive substrings), only
+those count; otherwise every check on the head commit is considered.
 """
 
 from __future__ import annotations
@@ -23,9 +23,10 @@ from .pr_state import CI_NONE, PrState
 # A GraphQLRunner takes a query string and returns the parsed ``data`` object.
 GraphQLRunner = Callable[[str], dict]
 
-# CI signal precedence: a still-running pipeline outranks a stale failure, which outranks a
-# stale success. "none" means no relevant check was found.
-_CI_PRECEDENCE = ("running", "failure", "success")
+# CI signal precedence: a failure surfaces immediately, even while other checks are still
+# running; running outranks success, so green shows only once everything relevant has
+# finished. "none" means no relevant check was found.
+_CI_PRECEDENCE = ("failure", "running", "success")
 
 # Check-run conclusions that we treat as a hard failure. CANCELLED / SKIPPED / NEUTRAL /
 # STALE are deliberately ignored (they neither pass nor fail the CI emoji), mirroring the
@@ -74,15 +75,18 @@ def ci_from_head_commit(commit: dict, check_names: tuple[str, ...]) -> str:
     """Derive the CI value from a head-commit node's checks and legacy statuses.
 
     ``commit`` is the GraphQL ``commit`` object carrying ``checkSuites`` and ``status``.
-    When ``check_names`` is non-empty, a check counts only if its check-run name, its
-    workflow name, or its status context is in that set.
+    When ``check_names`` is non-empty, a check counts only if one of those names is a
+    case-insensitive substring of its check-run name, its workflow name, or its status
+    context. Substring (rather than exact) matching lets a config name a job inside a
+    reusable workflow without hardcoding the caller job's prefix: ``"Build"`` matches the
+    check runs ``ci / Build`` and ``ci (fork) / Build``.
     """
-    wanted = {name.lower() for name in check_names}
+    wanted = [name.lower() for name in check_names]
 
     def included(*candidates: Optional[str]) -> bool:
         if not wanted:
             return True
-        return any(c and c.lower() in wanted for c in candidates)
+        return any(c and w in c.lower() for c in candidates for w in wanted)
 
     signals: list[Optional[str]] = []
 
