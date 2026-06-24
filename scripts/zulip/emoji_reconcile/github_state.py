@@ -109,6 +109,15 @@ def pr_state_from_node(node: dict, config: Config) -> PrState:
     raw_state = (node.get("state") or "OPEN").upper()
     status = {"OPEN": "open", "CLOSED": "closed", "MERGED": "merged"}.get(raw_state, "open")
 
+    # A merge bot (e.g. bors) that rebases a PR's commits onto the base branch gives them new
+    # SHAs, so GitHub never sees the PR head land and reports the PR as CLOSED rather than
+    # MERGED. Such a bot renames the title to a fixed prefix on merge; treat a closed PR whose
+    # title carries that prefix as merged. Native merges (merge queue / merge button) already
+    # report MERGED above and never reach this branch.
+    if status == "closed" and config.merged_title_prefix:
+        if (node.get("title") or "").startswith(config.merged_title_prefix):
+            status = "merged"
+
     labels = [n["name"] for n in (node.get("labels") or {}).get("nodes") or []]
 
     ci = CI_NONE
@@ -128,6 +137,7 @@ def pr_state_from_node(node: dict, config: Config) -> PrState:
 _PR_FIELDS = """
   number
   state
+  title
   labels(first: 100) { nodes { name } }
   commits(last: 1) {
     nodes {

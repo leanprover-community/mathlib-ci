@@ -3,6 +3,9 @@
 
   "github_repo": "leanprover-community/mathlib4",
 
+  "_merged_comment": "bors merges by rebasing a PR's commits onto master, so GitHub reports the PR as CLOSED (not merged) and renames its title to start with '[Merged by Bors] -'. Treat such closed PRs as merged so they get the 'merge' emoji rather than 'closed-pr'. Drop this key for repos that merge via the GitHub merge button/queue, where the PR state is reported as MERGED directly.",
+  "merged_title_prefix": "[Merged by Bors] -",
+
   "zulip": {
     "site": "https://leanprover.zulipchat.com",
     "email": "github-mathlib4-bot@leanprover.zulipchat.com"

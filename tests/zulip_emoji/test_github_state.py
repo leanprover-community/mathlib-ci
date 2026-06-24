@@ -49,10 +49,11 @@ def head_commit(check_runs=None, statuses=None):
     }
 
 
-def pr_node(number=123, state="OPEN", labels=(), commit=None):
+def pr_node(number=123, state="OPEN", labels=(), commit=None, title=None):
     return {
         "number": number,
         "state": state,
+        "title": title,
         "labels": {"nodes": [{"name": n} for n in labels]},
         "commits": {"nodes": [{"commit": commit}]} if commit is not None else {"nodes": []},
     }
@@ -162,6 +163,27 @@ class TestPrStateFromNode:
 
     def test_closed_state(self, sample_config) -> None:
         assert pr_state_from_node(pr_node(state="CLOSED"), sample_config).status == "closed"
+
+    def test_closed_with_bors_title_is_merged(self, sample_config) -> None:
+        # bors closes (not merges) the PR on GitHub but renames the title; treat it as merged.
+        node = pr_node(state="CLOSED", title="[Merged by Bors] - feat: a nice lemma")
+        assert pr_state_from_node(node, sample_config).status == "merged"
+
+    def test_closed_without_bors_title_stays_closed(self, sample_config) -> None:
+        node = pr_node(state="CLOSED", title="feat: a nice lemma")
+        assert pr_state_from_node(node, sample_config).status == "closed"
+
+    def test_open_pr_with_bors_title_is_not_promoted(self, sample_config) -> None:
+        # The prefix only promotes CLOSED PRs; the bot only renames on merge anyway.
+        node = pr_node(state="OPEN", title="[Merged by Bors] - feat: a nice lemma")
+        assert pr_state_from_node(node, sample_config).status == "open"
+
+    def test_bors_title_ignored_when_prefix_unset(self) -> None:
+        data = copy.deepcopy(SAMPLE_CONFIG_DATA)
+        data.pop("merged_title_prefix", None)
+        config = parse_config(data)
+        node = pr_node(state="CLOSED", title="[Merged by Bors] - feat: a nice lemma")
+        assert pr_state_from_node(node, config).status == "closed"
 
     def test_ci_derived(self, sample_config) -> None:
         commit = head_commit([check_run("build", "COMPLETED", "FAILURE")])

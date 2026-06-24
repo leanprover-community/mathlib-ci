@@ -20,6 +20,7 @@ from emoji_reconcile.config import parse_config  # noqa: E402
 # awaiting-author.
 SAMPLE_CONFIG_DATA = {
     "github_repo": "leanprover-community/mathlib4",
+    "merged_title_prefix": "[Merged by Bors] -",
     "zulip": {
         "site": "https://leanprover.zulipchat.com",
         "email": "github-mathlib4-bot@leanprover.zulipchat.com",

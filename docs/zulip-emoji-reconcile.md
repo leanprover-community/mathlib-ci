@@ -58,6 +58,7 @@ data — they appear only as config rows; the engine knows none of them by name.
   "ci": {
     "check_names": ["continuous integration"]   // substring match; see "How the CI emoji is computed"
   },
+  "merged_title_prefix": "[Merged by Bors] -",  // optional; see "Detecting merges"
   "states": [
     {"name": "merged",  "group": "pr", "priority": 30, "source": {"state": "merged"}, "emoji": "checkered_flag"},
     {"name": "closed",  "group": "pr", "priority": 20, "source": {"state": "closed"}, "emoji": "wastebasket"},
@@ -82,6 +83,7 @@ data — they appear only as config rows; the engine knows none of them by name.
 | `zulip.site` / `zulip.email` | The Zulip realm URL and the bot user's email. The API key is supplied separately (see *Running it*). |
 | `channels` | Maps *logical keys* (used elsewhere in the config) to actual Zulip channel names, so renaming a channel is a one-line change. `pr_reviews` enables thread matching; `rss` names the feed channel to skip (default `rss`); `rss_allow` is a list of RSS topics to include rather than skip. |
 | `ci.check_names` | Names selecting which checks feed the CI emoji, matched as case-insensitive **substrings** of the check-run name, the workflow name, or the status context (see *How the CI emoji is computed*). Empty means "every check on the head commit"; naming your gating jobs or workflows keeps the emoji from flipping on unrelated checks. |
+| `merged_title_prefix` | Optional. A PR title prefix that marks a PR merged by a rebasing merge bot (see *Detecting merges*). When set, a **closed** PR whose title starts with this prefix is treated as `merged`. Omit it for repos that merge via the GitHub merge button or merge queue. |
 | `states` | The emoji table — one rule per emoji (below). |
 
 ### State rules
@@ -93,13 +95,25 @@ Each rule says "when this predicate holds for a PR, this emoji should be present
 | `name` | Unique label for the rule (logging/debugging only). |
 | `source` | The predicate. Exactly one of: `{"label": "..."}`, `{"state": "open\|closed\|merged"}`, or `{"ci": "running\|success\|failure"}`. |
 | `emoji` | The Zulip emoji name. |
-| `emoji_code`, `reaction_type` | Required together for **custom realm emoji** (`"reaction_type": "realm_emoji"` plus the realm's numeric `emoji_code`). Omit both for standard unicode emoji. |
+| `emoji_code`, `reaction_type` | Required together for **custom realm emoji** (`"reaction_type": "realm_emoji"` plus the realm's numeric `emoji_code`). Omit both for standard unicode emoji. Supplying only one is a config error. |
 | `group` | Mutual-exclusion class: at most one emoji from a group is shown at a time. `group: null` is an independent toggle, driven solely by its own predicate. |
 | `priority` | Within a group, the matching rule with the highest priority wins (ties broken by config order). |
 | `sticky` | If true, the emoji is never removed once present (e.g. a "migrated from a fork" marker). |
 | `suppress_in` | Leave this emoji entirely alone (never added, never removed) on messages in a given channel/topic where it would be redundant. Takes `{"channel": "<logical key>", "subject_prefix": "..."}` (or a list). |
 
-### How the CI emoji is computed
+### Detecting merges
+
+The `merged` state (`source: {"state": "merged"}`) keys off whether GitHub reports the PR as
+merged. That works directly for repos that land PRs with the GitHub merge button or merge
+queue. It does **not** work for a rebasing merge bot like [bors](https://bors.tech): bors
+merges by replaying a PR's commits onto the base branch with new SHAs, so GitHub never sees
+the PR's head commit land and marks the PR **closed**, not merged. Left unhandled, those
+genuinely-merged PRs would match the `closed` rule and get the closed-PR emoji.
+
+To bridge this, bors renames a PR's title to `[Merged by Bors] - …` when it merges. Set
+`merged_title_prefix` to that prefix and a closed PR whose title starts with it is resolved to
+`merged` before the rules run — so it matches the `merged` rule, not `closed`. Repos that don't
+use such a bot simply omit the key and rely on GitHub's native merged state.
 
 The CI value is not event-driven: every reconcile recomputes it from scratch off the PR's
 head commit, in three steps.

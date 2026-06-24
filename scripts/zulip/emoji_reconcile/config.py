@@ -97,6 +97,12 @@ class Config:
     # means "consider every check on the head commit" (the aggregate rollup). Naming the
     # gating jobs/workflows here keeps the CI emoji from flipping on unrelated checks.
     ci_check_names: tuple[str, ...] = ()
+    # A merge bot (e.g. bors) that merges by rebasing a PR's commits onto the base branch
+    # gives them new SHAs, so GitHub never sees the PR head land and reports the PR as
+    # *closed*, not merged. Such bots rename the PR title to a fixed prefix on merge (mathlib's
+    # bors uses ``[Merged by Bors] -``); when set, a closed PR whose title starts with this
+    # prefix is treated as merged. Empty means "trust GitHub's merged state only".
+    merged_title_prefix: str = ""
     # All emoji names this config manages. Reconciliation only ever touches these, so
     # human-added reactions (👍 etc.) are never disturbed.
     managed_emojis: frozenset[str] = field(default_factory=frozenset)
@@ -153,6 +159,17 @@ def _parse_rule(raw: dict[str, Any], known_channels: set[str]) -> StateRule:
                 f"{where}: suppress_in references unknown channel key '{sup.channel}'"
             )
 
+    # Custom realm emoji need both fields on every add/remove request; unicode emoji need
+    # neither. One without the other is always a mistake, so reject it rather than silently
+    # emit a malformed reaction request.
+    emoji_code = raw.get("emoji_code")
+    reaction_type = raw.get("reaction_type")
+    if (emoji_code is None) != (reaction_type is None):
+        raise ConfigError(
+            f"{where}: 'emoji_code' and 'reaction_type' must be set together "
+            f"(both for a custom realm emoji, neither for a unicode emoji)"
+        )
+
     return StateRule(
         name=name,
         emoji=emoji,
@@ -160,8 +177,8 @@ def _parse_rule(raw: dict[str, Any], known_channels: set[str]) -> StateRule:
         source_value=value,
         group=raw.get("group"),
         priority=int(raw.get("priority", 0)),
-        emoji_code=raw.get("emoji_code"),
-        reaction_type=raw.get("reaction_type"),
+        emoji_code=emoji_code,
+        reaction_type=reaction_type,
         sticky=bool(raw.get("sticky", False)),
         suppress_in=suppress,
     )
@@ -182,10 +199,18 @@ def parse_config(data: dict[str, Any]) -> Config:
     channels_raw = data.get("channels", {})
     if not isinstance(channels_raw, dict):
         raise ConfigError("config: 'channels' must be an object")
-    # rss_allow is a list of raw channel names, kept separate from the logical-key map.
-    rss_allow = tuple(channels_raw.get("rss_allow", []) or ())
+    # rss_allow is a list of raw channel names, kept separate from the logical-key map. Guard
+    # the type: a bare string here would otherwise be silently split into its characters.
+    rss_allow_raw = channels_raw.get("rss_allow") or []
+    if not isinstance(rss_allow_raw, list):
+        raise ConfigError("config.channels: 'rss_allow' must be a list of channel names")
+    rss_allow = tuple(rss_allow_raw)
     channels = {k: v for k, v in channels_raw.items() if k != "rss_allow"}
     known_channels = set(channels)
+
+    merged_title_prefix = data.get("merged_title_prefix", "")
+    if not isinstance(merged_title_prefix, str):
+        raise ConfigError("config: 'merged_title_prefix' must be a string")
 
     states_raw = _require(data, "states", "config")
     if not isinstance(states_raw, list) or not states_raw:
@@ -213,6 +238,7 @@ def parse_config(data: dict[str, Any]) -> Config:
         rss_allow=rss_allow,
         states=rules,
         ci_check_names=ci_check_names,
+        merged_title_prefix=merged_title_prefix,
         managed_emojis=frozenset(r.emoji for r in rules),
     )
 

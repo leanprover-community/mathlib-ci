@@ -35,6 +35,10 @@ class TestMathlib4Config:
             "Build", "Lint style", "Post-Build Step", "Check workflows",
         )
 
+    def test_bors_merge_detection_configured(self) -> None:
+        # bors-merged PRs read as CLOSED on GitHub; the title prefix resolves them to merged.
+        assert self.config.merged_title_prefix == "[Merged by Bors] -"
+
     def test_reproduces_original_semantics(self) -> None:
         # merged PR shows only the merge emoji, even with a lingering label.
         assert names(PrState.make(1, "merged", labels=["ready-to-merge"]), self.config) == {"merged"}

@@ -57,6 +57,14 @@ class TestParseValid:
         assert mm.suppress_in[0].channel == "reviewers"
         assert mm.suppress_in[0].subject_prefix == "maintainer merge"
 
+    def test_merged_title_prefix_parsed(self, sample_config) -> None:
+        assert sample_config.merged_title_prefix == "[Merged by Bors] -"
+
+    def test_merged_title_prefix_defaults_empty(self) -> None:
+        data = copy.deepcopy(SAMPLE_CONFIG_DATA)
+        data.pop("merged_title_prefix", None)
+        assert parse_config(data).merged_title_prefix == ""
+
 
 class TestParseErrors:
     def test_missing_github_repo(self) -> None:
@@ -111,4 +119,31 @@ class TestParseErrors:
         data = copy.deepcopy(SAMPLE_CONFIG_DATA)
         data["states"].append(dict(data["states"][0]))
         with pytest.raises(ConfigError, match="duplicate state names"):
+            parse_config(data)
+
+    def test_rss_allow_must_be_a_list(self) -> None:
+        # A bare string would otherwise be silently split into characters.
+        data = copy.deepcopy(SAMPLE_CONFIG_DATA)
+        data["channels"]["rss_allow"] = "mathlib bors notifications"
+        with pytest.raises(ConfigError, match="rss_allow"):
+            parse_config(data)
+
+    def test_emoji_code_without_reaction_type(self) -> None:
+        data = copy.deepcopy(SAMPLE_CONFIG_DATA)
+        rule = next(s for s in data["states"] if s["name"] == "delegated")
+        rule["emoji_code"] = "123"  # missing reaction_type
+        with pytest.raises(ConfigError, match="must be set together"):
+            parse_config(data)
+
+    def test_reaction_type_without_emoji_code(self) -> None:
+        data = copy.deepcopy(SAMPLE_CONFIG_DATA)
+        rule = next(s for s in data["states"] if s["name"] == "delegated")
+        rule["reaction_type"] = "realm_emoji"  # missing emoji_code
+        with pytest.raises(ConfigError, match="must be set together"):
+            parse_config(data)
+
+    def test_merged_title_prefix_must_be_a_string(self) -> None:
+        data = copy.deepcopy(SAMPLE_CONFIG_DATA)
+        data["merged_title_prefix"] = ["not", "a", "string"]
+        with pytest.raises(ConfigError, match="merged_title_prefix"):
             parse_config(data)
