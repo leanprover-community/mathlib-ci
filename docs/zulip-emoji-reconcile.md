@@ -7,9 +7,9 @@ point `scripts/zulip/reconcile_emojis.py`. Everything specific to a repo (channe
 which labels map to which emoji, custom realm-emoji codes) is supplied as a config file, so
 the same code serves any repo that wants this behavior.
 
-> Status: the engine, CLI, and example configs are in this repo. The packaging as a GitHub
-> composite action and the mathlib4 cutover from the older `zulip_emoji_reactions.py` are
-> tracked separately.
+> Status: the engine, CLI, example configs, and the `zulip-emoji-reconcile` composite action
+> are in this repo. The mathlib4 cutover from the older `zulip_emoji_reactions.py` (the
+> consumer-side trigger workflows that exercise the action) is tracked separately.
 
 ## How it works
 
@@ -186,17 +186,18 @@ since the oldest message in the batch is as far back as the sweep looks.
 ## Wiring it into CI
 
 GitHub runs a workflow only if its `on:` trigger lives in that repo's `.github/workflows/`,
-so every consuming repo needs at least one small trigger workflow of its own. Each one checks
-out mathlib-ci (into a trusted path such as `ci-tools/`), installs the requirements, and runs
-`reconcile_emojis.py` against your repo's own config file (e.g. `.github/zulip-emoji-config.json`)
-with `ZULIP_API_KEY` in the environment. There is an onboarding ladder; the sweep alone is a
-complete solution, and events are a latency optimization on top:
+so every consuming repo needs at least one small trigger workflow of its own. The reconciler
+itself ships as a composite action, `leanprover-community/mathlib-ci/.github/actions/zulip-emoji-reconcile`:
+referencing it makes GitHub check out mathlib-ci for you, so a workflow only needs to check
+out its own config file and call the action with `uses:` — no manual checkout, Python setup,
+or `pip install`. There is an onboarding ladder; the sweep alone is a complete solution, and
+events are a latency optimization on top:
 
-1. **Sweep only** — a `schedule:` (plus `workflow_dispatch` for a manual full resync) running
-   `--sweep`. Correct and self-healing within the sweep interval; the simplest setup.
-2. **+ PR events** — `pull_request_target: [labeled, unlabeled, closed, reopened]` running
-   `--pr <number>`, for few-seconds latency on label/close/merge changes.
-3. **+ CI status** — `workflow_run` on your CI workflow(s), running `--pr <number>` for the PR
+1. **Sweep only** — a `schedule:` (plus `workflow_dispatch` for a manual full resync) with
+   `sweep: true`. Correct and self-healing within the sweep interval; the simplest setup.
+2. **+ PR events** — `pull_request_target: [labeled, unlabeled, closed, reopened]` passing
+   `pr: <number>`, for few-seconds latency on label/close/merge changes.
+3. **+ CI status** — `workflow_run` on your CI workflow(s), passing `pr: <number>` for the PR
    at the run's head commit, so the CI emoji updates promptly.
 
 The sweep-only floor (level 1) is a complete workflow on its own:
@@ -224,32 +225,23 @@ jobs:
           sparse-checkout: .github/zulip-emoji-config.json
           sparse-checkout-cone-mode: false
 
-      - name: Check out mathlib-ci                 # the reconciler
-        uses: actions/checkout@v6
-        with:
-          repository: leanprover-community/mathlib-ci
-          ref: <pin a tag or commit SHA>
-          path: ci-tools
-
-      - uses: actions/setup-python@v6
-        with:
-          python-version: '3.x'
-
-      - run: pip install -r ci-tools/scripts/zulip/requirements.txt
-
       - name: Reconcile
-        env:
-          ZULIP_API_KEY: ${{ secrets.ZULIP_API_KEY }}
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          python ci-tools/scripts/zulip/reconcile_emojis.py \
-            --config .github/zulip-emoji-config.json --sweep
+        uses: leanprover-community/mathlib-ci/.github/actions/zulip-emoji-reconcile@<pin a tag or SHA>
+        with:
+          config: .github/zulip-emoji-config.json
+          sweep: true
+          zulip-api-key: ${{ secrets.ZULIP_API_KEY }}
+          github-token: ${{ github.token }}
 ```
 
-To climb the ladder, add triggers and swap the final command's mode: a `pull_request_target`
-job runs `--pr ${{ github.event.pull_request.number }}`, and a `workflow_run` job resolves the
-PR from the run's head SHA and passes it to `--pr`. Add `--dry-run` while validating a new
-config — it logs the planned changes and writes nothing.
+To climb the ladder, add triggers and swap the action's mode inputs: a `pull_request_target`
+job sets `pr: ${{ github.event.pull_request.number }}` (instead of `sweep: true`), and a
+`workflow_run` job resolves the PR from the run's head SHA and passes it as `pr:`. Set
+`dry-run: true` while validating a new config — it logs the planned changes and writes nothing.
+The action's inputs (`config`, `pr`, `sweep`, `dry-run`, `sweep-messages`, `zulip-api-key`,
+`zulip-email`, `zulip-site`, `github-token`, `python-version`) are documented in
+[`action.yml`](../.github/actions/zulip-emoji-reconcile/action.yml); pin the `@<ref>` to a tag
+or commit SHA so a consumer's runs are reproducible.
 
 GitHub access: the reconciler needs read access to PR state (`pull-requests: read`,
 `contents: read`). In-repo event triggers get this from the default `GITHUB_TOKEN`;
