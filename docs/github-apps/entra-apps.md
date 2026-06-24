@@ -10,3 +10,4 @@ Treat each Entra app registration as a security boundary: related GitHub Apps ca
   | GitHub Apps - Mathlib Triage | GH_APP_AZURE_CLIENT_ID_TRIAGE | mathlib-triage | mathlib-triage-app-pk |
   | GitHub Apps - Auto Merge | GH_APP_AZURE_CLIENT_ID_CI_AUTO_MERGE | mathlib-auto-merge | mathlib-auto-merge-app-pk |
   | GitHub Apps - Lean PR Testing | (not currently wired to Azure variable in mathlib4) | mathlib-lean-pr-testing | (no KV key currently used in this repo flow) |
+  | GitHub Apps - Crossref Exports | GH_APP_AZURE_CLIENT_ID_CROSSREFS (in mathlib4 environment "crossref-exports") | crossref-exports-app | crossref-exports-app-pk |
