@@ -6,9 +6,16 @@
   - Record its App ID.
   - Generate one [private key PEM](https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/managing-private-keys-for-github-apps) (from GitHub App settings). You need this once to seed the [Azure Key Vault](https://learn.microsoft.com/en-us/azure/key-vault/general/overview).
 
-  2. (Optional) Create an [Environment](https://docs.github.com/en/actions/how-tos/deploy/configure-and-manage-deployments/manage-environments) in the repo via the repo settings.
+  2. (Recommended) Create an [Environment](https://docs.github.com/en/actions/how-tos/deploy/configure-and-manage-deployments/manage-environments) in the repo via the repo settings.
   - Set up deployment branches and tags that you want the app to be able to run from. (For scheduled jobs, or jobs triggered by `wokrflow_dispatch`, typically `master`.)
   - Later, we will add some secrets or variables to the environment (see step 6).
+
+  In the GitHub workflow that will use the GitHub app, add the following:
+```yaml
+environment:
+  name: <environment name>
+  deployment: false  
+```
 
   3. Put the app signing key in Azure Key Vault.
 
@@ -52,7 +59,7 @@
 
   7. Update workflow to mint token via Azure action.
 
-```
+```yaml
   permissions:
     id-token: write
     contents: read # only if this job needs checkout/ repo reads
