@@ -17,9 +17,9 @@ Treat each Entra app registration as a security boundary: related GitHub Apps ca
 These are not GitHub Apps but OIDC-federated Azure workload identities (no Key Vault keys) used by mathlib4 CI to upload the build cache to the `lakecache` storage account.
 Each is RBAC-scoped to write one Blob Storage container, which is the enforced trust boundary (see mathlib4 `Cache/SECURITY.md`).
 
-| Entra App | App (client) id variable | Container written | Trust |
-|---|---|---|---|
-| Mathlib CI Cache Writer - Master | CACHE_MASTER_WRITER_AZURE_APP_ID | `master` | high |
-| Mathlib CI Cache Writer - Non-Master | CACHE_NON_MASTER_WRITER_AZURE_APP_ID | `forks` | medium |
-| Mathlib CI Cache Writer - Nightly Testing | CACHE_NIGHTLY_TESTING_WRITER_AZURE_APP_ID | `nightly-testing` | medium |
-| Mathlib CI Cache Writer - PR Toolchain Tests | CACHE_PR_TOOLCHAIN_TESTS_WRITER_AZURE_APP_ID | `pr-toolchain-tests` | low |
+| Entra App | App (client) id variable | Container written |
+|---|---|---|
+| Mathlib CI Cache Writer - Master | CACHE_MASTER_WRITER_AZURE_APP_ID | `master` |
+| Mathlib CI Cache Writer - Non-Master | CACHE_NON_MASTER_WRITER_AZURE_APP_ID | `forks` |
+| Mathlib CI Cache Writer - Nightly Testing | CACHE_NIGHTLY_TESTING_WRITER_AZURE_APP_ID | `nightly-testing` |
+| Mathlib CI Cache Writer - PR Toolchain Tests | CACHE_PR_TOOLCHAIN_TESTS_WRITER_AZURE_APP_ID | `pr-toolchain-tests` |
