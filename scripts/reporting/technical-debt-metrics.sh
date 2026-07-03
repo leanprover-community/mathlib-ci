@@ -205,6 +205,9 @@ prSummaryReport () {
   else
     printf '%s\n' "${rep}" |  # outputs lines containing `|Current number|Change|Type|`, so
       # `$2` refers to `Current number` and `$3` to `Change`.
+    # Note that mathlib's PR_summary workflow parses this output 
+    # to determine if the tech-debt labels should be applied to the PR, 
+    # so please do not change the output format without updating that workflow.
     awk -F '|' -v rep="${rep}" '
     BEGIN{total=0; weight=0; absWeight=0}
     {absWeight+=$3+0}
