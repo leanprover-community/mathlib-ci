@@ -41,9 +41,11 @@ Layout:
   `head_lib_dir` are paths to `.lake/build/lib/lean` for the base and PR builds respectively.
 
 ## `reporting/`
-- `technical-debt-metrics.sh`
+- `technical-debt-metrics.py`, `technical-debt-metrics.sh`
   Prints information on certain kind of technical debt in Mathlib.
-  This output is automatically posted to zulip once a week.
+  This output is automatically posted to zulip once a week,
+  and is used in the PR summary script.
+  The original shell script has been ported to Python, with a thin wrapper left in place for backwards compatibility.
 - `long_file_report.sh`
   Prints the list of the 10 longest Lean files in `Mathlib`.
   This output is automatically posted to zulip once a week.
