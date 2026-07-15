@@ -2,10 +2,18 @@
 
 A repo-agnostic tool that keeps the emoji reactions on Zulip messages about a GitHub PR in
 sync with the PR's actual state — open/closed/merged, labels (e.g. `awaiting-author`,
-`ready-to-merge`), and CI result. It lives in `scripts/zulip/emoji_reconcile/` with the entry
-point `scripts/zulip/reconcile_emojis.py`. Everything specific to a repo (channel names,
-which labels map to which emoji, custom realm-emoji codes) is supplied as a config file, so
-the same code serves any repo that wants this behavior.
+`ready-to-merge`), and CI result. Everything specific to a repo (channel names, which labels
+map to which emoji, custom realm-emoji codes) is supplied as a JSON config file, so the same
+code serves any repo that wants this behavior.
+
+There are two ways to run it, both driven by the same config:
+
+- **The `zulip-emoji-reconcile` composite action** — the normal path for a consuming repo. A
+  workflow references it with `uses:`; GitHub checks out mathlib-ci and sets up Python for
+  you, so the caller only supplies its own config and a trigger. See *Wiring it into CI*.
+- **The CLI** (`scripts/zulip/reconcile_emojis.py`, with the engine under
+  `scripts/zulip/emoji_reconcile/`) — for local runs, dry-run validation of a new config, and
+  one-off resyncs. See *Running it locally*.
 
 > Status: the engine, CLI, example configs, and the `zulip-emoji-reconcile` composite action
 > are in this repo. The mathlib4 cutover from the older `zulip_emoji_reactions.py` (the
@@ -80,7 +88,7 @@ data — they appear only as config rows; the engine knows none of them by name.
 | Key | Meaning |
 |---|---|
 | `github_repo` | `owner/name` of the repo whose PRs drive the emoji. |
-| `zulip.site` / `zulip.email` | The Zulip realm URL and the bot user's email. The API key is supplied separately (see *Running it*). |
+| `zulip.site` / `zulip.email` | The Zulip realm URL and the bot user's email. The API key is supplied separately (see *Running it locally*). |
 | `channels` | Maps *logical keys* (used elsewhere in the config) to actual Zulip channel names, so renaming a channel is a one-line change. `pr_reviews` enables thread matching; `rss` names the feed channel to skip (default `rss`); `rss_allow` is a list of RSS topics to include rather than skip. |
 | `ci.check_names` | Names selecting which checks feed the CI emoji, matched as case-insensitive **substrings** of the check-run name, the workflow name, or the status context (see *How the CI emoji is computed*). Empty means "every check on the head commit"; naming your gating jobs or workflows keeps the emoji from flipping on unrelated checks. |
 | `merged_title_prefix` | Optional. A PR title prefix that marks a PR merged by a rebasing merge bot (see *Detecting merges*). When set, a **closed** PR whose title starts with this prefix is treated as `merged`. Omit it for repos that merge via the GitHub merge button or merge queue. |
@@ -101,19 +109,7 @@ Each rule says "when this predicate holds for a PR, this emoji should be present
 | `sticky` | If true, the emoji is never removed once present (e.g. a "migrated from a fork" marker). |
 | `suppress_in` | Leave this emoji entirely alone (never added, never removed) on messages in a given channel/topic where it would be redundant. Takes `{"channel": "<logical key>", "subject_prefix": "..."}` (or a list). |
 
-### Detecting merges
-
-The `merged` state (`source: {"state": "merged"}`) keys off whether GitHub reports the PR as
-merged. That works directly for repos that land PRs with the GitHub merge button or merge
-queue. It does **not** work for a rebasing merge bot like [bors](https://bors.tech): bors
-merges by replaying a PR's commits onto the base branch with new SHAs, so GitHub never sees
-the PR's head commit land and marks the PR **closed**, not merged. Left unhandled, those
-genuinely-merged PRs would match the `closed` rule and get the closed-PR emoji.
-
-To bridge this, bors renames a PR's title to `[Merged by Bors] - …` when it merges. Set
-`merged_title_prefix` to that prefix and a closed PR whose title starts with it is resolved to
-`merged` before the rules run — so it matches the `merged` rule, not `closed`. Repos that don't
-use such a bot simply omit the key and rely on GitHub's native merged state.
+### How the CI emoji is computed
 
 The CI value is not event-driven: every reconcile recomputes it from scratch off the PR's
 head commit, in three steps.
@@ -142,6 +138,20 @@ The PR's `ci` value is then matched by `source: {"ci": ...}` rules like any othe
   on those PRs it becomes the CI signal, on every other PR it is invisible).
 - Because the value is read from live state, the sweep self-heals a missed event.
 
+### Detecting merges
+
+The `merged` state (`source: {"state": "merged"}`) keys off whether GitHub reports the PR as
+merged. That works directly for repos that land PRs with the GitHub merge button or merge
+queue. It does **not** work for a rebasing merge bot like [bors](https://bors.tech): bors
+merges by replaying a PR's commits onto the base branch with new SHAs, so GitHub never sees
+the PR's head commit land and marks the PR **closed**, not merged. Left unhandled, those
+genuinely-merged PRs would match the `closed` rule and get the closed-PR emoji.
+
+To bridge this, bors renames a PR's title to `[Merged by Bors] - …` when it merges. Set
+`merged_title_prefix` to that prefix and a closed PR whose title starts with it is resolved to
+`merged` before the rules run — so it matches the `merged` rule, not `closed`. Repos that don't
+use such a bot simply omit the key and rely on GitHub's native merged state.
+
 ### Message matching
 
 A Zulip message is associated with a PR if either:
@@ -158,30 +168,6 @@ Topic-matched candidates are confirmed against Zulip before reacting (is this re
 oldest message of its topic?), because in a bounded sweep window a long-lived thread's true
 opener may predate the window. Confirmations cost one extra read per distinct topic and are
 cached within a run; link-matched messages need no confirmation.
-
-## Running it
-
-Requirements: Python with the `zulip` package (`scripts/zulip/requirements.txt`) and an
-authenticated `gh` CLI for GitHub reads (`GH_TOKEN`/`GITHUB_TOKEN`). The Zulip bot API key is
-read from `$ZULIP_API_KEY` (or `--zulip-api-key`); the bot email and site come from the
-config unless overridden with `--zulip-email` / `--zulip-site`.
-
-```sh
-# Reconcile one PR (event path), previewing changes without writing:
-python scripts/zulip/reconcile_emojis.py --config config.json --pr 12345 --dry-run
-
-# Reconcile several PRs at once:
-python scripts/zulip/reconcile_emojis.py --config config.json --pr 100 101 102
-
-# Periodic sweep over recent messages:
-python scripts/zulip/reconcile_emojis.py --config config.json --sweep
-```
-
-`--dry-run` logs the planned add/remove for every message and writes nothing — always start
-here when validating a new config. `--sweep-messages N` (default 5000) bounds how many recent
-messages the sweep scans: one combined window of N across all public channels, plus N per
-subscribed private channel. It also sets the effective "recently closed" lookback horizon,
-since the oldest message in the batch is as far back as the sweep looks.
 
 ## Wiring it into CI
 
@@ -246,6 +232,32 @@ or commit SHA so a consumer's runs are reproducible.
 GitHub access: the reconciler needs read access to PR state (`pull-requests: read`,
 `contents: read`). In-repo event triggers get this from the default `GITHUB_TOKEN`;
 cross-fork `workflow_run` triggers need a token minted from a GitHub App installation.
+
+## Running it locally
+
+The CLI is how you run the tool outside CI — validating a new config with `--dry-run`, doing a
+one-off resync, or debugging. In CI, prefer the composite action above, which wraps this same
+script. Requirements: Python with the `zulip` package (`scripts/zulip/requirements.txt`) and an
+authenticated `gh` CLI for GitHub reads (`GH_TOKEN`/`GITHUB_TOKEN`). The Zulip bot API key is
+read from `$ZULIP_API_KEY` (or `--zulip-api-key`); the bot email and site come from the
+config unless overridden with `--zulip-email` / `--zulip-site`.
+
+```sh
+# Reconcile one PR (event path), previewing changes without writing:
+python scripts/zulip/reconcile_emojis.py --config config.json --pr 12345 --dry-run
+
+# Reconcile several PRs at once:
+python scripts/zulip/reconcile_emojis.py --config config.json --pr 100 101 102
+
+# Periodic sweep over recent messages:
+python scripts/zulip/reconcile_emojis.py --config config.json --sweep
+```
+
+`--dry-run` logs the planned add/remove for every message and writes nothing — always start
+here when validating a new config. `--sweep-messages N` (default 5000) bounds how many recent
+messages the sweep scans: one combined window of N across all public channels, plus N per
+subscribed private channel. It also sets the effective "recently closed" lookback horizon,
+since the oldest message in the batch is as far back as the sweep looks.
 
 ## Rate limits
 
