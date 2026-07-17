@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+import time
 from collections import deque
 from typing import Callable, Iterable, Optional
 
@@ -188,6 +189,13 @@ def build_batch_query(repo: str, numbers: Iterable[int]) -> str:
 }}'''
 
 
+# A no-response failure (e.g. a bare HTTP 502 from a GraphQL gateway timeout, observed
+# roughly once per ~120 sweep queries) is usually a blip, not a property of the query:
+# retry with backoff before giving up. Kept short so a real outage fails the run within a
+# minute per query; the next scheduled sweep self-heals whatever this one missed.
+_TRANSIENT_BACKOFF_SECONDS = (2, 8, 30)
+
+
 def gh_graphql_runner(query: str) -> dict:
     """Default transport: run ``gh api graphql`` and return the parsed ``data`` object.
 
@@ -199,22 +207,29 @@ def gh_graphql_runner(query: str) -> dict:
     where one aliased PR number is an issue or was deleted yields NOT_FOUND for that alias
     and full data for the rest). So: parse stdout regardless of exit code, tolerate
     NOT_FOUND (the caller just sees a missing node), and raise only when there is no
-    response at all or the errors are of some other kind.
+    response at all (after retrying transient gateway failures) or the errors are of some
+    other kind.
     """
-    proc = subprocess.run(
-        ["gh", "api", "graphql", "-f", f"query={query}"],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    try:
-        payload = json.loads(proc.stdout) if proc.stdout.strip() else None
-    except json.JSONDecodeError:
-        payload = None
+    payload = None
+    for attempt, backoff in enumerate((*_TRANSIENT_BACKOFF_SECONDS, None)):
+        proc = subprocess.run(
+            ["gh", "api", "graphql", "-f", f"query={query}"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        try:
+            payload = json.loads(proc.stdout) if proc.stdout.strip() else None
+        except json.JSONDecodeError:
+            payload = None
+        if isinstance(payload, dict) or backoff is None:
+            break
+        time.sleep(backoff)
     if not isinstance(payload, dict):
         stderr = proc.stderr.strip()
         raise RuntimeError(
-            f"gh api graphql produced no response (exit {proc.returncode})"
+            f"gh api graphql produced no response "
+            f"(exit {proc.returncode}, {attempt + 1} attempt(s))"
             + (f": {stderr}" if stderr else "")
         )
     errors = [e for e in payload.get("errors") or [] if e.get("type") != "NOT_FOUND"]

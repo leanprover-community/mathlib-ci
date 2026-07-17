@@ -345,7 +345,27 @@ class TestGhGraphqlRunner:
         with pytest.raises(RuntimeError, match="RATE_LIMITED"):
             gh_graphql_runner("query {}")
 
-    def test_no_output_raises(self, monkeypatch) -> None:
-        self._patch(monkeypatch, FakeProc(stdout="", stderr="gh: network unreachable", returncode=1))
-        with pytest.raises(RuntimeError, match="network unreachable"):
+    def test_no_output_retries_then_raises(self, monkeypatch) -> None:
+        import emoji_reconcile.github_state as gs
+        sleeps, procs = [], []
+        monkeypatch.setattr(gs.time, "sleep", sleeps.append)
+        monkeypatch.setattr(
+            gs.subprocess, "run",
+            lambda *a, **k: procs.append(None) or FakeProc(
+                stdout="", stderr="gh: HTTP 502", returncode=1))
+        with pytest.raises(RuntimeError, match=r"HTTP 502"):
             gh_graphql_runner("query {}")
+        assert len(procs) == 4  # initial attempt + one per backoff step
+        assert sleeps == list(gs._TRANSIENT_BACKOFF_SECONDS)
+
+    def test_no_output_recovers_on_retry(self, monkeypatch) -> None:
+        # First attempt is a bare gateway error, second returns data: the caller never
+        # sees the blip.
+        import emoji_reconcile.github_state as gs
+        monkeypatch.setattr(gs.time, "sleep", lambda s: None)
+        procs = iter([
+            FakeProc(stdout="", stderr="gh: HTTP 502", returncode=1),
+            FakeProc(stdout='{"data": {"repository": {}}}'),
+        ])
+        monkeypatch.setattr(gs.subprocess, "run", lambda *a, **k: next(procs))
+        assert gh_graphql_runner("query {}") == {"repository": {}}
