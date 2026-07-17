@@ -236,17 +236,118 @@ jobs:
           github-token: ${{ github.token }}
 ```
 
-To climb the ladder, add triggers and swap the action's mode inputs: a `pull_request_target`
-job sets `pr: ${{ github.event.pull_request.number }}` (instead of `sweep: true`), and a
-`workflow_run` job resolves the PR from the run's head SHA and passes it as `pr:`. Keep the
-workflow-wide `concurrency` group as you add triggers — it matters most there: bursts of
-events (a label added then removed, CI finishing as a PR closes) otherwise interleave their
-read-then-write cycles and can re-assert a stale reaction that then sits wrong until the
-next event or sweep. One shared group is deliberate: the same PR reaches the workflow under
-different keys (`pull_request.number`, `workflow_run.head_sha`, nothing on a sweep), so
-per-PR groups would leave exactly these cross-trigger races open. Set
-`dry-run: true` while validating a new config — it logs the planned changes and writes nothing.
-The action's inputs (`config`, `pr`, `sweep`, `dry-run`, `sweep-messages`,
+The full ladder (levels 1–3) fits in the same single workflow: every trigger funnels into
+one job that resolves "which PR(s), or sweep?" from the event and calls the action once.
+This is the reference template — it is what
+[leanprover-community.github.io runs](https://github.com/leanprover-community/leanprover-community.github.io/pull/890),
+with the repo-specific values genericized:
+
+```yaml
+# .github/workflows/zulip_emoji_reconcile.yml
+name: Zulip emoji reconcile
+
+on:
+  schedule:
+    - cron: "37 * * * *"   # hourly sweep: the self-healing safety net
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: "PR number(s), space-separated; leave empty to sweep recent messages"
+        required: false
+        default: ""
+      dry-run:
+        description: "Log planned reaction changes without writing to Zulip"
+        type: boolean
+        default: false      # default true instead while validating a new config
+  pull_request_target:      # label/close/merge/reopen changes, within seconds
+    types: [labeled, unlabeled, closed, reopened]
+  workflow_run:             # CI start/finish, so the CI emoji updates promptly
+    workflows: ["your CI workflow name"]   # the `name:` of your CI workflow file(s)
+    types: [requested, completed]
+
+concurrency:
+  # Serialize runs: the reconciler reads live PR state and then writes
+  # reactions, so two interleaved runs could re-assert stale state. GitHub
+  # keeps only the newest queued run per group (earlier pending runs are
+  # canceled), which suits a level-triggered tool — the last run recomputes
+  # everything from live state and converges to the final answer.
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  reconcile:
+    runs-on: ubuntu-latest
+    if: github.repository == 'your-org/your-repo'   # skip runs on forks
+    steps:
+      # On pull_request_target / workflow_run this checks out the *default*
+      # branch, so the config (and everything else that runs in this job) is
+      # never PR-controlled.
+      - name: Check out this repo's config
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          sparse-checkout: .github/zulip-emoji-config.json
+          sparse-checkout-cone-mode: false
+
+      - name: Determine PR number(s)
+        id: target
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+          INPUT_PR: ${{ inputs.pr }}
+          EVENT_PR: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          case "$EVENT" in
+            workflow_dispatch) pr="$INPUT_PR" ;;
+            pull_request_target) pr="$EVENT_PR" ;;
+            workflow_run)
+              # PR(s) at the CI run's head commit (works for fork PRs too).
+              pr=$(gh api "repos/${GITHUB_REPOSITORY}/commits/${HEAD_SHA}/pulls" \
+                     --jq 'map(.number) | join(" ")')
+              ;;
+            *) pr="" ;;  # schedule -> sweep
+          esac
+          echo "pr=${pr}" >> "$GITHUB_OUTPUT"
+
+      - name: Reconcile
+        # Skip only a workflow_run whose head commit no longer maps to a PR;
+        # schedule and PR-less dispatches sweep instead.
+        if: steps.target.outputs.pr != '' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        uses: leanprover-community/mathlib-ci/.github/actions/zulip-emoji-reconcile@<pin a tag or SHA>
+        with:
+          config: .github/zulip-emoji-config.json
+          pr: ${{ steps.target.outputs.pr }}
+          sweep: ${{ !steps.target.outputs.pr }}
+          dry-run: ${{ inputs.dry-run == true }}
+          zulip-api-key: ${{ secrets.ZULIP_API_KEY }}
+          github-token: ${{ github.token }}
+```
+
+The per-repo knobs are the `workflow_run.workflows` list, the repository guard, the secret
+name, and the action pin; a repo whose config has no `label` rules can also drop `labeled` /
+`unlabeled` from the `pull_request_target` types. Everything else — the PR resolution, the
+sweep/skip logic, the concurrency group, the security posture — is repo-agnostic. Choices
+that generalize, and why:
+
+- `opened` is deliberately not among the `pull_request_target` types: when a PR opens there
+  is normally no Zulip message to react to yet (a repo whose bot announces new PRs would
+  even race that bot), and the CI `requested` event follows seconds later anyway.
+- The `concurrency` group matters most once event triggers exist: bursts (a label added then
+  removed, CI finishing as a PR closes) otherwise interleave their read-then-write cycles
+  and can re-assert a stale reaction that then sits wrong until the next event or sweep. One
+  *shared* group is deliberate: the same PR reaches the workflow under different keys
+  (`pull_request.number`, `workflow_run.head_sha`, nothing on a sweep), so per-PR groups
+  would leave exactly these cross-trigger races open.
+- `workflow_run: requested` fires when a CI run starts (producing the "running" emoji) but
+  not for re-runs; `completed` always fires, and the sweep repairs anything left over.
+
+Set `dry-run: true` while validating a new config — it logs the planned changes and writes
+nothing. The action's inputs (`config`, `pr`, `sweep`, `dry-run`, `sweep-messages`,
 `sweep-private-messages`, `zulip-api-key`, `zulip-email`, `zulip-site`, `github-token`,
 `python-version`) are documented in
 [`action.yml`](../.github/actions/zulip-emoji-reconcile/action.yml); pin the `@<ref>` to a tag
