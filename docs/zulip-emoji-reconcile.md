@@ -206,7 +206,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out this repo's config        # for .github/zulip-emoji-config.json
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           sparse-checkout: .github/zulip-emoji-config.json
           sparse-checkout-cone-mode: false
