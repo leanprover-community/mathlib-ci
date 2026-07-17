@@ -271,10 +271,13 @@ stay cheap by batching:
   pages rather than with the number of PRs. The main cost is the one-time write burst on a
   first sweep (or one after an outage), which simply glides through a few retry pauses; in
   steady state events have already converged and the sweep finds little to do.
-- **GitHub** reads go through `gh api graphql`; the sweep batches up to 50 PRs per query (a few
+- **GitHub** reads go through `gh api graphql`; the sweep batches up to 25 PRs per query (a few
   low-cost queries in total), so even a full sweep stays well inside the GraphQL hourly point
-  budget without extra throttling. A `#N` that turns out not to be a PR (an issue number, a
-  deleted PR) is tolerated: the query's partial data is kept and that number is simply
-  skipped. Scheduled runs are themselves best-effort — cron can be delayed and is disabled
+  budget without extra throttling. Batches also adapt to GitHub's opaque per-query resource
+  limits, which scale with the PRs' actual check data: a batch rejected with
+  `RESOURCE_LIMITS_EXCEEDED` is bisected and retried, and a PR too expensive to query even
+  alone is skipped with a warning (its messages are left untouched until the next run). A
+  `#N` that turns out not to be a PR (an issue number, a deleted PR) is tolerated: the
+  query's partial data is kept and that number is simply skipped. Scheduled runs are themselves best-effort — cron can be delayed and is disabled
   after long repo inactivity — which is why the sweep is a safety net and events stay the
   primary path.

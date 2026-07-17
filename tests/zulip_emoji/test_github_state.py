@@ -8,6 +8,7 @@ import pytest
 
 from emoji_reconcile.config import parse_config
 from emoji_reconcile.github_state import (
+    ResourceLimitsExceeded,
     _classify_check_run,
     _classify_status_context,
     build_batch_query,
@@ -239,6 +240,44 @@ class TestFetch:
         )
         assert set(states) == {1}
 
+    def test_fetch_pr_states_bisects_on_resource_limits(self, sample_config) -> None:
+        # GitHub rejects the query whenever it asks for 3+ PRs at once; the fetch must
+        # split the batch until each piece fits, and still return every PR.
+        calls = []
+
+        def runner(query):
+            aliased = [n for n in range(1, 6) if f"pr{n}:" in query]
+            calls.append(aliased)
+            if len(aliased) >= 3:
+                raise ResourceLimitsExceeded("too expensive")
+            return {"repository": {f"pr{n}": pr_node(number=n) for n in aliased}}
+
+        states = fetch_pr_states(
+            "leanprover-community/mathlib4", [1, 2, 3, 4, 5], sample_config,
+            runner=runner, chunk_size=5,
+        )
+        assert set(states) == {1, 2, 3, 4, 5}
+        # [1..5] rejected -> [1,2] ok, [3,4,5] rejected -> [3] ok, [4,5] ok.
+        assert calls == [[1, 2, 3, 4, 5], [1, 2], [3, 4, 5], [3], [4, 5]]
+
+    def test_fetch_pr_states_skips_single_pr_over_limits(self, sample_config) -> None:
+        # A PR too expensive to fetch even alone is skipped with a warning; the rest of
+        # the batch still comes back.
+        logged = []
+
+        def runner(query):
+            aliased = [n for n in (1, 2) if f"pr{n}:" in query]
+            if 2 in aliased:
+                raise ResourceLimitsExceeded("too expensive")
+            return {"repository": {f"pr{n}": pr_node(number=n) for n in aliased}}
+
+        states = fetch_pr_states(
+            "leanprover-community/mathlib4", [1, 2], sample_config,
+            runner=runner, chunk_size=2, log=logged.append,
+        )
+        assert set(states) == {1}
+        assert len(logged) == 1 and "PR #2" in logged[0]
+
 
 class TestQueryBuilders:
     def test_batch_query_has_aliases(self) -> None:
@@ -281,6 +320,27 @@ class TestGhGraphqlRunner:
 
     def test_other_errors_raise(self, monkeypatch) -> None:
         payload = '{"data": null, "errors": [{"type": "RATE_LIMITED", "message": "slow down"}]}'
+        self._patch(monkeypatch, FakeProc(stdout=payload, returncode=1))
+        with pytest.raises(RuntimeError, match="RATE_LIMITED"):
+            gh_graphql_runner("query {}")
+
+    def test_resource_limits_raise_typed_error(self, monkeypatch) -> None:
+        # All non-NOT_FOUND errors are RESOURCE_LIMITS_EXCEEDED -> the typed exception,
+        # so fetch_pr_states can bisect. Partial data must NOT be returned: the errored
+        # paths are nulled, which could misread CI state.
+        payload = ('{"data": {"repository": {"pr1": {"number": 1}}}, "errors": ['
+                   '{"type": "NOT_FOUND", "message": "no PR 2"}, '
+                   '{"type": "RESOURCE_LIMITS_EXCEEDED", "message": "Resource limits for this query exceeded."}]}')
+        self._patch(monkeypatch, FakeProc(stdout=payload, returncode=1))
+        with pytest.raises(ResourceLimitsExceeded):
+            gh_graphql_runner("query {}")
+
+    def test_mixed_error_types_raise_generic(self, monkeypatch) -> None:
+        # A response mixing RESOURCE_LIMITS_EXCEEDED with an unrelated error is not safe
+        # to retry-by-bisection; it must surface as the generic failure.
+        payload = ('{"data": null, "errors": ['
+                   '{"type": "RESOURCE_LIMITS_EXCEEDED", "message": "too big"}, '
+                   '{"type": "RATE_LIMITED", "message": "slow down"}]}')
         self._patch(monkeypatch, FakeProc(stdout=payload, returncode=1))
         with pytest.raises(RuntimeError, match="RATE_LIMITED"):
             gh_graphql_runner("query {}")

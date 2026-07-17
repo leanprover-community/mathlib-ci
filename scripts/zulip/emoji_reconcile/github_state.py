@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+from collections import deque
 from typing import Callable, Iterable, Optional
 
 from .config import Config
@@ -22,6 +23,15 @@ from .pr_state import CI_NONE, PrState
 
 # A GraphQLRunner takes a query string and returns the parsed ``data`` object.
 GraphQLRunner = Callable[[str], dict]
+
+
+class ResourceLimitsExceeded(RuntimeError):
+    """The GraphQL query was too expensive for GitHub's per-query resource limits.
+
+    Raised (instead of the generic ``RuntimeError``) when every non-NOT_FOUND error in the
+    response is ``RESOURCE_LIMITS_EXCEEDED``, so ``fetch_pr_states`` can retry with smaller
+    batches rather than fail the whole run.
+    """
 
 # CI signal precedence: a failure surfaces immediately, even while other checks are still
 # running; running outranks success, so green shows only once everything relevant has
@@ -132,8 +142,10 @@ def pr_state_from_node(node: dict, config: Config) -> PrState:
 # The set of fields fetched for each PR. The first-N limits are not paginated: a head
 # commit with more than 30 check suites (or 100 runs in one suite) could hide the named CI
 # check, which would read as "no CI signal" and clear a correct CI emoji. Raise them before
-# adding pagination if that ever bites; batched queries put ~3k nodes per PR against
-# GitHub's 500k-node query ceiling, so there is room.
+# adding pagination if that ever bites. Note the binding constraint on batching is not the
+# documented 500k-node ceiling but GitHub's opaque per-query resource limits, which depend
+# on the PRs' actual check data (a 50-PR mathlib4 batch gets RESOURCE_LIMITS_EXCEEDED);
+# ``fetch_pr_states`` adapts by bisecting rejected chunks.
 _PR_FIELDS = """
   number
   state
@@ -207,6 +219,14 @@ def gh_graphql_runner(query: str) -> dict:
         )
     errors = [e for e in payload.get("errors") or [] if e.get("type") != "NOT_FOUND"]
     if errors:
+        # RESOURCE_LIMITS_EXCEEDED errors null out the too-expensive paths, so the response
+        # can silently miss check runs — partial data here could misread a PR's CI state
+        # (e.g. a hidden failing check reading as green). Discard the payload and signal the
+        # caller to retry with a cheaper query instead.
+        if all(e.get("type") == "RESOURCE_LIMITS_EXCEEDED" for e in errors):
+            raise ResourceLimitsExceeded(
+                f"GitHub GraphQL resource limits exceeded ({len(errors)} error(s))"
+            )
         raise RuntimeError(f"GitHub GraphQL errors: {errors}")
     return payload.get("data") or {}
 
@@ -216,14 +236,34 @@ def fetch_pr_states(
     numbers: Iterable[int],
     config: Config,
     runner: GraphQLRunner = gh_graphql_runner,
-    chunk_size: int = 50,
+    chunk_size: int = 25,
+    log: Callable[[str], None] = print,
 ) -> dict[int, PrState]:
-    """Fetch many PRs' states in batched GraphQL queries. Missing PRs are omitted."""
+    """Fetch many PRs' states in batched GraphQL queries. Missing PRs are omitted.
+
+    GitHub's per-query resource limits depend on the PRs' actual data (a batch of
+    check-heavy PRs is far more expensive than the same-size batch of quiet ones), so no
+    fixed batch size is always safe. A chunk rejected with ``RESOURCE_LIMITS_EXCEEDED`` is
+    split in half and retried; a PR whose query exceeds the limits even alone is skipped
+    with a warning (its messages are simply left untouched this run).
+    """
     numbers = sorted({int(n) for n in numbers})
     states: dict[int, PrState] = {}
-    for start in range(0, len(numbers), chunk_size):
-        chunk = numbers[start:start + chunk_size]
-        data = runner(build_batch_query(repo, chunk))
+    pending = deque(numbers[start:start + chunk_size]
+                    for start in range(0, len(numbers), chunk_size))
+    while pending:
+        chunk = pending.popleft()
+        try:
+            data = runner(build_batch_query(repo, chunk))
+        except ResourceLimitsExceeded:
+            if len(chunk) == 1:
+                log(f"PR #{chunk[0]}: GitHub query exceeds resource limits "
+                    "even for this PR alone; skipping")
+                continue
+            mid = len(chunk) // 2
+            pending.appendleft(chunk[mid:])
+            pending.appendleft(chunk[:mid])
+            continue
         repository = (data.get("repository") or {}) if data else {}
         for n in chunk:
             node = repository.get(f"pr{n}")
