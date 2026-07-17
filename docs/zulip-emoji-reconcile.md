@@ -169,6 +169,13 @@ oldest message of its topic?), because in a bounded sweep window a long-lived th
 opener may predate the window. Confirmations cost one extra read per distinct topic and are
 cached within a run; link-matched messages need no confirmation.
 
+A message that references several PRs (a bors batch, a digest of recent PRs) is reconciled
+once, against the **union** of the desired sets of every PR it references — so a digest
+linking a merged PR and a closed one carries both emoji. Reconciling such a message per PR
+would let each PR's pass remove the emoji the others need, churning the same reactions on
+every run. On the event path this means the state of PRs *co-referenced* by the triggering
+PR's messages is fetched as well.
+
 ## Wiring it into CI
 
 GitHub runs a workflow only if its `on:` trigger lives in that repo's `.github/workflows/`,

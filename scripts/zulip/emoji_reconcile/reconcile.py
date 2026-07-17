@@ -1,7 +1,8 @@
 """Per-message reconciliation: make one Zulip message's reactions match the desired set.
 
-Given a message, the desired state rules for its PR, and the config, this computes the diff
-against the reactions currently on the message and applies it:
+Given a message, the desired state rules for the PR(s) it references (the union, when a
+message such as a bors batch or digest references several), and the config, this computes
+the diff against the reactions currently on the message and applies it:
 
   * add desired emoji that aren't present;
   * remove managed emoji that are present but no longer desired;
