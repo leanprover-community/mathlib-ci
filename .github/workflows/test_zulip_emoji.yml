@@ -9,11 +9,15 @@ on:
     branches: [master]
     paths:
       - scripts/zulip/emoji_reconcile/**
+      - scripts/zulip/reconcile_emojis.py
+      - scripts/zulip/examples/**
       - tests/zulip_emoji/**
       - .github/workflows/test_zulip_emoji.yml
   pull_request:
     paths:
       - scripts/zulip/emoji_reconcile/**
+      - scripts/zulip/reconcile_emojis.py
+      - scripts/zulip/examples/**
       - tests/zulip_emoji/**
       - .github/workflows/test_zulip_emoji.yml
 

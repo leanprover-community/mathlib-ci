@@ -75,19 +75,16 @@ Layout:
 - `parse_lake_manifest_changes.py` compares two versions of `lake-manifest.json` to report
   dependency changes in Zulip notifications. Used by the `update_dependencies_zulip.yml` workflow
   to show which dependencies were updated, added, or removed, with links to GitHub diffs.
-- `zulip_emoji_reactions.py` is called
-  * every time a `bors d`, `bors merge` or `bors r` comment is added to a PR,
-  * whenever bors merges a PR,
-  * whenever a PR is closed or reopened
-  * whenever a PR is labelled or unlabelled with `awaiting-author` or `maintainer-merge`
-  It looks through all zulip posts containing a reference to the relevant PR
-  and will post or update an emoji reaction corresponding to the current PR state to the message.
-  This reaction is ✌️ (`:peace_sign:`) for delegated, `:bors:` for PRs sent to bors,
-  `:merge` for merged PRs, ✍️ (`:writing:`) for PRs awaiting-author,
-  🔨 (`:hammer:`) for maintainer-merged PRs and `:closed-pr:` for closed PRs.
-  PRs which were migrated to a fork (as indicated by the `migrated-to-fork` label)
-  additionally receive a reaction ... (`skip_forward`).
-  Two of these are custom emojis configured on zulip.
+- `reconcile_emojis.py` (CLI entry point) and the `emoji_reconcile/` package keep the emoji
+  reactions on Zulip messages about a PR in sync with the PR's actual state
+  (open/closed/merged, labels, CI result). Repo-agnostic: everything repo-specific is a JSON
+  config (worked examples under `examples/`). In CI it runs via the
+  `zulip-emoji-reconcile` composite action; see `docs/zulip-emoji-reconcile.md` for the full
+  picture (config schema, CI wiring, local runs). Tested by `tests/zulip_emoji/`.
+- `zulip_emoji_reactions.py` is the legacy delta-based predecessor of the above, still
+  invoked from mathlib4's workflows on bors comments, PR close/reopen, and label changes.
+  It is superseded by `reconcile_emojis.py` and will be removed once mathlib4 cuts over to
+  the composite action.
 - `requirements.txt`
   Python requirements for Zulip integration scripts.
 
