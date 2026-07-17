@@ -221,12 +221,12 @@ def _parse_args(argv: Optional[list[str]]) -> argparse.Namespace:
                       help="Reconcile every PR referenced by recent Zulip messages.")
     parser.add_argument("--dry-run", action="store_true",
                         help="Log the planned changes without mutating Zulip.")
-    parser.add_argument("--sweep-messages", type=int, default=5000,
+    parser.add_argument("--sweep-messages", type=int, default=2000,
                         help="Recent messages to scan in --sweep: one combined window "
-                             "across all public channels (default 5000).")
-    parser.add_argument("--sweep-private-messages", type=int, default=None,
+                             "across all public channels (default 2000).")
+    parser.add_argument("--sweep-private-messages", type=int, default=1000,
                         help="Recent messages to scan per subscribed private channel in "
-                             "--sweep (default: the --sweep-messages value).")
+                             "--sweep (default 1000).")
     parser.add_argument("--zulip-api-key", default=os.environ.get("ZULIP_API_KEY"),
                         help="Zulip bot API key (default: $ZULIP_API_KEY).")
     parser.add_argument("--zulip-email", default=None,

@@ -34,11 +34,11 @@ inputs:
       Recent messages to scan in sweep mode: one combined window across all
       public channels (see the script's --sweep-messages).
     required: false
-    default: '5000'
+    default: '2000'
   sweep-private-messages:
     description: >-
       Recent messages to scan per subscribed private channel in sweep mode.
-      Empty means the sweep-messages value (see --sweep-private-messages).
+      Empty means the script's default of 1000 (see --sweep-private-messages).
     required: false
     default: ''
   zulip-api-key:

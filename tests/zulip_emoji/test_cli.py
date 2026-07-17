@@ -244,6 +244,12 @@ class TestRunSweep:
 
 
 class TestMainArgHandling:
+    def test_sweep_window_defaults(self) -> None:
+        from emoji_reconcile.cli import _parse_args
+        args = _parse_args(["--config", "c.json", "--sweep"])
+        assert args.sweep_messages == 2000
+        assert args.sweep_private_messages == 1000
+
     def test_missing_api_key_returns_2(self, tmp_path, monkeypatch) -> None:
         monkeypatch.delenv("ZULIP_API_KEY", raising=False)
         config_path = tmp_path / "config.json"

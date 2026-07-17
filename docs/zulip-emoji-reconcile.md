@@ -262,12 +262,12 @@ python scripts/zulip/reconcile_emojis.py --config config.json --sweep
 ```
 
 `--dry-run` logs the planned add/remove for every message and writes nothing — always start
-here when validating a new config. `--sweep-messages N` (default 5000) bounds how many recent
+here when validating a new config. `--sweep-messages N` (default 2000) bounds how many recent
 messages the sweep scans: one combined window of N across all public channels, plus a window
-per subscribed private channel of `--sweep-private-messages` (default: the same N — set it
-lower to keep one high-traffic private channel from adding thousands of messages, and their
-PRs' GitHub reads, to every sweep). These windows also set the effective "recently closed"
-lookback horizon, since the oldest message in a batch is as far back as the sweep looks.
+per subscribed private channel of `--sweep-private-messages` (default 1000 — kept smaller so
+one high-traffic private channel can't add thousands of messages, and their PRs' GitHub
+reads, to every sweep). These windows also set the effective "recently closed" lookback
+horizon, since the oldest message in a batch is as far back as the sweep looks.
 
 ## Rate limits
 
