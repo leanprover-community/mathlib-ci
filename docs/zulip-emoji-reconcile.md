@@ -224,8 +224,9 @@ To climb the ladder, add triggers and swap the action's mode inputs: a `pull_req
 job sets `pr: ${{ github.event.pull_request.number }}` (instead of `sweep: true`), and a
 `workflow_run` job resolves the PR from the run's head SHA and passes it as `pr:`. Set
 `dry-run: true` while validating a new config — it logs the planned changes and writes nothing.
-The action's inputs (`config`, `pr`, `sweep`, `dry-run`, `sweep-messages`, `zulip-api-key`,
-`zulip-email`, `zulip-site`, `github-token`, `python-version`) are documented in
+The action's inputs (`config`, `pr`, `sweep`, `dry-run`, `sweep-messages`,
+`sweep-private-messages`, `zulip-api-key`, `zulip-email`, `zulip-site`, `github-token`,
+`python-version`) are documented in
 [`action.yml`](../.github/actions/zulip-emoji-reconcile/action.yml); pin the `@<ref>` to a tag
 or commit SHA so a consumer's runs are reproducible.
 
@@ -255,9 +256,11 @@ python scripts/zulip/reconcile_emojis.py --config config.json --sweep
 
 `--dry-run` logs the planned add/remove for every message and writes nothing — always start
 here when validating a new config. `--sweep-messages N` (default 5000) bounds how many recent
-messages the sweep scans: one combined window of N across all public channels, plus N per
-subscribed private channel. It also sets the effective "recently closed" lookback horizon,
-since the oldest message in the batch is as far back as the sweep looks.
+messages the sweep scans: one combined window of N across all public channels, plus a window
+per subscribed private channel of `--sweep-private-messages` (default: the same N — set it
+lower to keep one high-traffic private channel from adding thousands of messages, and their
+PRs' GitHub reads, to every sweep). These windows also set the effective "recently closed"
+lookback horizon, since the oldest message in a batch is as far back as the sweep looks.
 
 ## Rate limits
 

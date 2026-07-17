@@ -102,19 +102,27 @@ def fetch_recent_messages(
     client: RetryingZulipClient,
     *,
     num_before: int = MAX_PAGE,
+    num_before_private: Optional[int] = None,
     log: Callable[[str], None] = print,
 ) -> list[dict]:
     """Pull the most recent messages from public + subscribed private channels for the sweep.
 
     ``num_before`` bounds both the volume and, implicitly, the lookback window — the older
-    end of the batch is the effective "recently closed" horizon.
+    end of the batch is the effective "recently closed" horizon. It is one combined window
+    across all public channels; each subscribed private channel gets its own window of
+    ``num_before_private`` (defaulting to ``num_before``). A smaller private window keeps a
+    single high-traffic private channel from adding thousands of messages — and their PRs'
+    GitHub reads — to every sweep.
     """
+    if num_before_private is None:
+        num_before_private = num_before
     public = _get_messages(client, [{"operator": "channels", "operand": "public"}], num_before)
     log(f"Fetched {len(public)} recent public message(s) for the sweep")
     messages = list(public)
 
     for channel in _private_channel_names(client, log):
-        found = _get_messages(client, [{"operator": "channel", "operand": channel}], num_before)
+        found = _get_messages(client, [{"operator": "channel", "operand": channel}],
+                              num_before_private)
         if found:
             log(f"Fetched {len(found)} recent message(s) from a private channel")
         messages.extend(found)

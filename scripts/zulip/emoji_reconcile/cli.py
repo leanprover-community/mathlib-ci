@@ -116,12 +116,14 @@ def run_sweep(
     runner: GraphQLRunner,
     *,
     num_before: int,
+    num_before_private: Optional[int] = None,
     bot_user_id: Optional[int] = None,
     dry_run: bool = False,
     log: Callable[[str], None] = print,
 ) -> list[ReconcileResult]:
     """Sweep: reconcile every PR referenced by a bounded batch of recent messages."""
-    messages = fetch_recent_messages(client, num_before=num_before, log=log)
+    messages = fetch_recent_messages(client, num_before=num_before,
+                                     num_before_private=num_before_private, log=log)
     index = index_targets(messages, config)
     total = sum(len(targets) for targets in index.values())
     log(f"Sweep: {total} candidate message(s) reference {len(index)} PR(s)")
@@ -191,8 +193,10 @@ def _parse_args(argv: Optional[list[str]]) -> argparse.Namespace:
                         help="Log the planned changes without mutating Zulip.")
     parser.add_argument("--sweep-messages", type=int, default=5000,
                         help="Recent messages to scan in --sweep: one combined window "
-                             "across all public channels, plus this many per private "
-                             "channel (default 5000).")
+                             "across all public channels (default 5000).")
+    parser.add_argument("--sweep-private-messages", type=int, default=None,
+                        help="Recent messages to scan per subscribed private channel in "
+                             "--sweep (default: the --sweep-messages value).")
     parser.add_argument("--zulip-api-key", default=os.environ.get("ZULIP_API_KEY"),
                         help="Zulip bot API key (default: $ZULIP_API_KEY).")
     parser.add_argument("--zulip-email", default=None,
@@ -228,6 +232,7 @@ def main(argv: Optional[list[str]] = None) -> int:
     results: list[ReconcileResult] = []
     if args.sweep:
         results = run_sweep(config, client, runner, num_before=args.sweep_messages,
+                            num_before_private=args.sweep_private_messages,
                             bot_user_id=bot_user_id, dry_run=args.dry_run)
     else:
         for pr_number in args.pr:
