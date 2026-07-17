@@ -32,7 +32,7 @@ inputs:
   sweep-messages:
     description: >-
       Recent messages to scan in sweep mode: one combined window across all
-      public channels. Empty means the script's default of 2000 (see the 
+      public channels. Empty means the script's default of 2000 (see the
       script's --sweep-messages).
     required: false
     default: ''
@@ -105,7 +105,10 @@ runs:
 
         args=(--config "$CONFIG")
         if [ "$SWEEP" = "true" ]; then
-          args+=(--sweep --sweep-messages "$SWEEP_MESSAGES")
+          args+=(--sweep)
+          if [ -n "$SWEEP_MESSAGES" ]; then
+            args+=(--sweep-messages "$SWEEP_MESSAGES")
+          fi
           if [ -n "$SWEEP_PRIVATE_MESSAGES" ]; then
             args+=(--sweep-private-messages "$SWEEP_PRIVATE_MESSAGES")
           fi
