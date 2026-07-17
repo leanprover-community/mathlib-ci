@@ -32,9 +32,10 @@ inputs:
   sweep-messages:
     description: >-
       Recent messages to scan in sweep mode: one combined window across all
-      public channels (see the script's --sweep-messages).
+      public channels. Empty means the script's default of 2000 (see the 
+      script's --sweep-messages).
     required: false
-    default: '2000'
+    default: ''
   sweep-private-messages:
     description: >-
       Recent messages to scan per subscribed private channel in sweep mode.
