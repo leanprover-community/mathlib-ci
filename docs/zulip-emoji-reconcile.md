@@ -169,6 +169,13 @@ oldest message of its topic?), because in a bounded sweep window a long-lived th
 opener may predate the window. Confirmations cost one extra read per distinct topic and are
 cached within a run; link-matched messages need no confirmation.
 
+A message that references several PRs (a bors batch, a digest of recent PRs) is reconciled
+once, against the **union** of the desired sets of every PR it references — so a digest
+linking a merged PR and a closed one carries both emoji. Reconciling such a message per PR
+would let each PR's pass remove the emoji the others need, churning the same reactions on
+every run. On the event path this means the state of PRs *co-referenced* by the triggering
+PR's messages is fetched as well.
+
 ## Wiring it into CI
 
 GitHub runs a workflow only if its `on:` trigger lives in that repo's `.github/workflows/`,
@@ -197,6 +204,15 @@ on:
     - cron: "37 * * * *"   # hourly safety net (offset to dodge top-of-hour load)
   workflow_dispatch: {}     # manual full resync
 
+concurrency:
+  # Serialize runs: the reconciler reads live PR state and then writes
+  # reactions, so two interleaved runs could re-assert stale state. GitHub
+  # keeps only the newest queued run per group (earlier pending runs are
+  # canceled), which suits a level-triggered tool — the last run recomputes
+  # everything from live state and converges to the final answer.
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
 permissions:
   contents: read
   pull-requests: read
@@ -220,12 +236,120 @@ jobs:
           github-token: ${{ github.token }}
 ```
 
-To climb the ladder, add triggers and swap the action's mode inputs: a `pull_request_target`
-job sets `pr: ${{ github.event.pull_request.number }}` (instead of `sweep: true`), and a
-`workflow_run` job resolves the PR from the run's head SHA and passes it as `pr:`. Set
-`dry-run: true` while validating a new config — it logs the planned changes and writes nothing.
-The action's inputs (`config`, `pr`, `sweep`, `dry-run`, `sweep-messages`, `zulip-api-key`,
-`zulip-email`, `zulip-site`, `github-token`, `python-version`) are documented in
+The full ladder (levels 1–3) fits in the same single workflow: every trigger funnels into
+one job that resolves "which PR(s), or sweep?" from the event and calls the action once.
+This is the reference template — it is what
+[leanprover-community.github.io runs](https://github.com/leanprover-community/leanprover-community.github.io/pull/890),
+with the repo-specific values genericized:
+
+```yaml
+# .github/workflows/zulip_emoji_reconcile.yml
+name: Zulip emoji reconcile
+
+on:
+  schedule:
+    - cron: "37 * * * *"   # hourly sweep: the self-healing safety net
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: "PR number(s), space-separated; leave empty to sweep recent messages"
+        required: false
+        default: ""
+      dry-run:
+        description: "Log planned reaction changes without writing to Zulip"
+        type: boolean
+        default: false      # default true instead while validating a new config
+  pull_request_target:      # label/close/merge/reopen changes, within seconds
+    types: [labeled, unlabeled, closed, reopened]
+  workflow_run:             # CI start/finish, so the CI emoji updates promptly
+    workflows: ["your CI workflow name"]   # the `name:` of your CI workflow file(s)
+    types: [requested, completed]
+
+concurrency:
+  # Serialize runs: the reconciler reads live PR state and then writes
+  # reactions, so two interleaved runs could re-assert stale state. GitHub
+  # keeps only the newest queued run per group (earlier pending runs are
+  # canceled), which suits a level-triggered tool — the last run recomputes
+  # everything from live state and converges to the final answer.
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  reconcile:
+    runs-on: ubuntu-latest
+    if: github.repository == 'your-org/your-repo'   # skip runs on forks
+    steps:
+      # On pull_request_target / workflow_run this checks out the *default*
+      # branch, so the config (and everything else that runs in this job) is
+      # never PR-controlled.
+      - name: Check out this repo's config
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          sparse-checkout: .github/zulip-emoji-config.json
+          sparse-checkout-cone-mode: false
+
+      - name: Determine PR number(s)
+        id: target
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+          INPUT_PR: ${{ inputs.pr }}
+          EVENT_PR: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          case "$EVENT" in
+            workflow_dispatch) pr="$INPUT_PR" ;;
+            pull_request_target) pr="$EVENT_PR" ;;
+            workflow_run)
+              # PR(s) at the CI run's head commit (works for fork PRs too).
+              pr=$(gh api "repos/${GITHUB_REPOSITORY}/commits/${HEAD_SHA}/pulls" \
+                     --jq 'map(.number) | join(" ")')
+              ;;
+            *) pr="" ;;  # schedule -> sweep
+          esac
+          echo "pr=${pr}" >> "$GITHUB_OUTPUT"
+
+      - name: Reconcile
+        # Skip only a workflow_run whose head commit no longer maps to a PR;
+        # schedule and PR-less dispatches sweep instead.
+        if: steps.target.outputs.pr != '' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        uses: leanprover-community/mathlib-ci/.github/actions/zulip-emoji-reconcile@<pin a tag or SHA>
+        with:
+          config: .github/zulip-emoji-config.json
+          pr: ${{ steps.target.outputs.pr }}
+          sweep: ${{ !steps.target.outputs.pr }}
+          dry-run: ${{ inputs.dry-run == true }}
+          zulip-api-key: ${{ secrets.ZULIP_API_KEY }}
+          github-token: ${{ github.token }}
+```
+
+The per-repo knobs are the `workflow_run.workflows` list, the repository guard, the secret
+name, and the action pin; a repo whose config has no `label` rules can also drop `labeled` /
+`unlabeled` from the `pull_request_target` types. Everything else — the PR resolution, the
+sweep/skip logic, the concurrency group, the security posture — is repo-agnostic. Choices
+that generalize, and why:
+
+- `opened` is deliberately not among the `pull_request_target` types: when a PR opens there
+  is normally no Zulip message to react to yet (a repo whose bot announces new PRs would
+  even race that bot), and the CI `requested` event follows seconds later anyway.
+- The `concurrency` group matters most once event triggers exist: bursts (a label added then
+  removed, CI finishing as a PR closes) otherwise interleave their read-then-write cycles
+  and can re-assert a stale reaction that then sits wrong until the next event or sweep. One
+  *shared* group is deliberate: the same PR reaches the workflow under different keys
+  (`pull_request.number`, `workflow_run.head_sha`, nothing on a sweep), so per-PR groups
+  would leave exactly these cross-trigger races open.
+- `workflow_run: requested` fires when a CI run starts (producing the "running" emoji) but
+  not for re-runs; `completed` always fires, and the sweep repairs anything left over.
+
+Set `dry-run: true` while validating a new config — it logs the planned changes and writes
+nothing. The action's inputs (`config`, `pr`, `sweep`, `dry-run`, `sweep-messages`,
+`sweep-private-messages`, `zulip-api-key`, `zulip-email`, `zulip-site`, `github-token`,
+`python-version`) are documented in
 [`action.yml`](../.github/actions/zulip-emoji-reconcile/action.yml); pin the `@<ref>` to a tag
 or commit SHA so a consumer's runs are reproducible.
 
@@ -254,10 +378,12 @@ python scripts/zulip/reconcile_emojis.py --config config.json --sweep
 ```
 
 `--dry-run` logs the planned add/remove for every message and writes nothing — always start
-here when validating a new config. `--sweep-messages N` (default 5000) bounds how many recent
-messages the sweep scans: one combined window of N across all public channels, plus N per
-subscribed private channel. It also sets the effective "recently closed" lookback horizon,
-since the oldest message in the batch is as far back as the sweep looks.
+here when validating a new config. `--sweep-messages N` (default 2000) bounds how many recent
+messages the sweep scans: one combined window of N across all public channels, plus a window
+per subscribed private channel of `--sweep-private-messages` (default 1000 — kept smaller so
+one high-traffic private channel can't add thousands of messages, and their PRs' GitHub
+reads, to every sweep). These windows also set the effective "recently closed" lookback
+horizon, since the oldest message in a batch is as far back as the sweep looks.
 
 ## Rate limits
 
@@ -271,10 +397,13 @@ stay cheap by batching:
   pages rather than with the number of PRs. The main cost is the one-time write burst on a
   first sweep (or one after an outage), which simply glides through a few retry pauses; in
   steady state events have already converged and the sweep finds little to do.
-- **GitHub** reads go through `gh api graphql`; the sweep batches up to 50 PRs per query (a few
+- **GitHub** reads go through `gh api graphql`; the sweep batches up to 25 PRs per query (a few
   low-cost queries in total), so even a full sweep stays well inside the GraphQL hourly point
-  budget without extra throttling. A `#N` that turns out not to be a PR (an issue number, a
-  deleted PR) is tolerated: the query's partial data is kept and that number is simply
-  skipped. Scheduled runs are themselves best-effort — cron can be delayed and is disabled
+  budget without extra throttling. Batches also adapt to GitHub's opaque per-query resource
+  limits, which scale with the PRs' actual check data: a batch rejected with
+  `RESOURCE_LIMITS_EXCEEDED` is bisected and retried, and a PR too expensive to query even
+  alone is skipped with a warning (its messages are left untouched until the next run). A
+  `#N` that turns out not to be a PR (an issue number, a deleted PR) is tolerated: the
+  query's partial data is kept and that number is simply skipped. Scheduled runs are themselves best-effort — cron can be delayed and is disabled
   after long repo inactivity — which is why the sweep is a safety net and events stay the
   primary path.

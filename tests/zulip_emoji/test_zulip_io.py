@@ -93,6 +93,25 @@ class TestFetchRecentMessages:
         # capped at MAX_PAGE
         assert client.get_messages_calls[0]["num_before"] == 5000
 
+    def test_private_window_defaults_to_public_window(self) -> None:
+        client = FakeClient(
+            subscriptions=[{"name": "secret", "invite_only": True}],
+            recent={"public": [m(1)], "secret": [m(2)]},
+        )
+        fetch_recent_messages(client, num_before=2000, log=lambda _x: None)
+        assert [c["num_before"] for c in client.get_messages_calls] == [2000, 2000]
+
+    def test_private_window_overridden(self) -> None:
+        client = FakeClient(
+            subscriptions=[{"name": "secret", "invite_only": True}],
+            recent={"public": [m(1)], "secret": [m(2)]},
+        )
+        result = fetch_recent_messages(client, num_before=2000, num_before_private=500,
+                                       log=lambda _x: None)
+        # public query keeps its window; the private channel gets the smaller one
+        assert [c["num_before"] for c in client.get_messages_calls] == [2000, 500]
+        assert sorted(msg["id"] for msg in result) == [1, 2]
+
 
 class TestFirstMessageIdInTopic:
     def test_returns_oldest_id(self) -> None:

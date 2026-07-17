@@ -30,9 +30,18 @@ inputs:
     required: false
     default: 'false'
   sweep-messages:
-    description: Recent messages to scan in sweep mode (see the script's --sweep-messages).
+    description: >-
+      Recent messages to scan in sweep mode: one combined window across all
+      public channels. Empty means the script's default of 2000 (see the
+      script's --sweep-messages).
     required: false
-    default: '5000'
+    default: ''
+  sweep-private-messages:
+    description: >-
+      Recent messages to scan per subscribed private channel in sweep mode.
+      Empty means the script's default of 1000 (see --sweep-private-messages).
+    required: false
+    default: ''
   zulip-api-key:
     description: Zulip bot API key. Pass a secret.
     required: true
@@ -85,6 +94,7 @@ runs:
         SWEEP: ${{ inputs.sweep }}
         DRY_RUN: ${{ inputs.dry-run }}
         SWEEP_MESSAGES: ${{ inputs.sweep-messages }}
+        SWEEP_PRIVATE_MESSAGES: ${{ inputs.sweep-private-messages }}
         ZULIP_API_KEY: ${{ inputs.zulip-api-key }}
         ZULIP_EMAIL: ${{ inputs.zulip-email }}
         ZULIP_SITE: ${{ inputs.zulip-site }}
@@ -95,7 +105,13 @@ runs:
 
         args=(--config "$CONFIG")
         if [ "$SWEEP" = "true" ]; then
-          args+=(--sweep --sweep-messages "$SWEEP_MESSAGES")
+          args+=(--sweep)
+          if [ -n "$SWEEP_MESSAGES" ]; then
+            args+=(--sweep-messages "$SWEEP_MESSAGES")
+          fi
+          if [ -n "$SWEEP_PRIVATE_MESSAGES" ]; then
+            args+=(--sweep-private-messages "$SWEEP_PRIVATE_MESSAGES")
+          fi
         elif [ -n "$PR" ]; then
           # Split the space-separated PR list on whitespace only (no glob/command
           # expansion); argparse (--pr, type=int) then validates each token.
