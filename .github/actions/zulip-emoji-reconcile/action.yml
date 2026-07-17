@@ -1,0 +1,112 @@
+name: Zulip emoji reconcile
+description: >-
+  Reconcile the Zulip emoji reactions on messages about a GitHub PR to the PR's
+  current state (open/closed/merged, labels, CI result). Wraps
+  scripts/zulip/reconcile_emojis.py so a consuming repo invokes it with `uses:`
+  instead of checking out this repo and wiring up Python by hand. GitHub checks
+  out mathlib-ci automatically when this action is referenced, so the caller only
+  needs its own config file present in the workspace.
+
+inputs:
+  config:
+    description: >-
+      Path to the repo's reconcile config JSON, relative to the caller's
+      workspace (check it out first, e.g. with a sparse-checkout).
+    required: true
+  pr:
+    description: >-
+      Space-separated PR number(s) to reconcile (event path). Leave empty when
+      `sweep` is true; required otherwise.
+    required: false
+    default: ''
+  sweep:
+    description: >-
+      Reconcile every PR referenced by recent Zulip messages instead of named
+      PRs (the periodic safety net). Mutually exclusive with `pr`.
+    required: false
+    default: 'false'
+  dry-run:
+    description: Log the planned reaction changes without mutating Zulip.
+    required: false
+    default: 'false'
+  sweep-messages:
+    description: Recent messages to scan in sweep mode (see the script's --sweep-messages).
+    required: false
+    default: '5000'
+  zulip-api-key:
+    description: Zulip bot API key. Pass a secret.
+    required: true
+  zulip-email:
+    description: Override the bot email from the config (optional).
+    required: false
+    default: ''
+  zulip-site:
+    description: Override the Zulip site URL from the config (optional).
+    required: false
+    default: ''
+  github-token:
+    description: >-
+      Token with `pull-requests:read` and `contents:read` on the target repo,
+      used by `gh` for the PR-state reads.
+    required: true
+  python-version:
+    description: Python version passed to actions/setup-python.
+    required: false
+    default: '3.x'
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+      with:
+        python-version: ${{ inputs.python-version }}
+
+    - name: Install reconciler dependencies
+      shell: bash
+      env:
+        ACTION_PATH: ${{ github.action_path }}
+      run: |
+        set -euo pipefail
+        # github.action_path points at this action inside the auto-checked-out
+        # mathlib-ci; the repo root is three levels up (.github/actions/<name>).
+        root="$(cd "${ACTION_PATH}/../../.." && pwd)"
+        pip install -r "${root}/scripts/zulip/requirements.txt"
+
+    - name: Reconcile
+      shell: bash
+      # Inputs flow through `env:`, never `${{ … }}` interpolated into `run:`, so
+      # caller-set values can't be expanded into the script as code before bash
+      # sees it.
+      env:
+        ACTION_PATH: ${{ github.action_path }}
+        CONFIG: ${{ inputs.config }}
+        PR: ${{ inputs.pr }}
+        SWEEP: ${{ inputs.sweep }}
+        DRY_RUN: ${{ inputs.dry-run }}
+        SWEEP_MESSAGES: ${{ inputs.sweep-messages }}
+        ZULIP_API_KEY: ${{ inputs.zulip-api-key }}
+        ZULIP_EMAIL: ${{ inputs.zulip-email }}
+        ZULIP_SITE: ${{ inputs.zulip-site }}
+        GH_TOKEN: ${{ inputs.github-token }}
+      run: |
+        set -euo pipefail
+        root="$(cd "${ACTION_PATH}/../../.." && pwd)"
+
+        args=(--config "$CONFIG")
+        if [ "$SWEEP" = "true" ]; then
+          args+=(--sweep --sweep-messages "$SWEEP_MESSAGES")
+        elif [ -n "$PR" ]; then
+          # Split the space-separated PR list on whitespace only (no glob/command
+          # expansion); argparse (--pr, type=int) then validates each token.
+          read -ra pr_numbers <<< "$PR"
+          args+=(--pr "${pr_numbers[@]}")
+        else
+          echo "::error::zulip-emoji-reconcile: set 'sweep: true' or provide 'pr'." >&2
+          exit 1
+        fi
+        if [ "$DRY_RUN" = "true" ]; then args+=(--dry-run); fi
+        if [ -n "$ZULIP_EMAIL" ]; then args+=(--zulip-email "$ZULIP_EMAIL"); fi
+        if [ -n "$ZULIP_SITE" ]; then args+=(--zulip-site "$ZULIP_SITE"); fi
+
+        python3 "${root}/scripts/zulip/reconcile_emojis.py" "${args[@]}"
