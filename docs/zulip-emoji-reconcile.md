@@ -204,6 +204,15 @@ on:
     - cron: "37 * * * *"   # hourly safety net (offset to dodge top-of-hour load)
   workflow_dispatch: {}     # manual full resync
 
+concurrency:
+  # Serialize runs: the reconciler reads live PR state and then writes
+  # reactions, so two interleaved runs could re-assert stale state. GitHub
+  # keeps only the newest queued run per group (earlier pending runs are
+  # canceled), which suits a level-triggered tool — the last run recomputes
+  # everything from live state and converges to the final answer.
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
 permissions:
   contents: read
   pull-requests: read
@@ -229,7 +238,13 @@ jobs:
 
 To climb the ladder, add triggers and swap the action's mode inputs: a `pull_request_target`
 job sets `pr: ${{ github.event.pull_request.number }}` (instead of `sweep: true`), and a
-`workflow_run` job resolves the PR from the run's head SHA and passes it as `pr:`. Set
+`workflow_run` job resolves the PR from the run's head SHA and passes it as `pr:`. Keep the
+workflow-wide `concurrency` group as you add triggers — it matters most there: bursts of
+events (a label added then removed, CI finishing as a PR closes) otherwise interleave their
+read-then-write cycles and can re-assert a stale reaction that then sits wrong until the
+next event or sweep. One shared group is deliberate: the same PR reaches the workflow under
+different keys (`pull_request.number`, `workflow_run.head_sha`, nothing on a sweep), so
+per-PR groups would leave exactly these cross-trigger races open. Set
 `dry-run: true` while validating a new config — it logs the planned changes and writes nothing.
 The action's inputs (`config`, `pr`, `sweep`, `dry-run`, `sweep-messages`,
 `sweep-private-messages`, `zulip-api-key`, `zulip-email`, `zulip-site`, `github-token`,
