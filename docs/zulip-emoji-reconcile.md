@@ -15,9 +15,9 @@ There are two ways to run it, both driven by the same config:
   `scripts/zulip/emoji_reconcile/`) — for local runs, dry-run validation of a new config, and
   one-off resyncs. See *Running it locally*.
 
-> Status: the engine, CLI, example configs, and the `zulip-emoji-reconcile` composite action
-> are in this repo. The mathlib4 cutover from the older `zulip_emoji_reactions.py` (the
-> consumer-side trigger workflows that exercise the action) is tracked separately.
+> The engine, CLI, example configs, and the `zulip-emoji-reconcile` composite action all
+> live in this repo; mathlib4 consumes them via its `zulip_emoji_reconcile.yml` workflow,
+> which supersedes the older per-event `zulip_emoji_*` workflows and their delta-based script.
 
 ## How it works
 

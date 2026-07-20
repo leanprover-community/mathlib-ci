@@ -90,10 +90,6 @@ Layout:
   config (worked examples under `examples/`). In CI it runs via the
   `zulip-emoji-reconcile` composite action; see `docs/zulip-emoji-reconcile.md` for the full
   picture (config schema, CI wiring, local runs). Tested by `tests/zulip_emoji/`.
-- `zulip_emoji_reactions.py` is the legacy delta-based predecessor of the above, still
-  invoked from mathlib4's workflows on bors comments, PR close/reopen, and label changes.
-  It is superseded by `reconcile_emojis.py` and will be removed once mathlib4 cuts over to
-  the composite action.
 - `requirements.txt`
   Python requirements for Zulip integration scripts.
 
