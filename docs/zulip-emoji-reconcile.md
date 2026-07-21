@@ -60,7 +60,6 @@ data — they appear only as config rows; the engine knows none of them by name.
   },
   "channels": {
     "pr_reviews": "PR reviews",                 // see "Message matching" below
-    "reviewers":  "your reviewers channel",     // referenced by suppress_in
     "rss_allow":  ["bot notifications topic"]    // RSS topics to include
   },
   "ci": {
