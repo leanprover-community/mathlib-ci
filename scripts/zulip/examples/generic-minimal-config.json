@@ -1,5 +1,5 @@
 {
-  "_comment": "Minimal reconcile config for a generic community repo: just open/closed/merged plus CI status, using standard unicode emoji (no custom realm emoji, no bors/maintainer-merge). This is roughly the floor a new repo needs. Add rows as the project grows; see mathlib4-config.json for the maximal example.",
+  "_comment": "Minimal reconcile config for a generic community repo: just open/closed/merged plus CI status, using standard unicode emoji (no custom realm emoji, no bors/maintainer-merge). This is roughly the floor a new repo needs. Add rows as the project grows; see mathlib4-config.json for the maximal example. To set this up end to end (bot, secret, channel subscriptions, workflow), see docs/zulip-emoji-quickstart.md.",
 
   "github_repo": "your-org/your-repo",
 

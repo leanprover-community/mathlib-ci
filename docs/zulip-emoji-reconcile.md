@@ -19,6 +19,11 @@ There are two ways to run it, both driven by the same config:
 > live in this repo; mathlib4 consumes them via its `zulip_emoji_reconcile.yml` workflow,
 > which supersedes the older per-event `zulip_emoji_*` workflows and their delta-based script.
 
+Setting this up for the first time? The [quickstart](zulip-emoji-quickstart.md) walks the whole
+path end to end — creating the Zulip bot, subscribing it to your channels, storing the API
+key as a secret, writing the config, and turning on the workflow. This document is the
+reference behind it: how the tool behaves and every config knob it exposes.
+
 ## How it works
 
 For a given PR, the tool reads the PR's current state from GitHub, computes the *desired* set
@@ -108,6 +113,13 @@ Each rule says "when this predicate holds for a PR, this emoji should be present
 | `sticky` | If true, the emoji is never removed once present (e.g. a "migrated from a fork" marker). |
 | `suppress_in` | Leave this emoji entirely alone (never added, never removed) on messages in a given channel/topic where it would be redundant. Takes `{"channel": "<logical key>", "subject_prefix": "..."}` (or a list). |
 
+To find a custom emoji's `emoji_code`, list the realm's emoji with the bot's own
+credentials — `GET /api/v1/realm/emoji` (`client.get_realm_emoji()`, or
+`curl -sSX GET -G <site>/api/v1/realm/emoji -u <bot-email>:<api-key>`). The response keys
+each emoji by its numeric id: that id is the `emoji_code`, and the matching `name` is the
+`emoji`. The [quickstart](zulip-emoji-quickstart.md#finding-a-custom-realm-emojis-emoji_code)
+shows the full command and an example response.
+
 ### How the CI emoji is computed
 
 The CI value is not event-driven: every reconcile recomputes it from scratch off the PR's
@@ -163,6 +175,16 @@ Messages in the rss channel (`channels.rss`, default `rss`) are skipped unless t
 is listed in `channels.rss_allow`. PR numbers are matched as whole tokens, so `#1234`
 resolves only to PR 1234.
 
+Which channels are even in scope depends on the bot's Zulip subscriptions. **Public**
+channels are read without subscribing — the bot scans them through the public-channels view
+as an org member. A **private (invite-only)** channel, by contrast, is invisible unless the
+bot is *subscribed* to it: the bot can neither read nor react there, and the sweep can't even
+discover the channel, because it enumerates private channels from the bot's own
+subscriptions. Subscribe the bot to every private channel that carries PR discussion — for
+mathlib4 that includes `mathlib reviewers`. The [quickstart](zulip-emoji-quickstart.md#2-subscribe-the-bot-to-its-channels)
+covers the how-to and the protected-history caveat (a newly subscribed bot may not see a
+private channel's older messages).
+
 Topic-matched candidates are confirmed against Zulip before reacting (is this really the
 oldest message of its topic?), because in a bounded sweep window a long-lived thread's true
 opener may predate the window. Confirmations cost one extra read per distinct topic and are
@@ -191,6 +213,11 @@ events are a latency optimization on top:
    `pr: <number>`, for few-seconds latency on label/close/merge changes.
 3. **+ CI status** — `workflow_run` on your CI workflow(s), passing `pr: <number>` for the PR
    at the run's head commit, so the CI emoji updates promptly.
+
+Most repos should just wire up all three at once with the full template below; the sweep-only
+floor is here for the minimal setup, or if you want to stage the rollout.
+
+### Sweep-only workflow
 
 The sweep-only floor (level 1) is a complete workflow on its own:
 
@@ -221,7 +248,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out this repo's config        # for .github/zulip-emoji-config.json
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           sparse-checkout: .github/zulip-emoji-config.json
           sparse-checkout-cone-mode: false
@@ -234,6 +261,8 @@ jobs:
           zulip-api-key: ${{ secrets.ZULIP_API_KEY }}
           github-token: ${{ github.token }}
 ```
+
+### Full workflow (all triggers)
 
 The full ladder (levels 1–3) fits in the same single workflow: every trigger funnels into
 one job that resolves "which PR(s), or sweep?" from the event and calls the action once.
@@ -286,7 +315,7 @@ jobs:
       # branch, so the config (and everything else that runs in this job) is
       # never PR-controlled.
       - name: Check out this repo's config
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           sparse-checkout: .github/zulip-emoji-config.json
           sparse-checkout-cone-mode: false
@@ -330,8 +359,8 @@ jobs:
 The per-repo knobs are the `workflow_run.workflows` list, the repository guard, the secret
 name, and the action pin; a repo whose config has no `label` rules can also drop `labeled` /
 `unlabeled` from the `pull_request_target` types. Everything else — the PR resolution, the
-sweep/skip logic, the concurrency group, the security posture — is repo-agnostic. Choices
-that generalize, and why:
+sweep/skip logic, the concurrency group, the security model (see [Security](#security) below) —
+is repo-agnostic. Choices that generalize, and why:
 
 - `opened` is deliberately not among the `pull_request_target` types: when a PR opens there
   is normally no Zulip message to react to yet (a repo whose bot announces new PRs would
@@ -352,9 +381,38 @@ nothing. The action's inputs (`config`, `pr`, `sweep`, `dry-run`, `sweep-message
 [`action.yml`](../.github/actions/zulip-emoji-reconcile/action.yml); pin the `@<ref>` to a tag
 or commit SHA so a consumer's runs are reproducible.
 
-GitHub access: the reconciler needs read access to PR state (`pull-requests: read`,
-`contents: read`). In-repo event triggers get this from the default `GITHUB_TOKEN`;
-cross-fork `workflow_run` triggers need a token minted from a GitHub App installation.
+### Security
+
+The event triggers use `pull_request_target`, which (unlike `pull_request`) runs in the base
+repository's context with access to its secrets — including the Zulip API key — even for PRs
+from forks. That is what lets a fork PR's label change reach Zulip, but it is also the
+trigger's well-known footgun: whatever the job runs, runs with the secret within reach. The
+template is arranged so that nothing the job runs is PR-controlled:
+
+- **It never checks out PR code.** On `pull_request_target` and `workflow_run` the checkout
+  takes the repository's own default branch (a sparse checkout of just the config file), so the
+  config and every script in the job come from trusted `master`, not the PR branch.
+- **The token is read-only.** `permissions:` grants `contents: read` and `pull-requests: read`
+  and nothing more; the only write the job makes is to Zulip, with the bot key.
+- **Event data is passed through `env:`, never interpolated into `run:`.** The PR-resolution
+  step reads `github.event.*` values as environment variables and quotes them (`"$VAR"`), so a
+  crafted branch name or PR title cannot be expanded into the shell as code. The action passes
+  its own inputs the same way.
+- **The repository guard** (`if: github.repository == '…'`) keeps the workflow from running in
+  forks at all.
+
+Read access to PR state (`pull-requests: read`, `contents: read`) comes from the default
+`GITHUB_TOKEN`, and that includes PRs from forks: both base-context triggers
+(`pull_request_target` and `workflow_run`) read a fork PR's state with no extra credential. The
+one fork wrinkle is that a `workflow_run` event's `pull_requests` payload is empty for fork PRs,
+so the *Determine PR number(s)* step resolves the PR from the run's head commit via the API
+(`commits/<sha>/pulls`) instead of trusting that payload — which works for forks because the
+head commit is reachable in the base repo through the PR's ref. A dedicated token (a PAT or a
+GitHub App installation) is only worth adding if a very high-volume repo runs into the default
+token's rate limit; this tool's batched reads normally stay well under it.
+
+If you adapt the template, preserve one invariant: don't check out or execute the PR head, and
+don't interpolate event text into `run:`. Everything else can change freely.
 
 ## Running it locally
 

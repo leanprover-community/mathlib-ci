@@ -88,8 +88,9 @@ Layout:
   reactions on Zulip messages about a PR in sync with the PR's actual state
   (open/closed/merged, labels, CI result). Repo-agnostic: everything repo-specific is a JSON
   config (worked examples under `examples/`). In CI it runs via the
-  `zulip-emoji-reconcile` composite action; see `docs/zulip-emoji-reconcile.md` for the full
-  picture (config schema, CI wiring, local runs). Tested by `tests/zulip_emoji/`.
+  `zulip-emoji-reconcile` composite action; `docs/zulip-emoji-quickstart.md` sets a new repo
+  up end to end, and `docs/zulip-emoji-reconcile.md` is the reference (config schema, CI
+  wiring, local runs). Tested by `tests/zulip_emoji/`.
 - `requirements.txt`
   Python requirements for Zulip integration scripts.
 
