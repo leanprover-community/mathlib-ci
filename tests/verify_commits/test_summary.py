@@ -236,3 +236,35 @@ def test_hard_cap_truncates_when_forced_low(render):
     )
     assert "comment truncated" in md
     assert len(md.encode()) <= 400
+
+
+# --- new failure kinds from the worker caps --------------------------------
+
+def test_auto_limit_exceeded_renders_warning_not_details(render):
+    autos = [
+        {"sha": f"{i:040x}", "short": f"{i:07x}", "subject": f"x: gen{i}.sh",
+         "command": f"gen{i}.sh", "verified": False, "failure_kind": "skipped_limit"}
+        for i in range(20)
+    ]
+    md = render(_doc(success=False, auto_commits=autos, auto_limit_exceeded=True, auto_limit=5))
+    assert "too many to verify (limit 5)" in md
+    assert "None were run" in md
+    # listing is capped (20 - default cap of 10), and no per-commit blocks appear.
+    assert "…and 10 more" in md
+    assert "<details>" not in md
+
+
+def test_transient_range_too_large_renders_warning(render):
+    md = render(
+        _doc(
+            success=False,
+            transient_commits=[_commit(1, subject="transient: temp")],
+            transient_verified=False,
+            transient_failure_kind="range_too_large",
+            transient_replay_count=9000,
+            transient_replay_limit=500,
+        )
+    )
+    assert "too many commits to replay" in md
+    assert "9000 non-transient" in md
+    assert "500" in md
