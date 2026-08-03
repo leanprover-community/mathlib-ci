@@ -159,8 +159,11 @@ would add or remove.
 
 ## 7. Go live
 
-Remove the dry-run flag. The first real run writes a burst of reactions to catch every message
-up. After that the sweep is quiet.
+Remove the dry-run flag, and kick off the first run yourself: **Actions → Run workflow** with
+`pr` left empty, which sweeps. Only a sweep can catch up the backlog — PR events begin firing
+only once the workflow is on the default branch, so nothing that happened earlier has one, and
+GitHub can take a while to register a new workflow's hourly schedule. That first sweep writes a
+burst of reactions to catch every message up; after that the sweep is quiet.
 
 ## Troubleshooting
 
@@ -172,5 +175,10 @@ up. After that the sweep is quiet.
   together. Re-derive the code (step 4).
 - **Nothing happens.** Check that the secret name matches the workflow (`ZULIP_API_KEY`), and
   that the `if: github.repository == '…'` guard names your repo, not the template's placeholder.
+- **A run for PR #N didn't fix the emoji on another PR's messages.** Expected: an event run
+  only examines messages mentioning its own PR. Messages about other PRs — including PRs from
+  before the workflow existed, which never get events at all — are repaired by the hourly
+  sweep, or immediately by a manual **Run workflow** with `pr` empty. See
+  [How it works](zulip-emoji-reconcile.md#how-it-works) in the reference.
 - **A private channel floods every sweep.** Lower `sweep-private-messages` on the action (see the
   reference).

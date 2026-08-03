@@ -36,12 +36,18 @@ left alone.
 
 There are two ways to invoke it, sharing the same core:
 
-- **Per PR** (`--pr N`): fetch one PR's state and reconcile its messages. Fast; meant for
-  event-driven triggers (a label changed, a PR closed, CI finished).
+- **Per PR** (`--pr N`): fetch one PR's state and reconcile the messages that mention *that
+  PR*. Fast; meant for event-driven triggers (a label changed, a PR closed, CI finished).
 - **Sweep** (`--sweep`): pull a bounded batch of recent messages, find every PR they
   reference, batch-fetch those PRs from GitHub, and reconcile each. A periodic safety net
   that repairs any drift on its own — a repo running only the sweep still converges to
   correct emoji within the sweep interval.
+
+The two scopes are complementary, and reading a run's log with the wrong one in mind is
+confusing. A per-PR run searches Zulip only for messages mentioning its PR (plus the PRs
+*co-referenced* on those same messages — see *Message matching*); every other message is out
+of scope, no matter how stale its emoji. So a per-PR run's log is evidence only about that
+PR — messages about other PRs are the sweep's job.
 
 ## Configuration
 
@@ -216,6 +222,15 @@ events are a latency optimization on top:
 
 Most repos should just wire up all three at once with the full template below; the sweep-only
 floor is here for the minimal setup, or if you want to stage the rollout.
+
+Because events are only an optimization, they also only cover what happens *after* they
+exist: GitHub fires `pull_request_target` and `workflow_run` solely for a workflow already on
+the repo's default branch. A PR that closed, merged, or finished CI before the workflow
+landed produces no event — its messages simply wait for the first sweep. And that first sweep
+may itself be late: GitHub registers a new workflow's `schedule:` with some lag, so the first
+cron slot after merging is often skipped. When onboarding (or after the workflow was broken
+for a while), don't wait — run the catch-up by hand with `workflow_dispatch`, leaving `pr`
+empty to sweep.
 
 ### Sweep-only workflow
 
