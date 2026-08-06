@@ -20,14 +20,23 @@ Inputs (environment variables):
                       `declsDiff.py --with-heading`
     DEFAULT_BRANCH  warning mode: branch named in the rebase hint (default `master`)
 
-Modes (both replace the Lean region wholesale):
-    success — the rendered Lean-aware section (heading `(Lean)`).
-    warning — a cache-miss block (heading `(Lean -- unavailable)`); the regex
-              block elsewhere in the comment stays visible.
+Modes:
+    success — splice in the rendered Lean-aware section (heading `(Lean)`).
+    warning — cache miss. If the comment already shows a real Lean diff, carry it
+              forward under `NEW_HEADING` (keeping the diff visible); otherwise
+              splice a cache-miss block (heading `(Lean -- unavailable)`).
+    emit    — pre-build helper. Does NOT patch: prints the Lean region content
+              (no markers) to stdout for `mathlib4`'s `PR_summary.yml` to embed.
+              Carries the existing real diff forward under `NEW_HEADING`, else
+              prints the pending placeholder.
+
+A "real diff" is recognised by its body stamp (`✅ **Lean-aware diff**`), not its
+heading, so a once-shown diff survives repeated relabels (stale → cache miss → …)
+without ever reverting to the pending placeholder.
 
 Exit codes:
-    0 — patched, or nothing to do (no summary comment / no markers / unchanged)
-    1 — non-recoverable error (gh CLI failure, malformed env)
+    0 — patched / emitted, or nothing to do (no summary comment / no markers / unchanged)
+    1 — non-recoverable error (gh CLI failure, malformed env); `emit` never returns 1
 """
 
 from __future__ import annotations
@@ -42,8 +51,23 @@ from pathlib import Path
 LEAN_BEGIN = "<!-- DECLS_DIFF_LEAN_BEGIN -->"
 LEAN_END = "<!-- DECLS_DIFF_LEAN_END -->"
 PR_SUMMARY_PREFIX = "### PR summary"
+# The summary comment is posted/patched by `update_PR_comment.sh` with the
+# default `GITHUB_TOKEN`, so it is always authored by this account.
+SUMMARY_COMMENT_AUTHOR = "github-actions[bot]"
 
 _REGION_RE = re.compile(re.escape(LEAN_BEGIN) + r"(.*?)" + re.escape(LEAN_END), re.DOTALL)
+
+# A real Lean diff is identified by this body stamp (emitted by `declsDiff.py`),
+# which survives heading relabels — unlike the heading, which changes each time.
+LEAN_DIFF_STAMP = "✅ **Lean-aware diff**"
+# Matches the heading line in any of its states: `(Lean)`, `(Lean -- pending)`,
+# `(Lean -- stale ...)`, `(Lean -- cache miss ...)`, `(Lean -- unavailable)`.
+_HEADING_RE = re.compile(r"(?m)^#### Declarations diff \(Lean[^\n]*\)$")
+
+PENDING_PLACEHOLDER = (
+    "#### Declarations diff (Lean -- pending)\n\n"
+    "_Computed after the build finishes._"
+)
 
 
 def build_warning(default_branch: str) -> str:
@@ -52,10 +76,51 @@ def build_warning(default_branch: str) -> str:
     return "\n".join([
         "#### Declarations diff (Lean -- unavailable)",
         "",
-        f"> ⚠️ The Mathlib cache for this PR's merge-base isn't on the server "
-        f"(typically a bors-batch intermediate that CI never built). "
-        f"Merge `{default_branch}` into this PR and push to refresh.",
+        f"> ⚠️ No declarations diff yet: there is no built `{default_branch}` snapshot "
+        f"at this PR's merge-base (typically a bors-batch intermediate that CI never "
+        f"built). Merge `{default_branch}` into this PR and push to refresh.",
     ])
+
+
+def carry_forward(region: str, new_heading: str) -> str | None:
+    """If `region` holds a real Lean-aware diff (identified by its body stamp,
+    not its heading — so it survives repeated relabels), return that region with
+    the heading line rewritten to `new_heading`. Otherwise return `None`."""
+    if not new_heading or LEAN_DIFF_STAMP not in region:
+        return None
+    # Substitute `new_heading` literally (via a lambda), NOT as a regex
+    # replacement template, so a heading containing `\` or `\g` cannot corrupt it.
+    relabelled, n = _HEADING_RE.subn(lambda _m: new_heading.strip(), region, count=1)
+    if n == 0:
+        # Stamp present but no `(Lean…)` heading matched: a NEW_HEADING was added
+        # that `_HEADING_RE` doesn't recognise. Carry the body forward unrelabelled
+        # rather than silently no-op, and make the drift visible in the logs.
+        print("updateDeclsDiffSection: carry_forward: diff stamp present but no "
+              "'#### Declarations diff (Lean…)' heading matched; check _HEADING_RE "
+              "against the NEW_HEADING values.", file=sys.stderr)
+    return relabelled.strip()
+
+
+def emit_placeholder(repo: str, head_sha: str) -> int:
+    """`MODE=emit`: print the Lean region content for the pre-build to embed (it
+    never patches and never fails the caller). Carry the existing real diff
+    forward under `NEW_HEADING` when one exists, else print the pending
+    placeholder."""
+    new_heading = os.environ.get("NEW_HEADING", "")
+    carried = None
+    try:
+        pr = resolve_pr(repo, head_sha)
+        if pr is not None:
+            comments = gh_json("--paginate", f"repos/{repo}/issues/{pr}/comments")
+            target = find_summary_comment(comments)
+            if target is not None:
+                m = _REGION_RE.search(target.get("body") or "")
+                if m is not None:
+                    carried = carry_forward(m.group(1), new_heading)
+    except subprocess.CalledProcessError as e:
+        print(f"updateDeclsDiffSection: gh api failed: {e.stderr}", file=sys.stderr)
+    sys.stdout.write(carried if carried is not None else PENDING_PLACEHOLDER)
+    return 0
 
 
 def splice(body: str, block: str) -> str:
@@ -68,11 +133,18 @@ def splice(body: str, block: str) -> str:
 
 
 def find_summary_comment(comments: list[dict]) -> dict | None:
-    """Return the first comment whose body starts with `### PR summary`, else
-    `None`. Tolerates a `null` body (the GitHub API permits it) by treating it
-    as empty rather than raising."""
+    """Return the first `github-actions[bot]` comment whose body starts with
+    `### PR summary`, else `None`. Tolerates a `null` body (the GitHub API
+    permits it) by treating it as empty rather than raising.
+
+    The author check matters: anyone can post a comment starting with
+    `### PR summary`, and under `pull_request_target` this script reads that
+    comment's Lean region and carries it forward into the comment it maintains.
+    Requiring the bot author keeps attacker-authored content out of that loop."""
     return next(
-        (c for c in comments if (c.get("body") or "").startswith(PR_SUMMARY_PREFIX)),
+        (c for c in comments
+         if (c.get("body") or "").startswith(PR_SUMMARY_PREFIX)
+         and (c.get("user") or {}).get("login") == SUMMARY_COMMENT_AUTHOR),
         None,
     )
 
@@ -115,6 +187,11 @@ def main() -> int:
     head_sha = os.environ.get("PR_HEAD_SHA", "")
     mode = os.environ.get("MODE", "success")
 
+    # `emit` is a self-contained, non-patching path: handle it before the
+    # patch flow below so that path stays byte-for-byte unchanged.
+    if mode == "emit":
+        return emit_placeholder(repo, head_sha)
+
     try:
         pr = resolve_pr(repo, head_sha)
     except subprocess.CalledProcessError as e:
@@ -138,7 +215,12 @@ def main() -> int:
         return 0
 
     if mode == "warning":
-        block = build_warning(os.environ.get("DEFAULT_BRANCH", "master"))
+        # Keep a previously-shown real diff visible across a cache miss, with the
+        # heading surfacing the miss; only fall back to the unavailable block when
+        # there is no prior diff to carry forward.
+        m = _REGION_RE.search(target.get("body") or "")
+        block = (m and carry_forward(m.group(1), os.environ.get("NEW_HEADING", ""))) \
+            or build_warning(os.environ.get("DEFAULT_BRANCH", "master"))
     else:
         override = os.environ.get("OVERRIDE_FILE", "")
         block = Path(override).read_text() if override and Path(override).is_file() else ""
