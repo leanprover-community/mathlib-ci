@@ -27,6 +27,16 @@ TRANSIENT_PREFIX="${TRANSIENT_PREFIX:-transient: }"
 AUTO_PREFIX_COLON="${AUTO_PREFIX_COLON:-x: }"
 AUTO_PREFIX_SPACE="${AUTO_PREFIX_SPACE:-x }"
 
+# Runtime guards against pathological inputs (the CI job has no wall-clock cap):
+#   * MAX_AUTO_COMMITS — each auto commit runs an attacker-controlled command for
+#     up to TIMEOUT_SECONDS, sequentially; a PR with hundreds of them could run
+#     for hours. Above this count we verify nothing and fail with guidance.
+#   * MAX_TRANSIENT_REPLAY_COMMITS — the transient check cherry-picks every
+#     non-transient commit onto the merge base; that's O(range) and pathological
+#     on the 10k-commit bump PRs. Above this count we skip the replay and fail.
+MAX_AUTO_COMMITS="${MAX_AUTO_COMMITS:-30}"
+MAX_TRANSIENT_REPLAY_COMMITS="${MAX_TRANSIENT_REPLAY_COMMITS:-500}"
+
 # Excerpt limits — capture at most this many bytes/lines of command output
 # or diff stat for inclusion in the JSON report (and ultimately the comment).
 # The summary script applies a separate overall comment-size cap.
@@ -232,6 +242,8 @@ TRANSIENT_OUTPUT_EXCERPT=""
 TRANSIENT_OUTPUT_TRUNCATED=false
 TRANSIENT_DIFF_EXCERPT=""
 TRANSIENT_DIFF_TRUNCATED=false
+TRANSIENT_REPLAY_COUNT=0
+AUTO_LIMIT_EXCEEDED=false
 OVERALL_SUCCESS=true
 
 # --- Substantive commits: just record subject for the report ---
@@ -265,6 +277,17 @@ verify_transient() {
   if [[ ${#NON_TRANSIENT_COMMITS[@]} -eq 0 ]]; then
     expected_tree=$(git rev-parse "$MERGE_BASE^{tree}")
   else
+    # Replaying is one cherry-pick per non-transient commit; refuse on a
+    # pathologically large range (e.g. a 10k-commit bump PR that also carries a
+    # transient commit) rather than grinding through it. Bump PRs normally have
+    # no transient commits, so this rarely trips.
+    if [[ ${#NON_TRANSIENT_COMMITS[@]} -gt $MAX_TRANSIENT_REPLAY_COMMITS ]]; then
+      TRANSIENT_FAILURE_KIND="range_too_large"
+      TRANSIENT_REPLAY_COUNT=${#NON_TRANSIENT_COMMITS[@]}
+      log_error "Transient verification skipped: ${#NON_TRANSIENT_COMMITS[@]} non-transient commits exceed the replay limit ($MAX_TRANSIENT_REPLAY_COMMITS)"
+      return 1
+    fi
+
     # Cherry-pick non-transient commits onto the merge base in a fresh
     # worktree, then compare the resulting tree against HEAD's tree.
     local wt_path
@@ -446,6 +469,25 @@ verify_auto_commits() {
     return 0
   fi
 
+  # Refuse to run an unbounded number of attacker-controlled commands. Record
+  # the commits (subject only, unverified) so the comment can list them, but
+  # execute none of them.
+  if [[ ${#AUTO_COMMITS[@]} -gt $MAX_AUTO_COMMITS ]]; then
+    log_error "Too many automated commits (${#AUTO_COMMITS[@]} > $MAX_AUTO_COMMITS); refusing to run them"
+    AUTO_LIMIT_EXCEEDED=true
+    local commit subject command
+    for commit in "${AUTO_COMMITS[@]}"; do
+      subject=$(git log -1 --format="%s" "$commit")
+      command=$(get_auto_command "$subject")
+      jq -nc --arg sha "$commit" --arg short "${commit:0:7}" \
+        --arg subject "$subject" --arg command "$command" \
+        '{sha: $sha, short: $short, subject: $subject, command: $command,
+          verified: false, failure_kind: "skipped_limit"}' \
+        >> "$AUTO_NDJSON"
+    done
+    return 1
+  fi
+
   local all_ok=true
   for commit in "${AUTO_COMMITS[@]}"; do
     if ! verify_auto_commit "$commit"; then
@@ -474,6 +516,8 @@ build_final_json() {
     --slurpfile substantive "$SUBSTANTIVE_NDJSON" \
     --slurpfile auto "$AUTO_NDJSON" \
     --slurpfile transient "$TRANSIENT_NDJSON" \
+    --argjson auto_limit_exceeded "$([[ "$AUTO_LIMIT_EXCEEDED" == "true" ]] && echo true || echo false)" \
+    --argjson auto_limit "$MAX_AUTO_COMMITS" \
     --arg transient_failure_kind "$TRANSIENT_FAILURE_KIND" \
     --arg transient_failed_sha "$TRANSIENT_FAILED_SHA" \
     --arg transient_failed_subject "$TRANSIENT_FAILED_SUBJECT" \
@@ -481,13 +525,22 @@ build_final_json() {
     --argjson transient_output_truncated "$TRANSIENT_OUTPUT_TRUNCATED" \
     --arg transient_diff_excerpt "$TRANSIENT_DIFF_EXCERPT" \
     --argjson transient_diff_truncated "$TRANSIENT_DIFF_TRUNCATED" \
+    --argjson transient_replay_count "$TRANSIENT_REPLAY_COUNT" \
+    --argjson transient_replay_limit "$MAX_TRANSIENT_REPLAY_COMMITS" \
     '{success: $success,
       substantive_commits: $substantive,
       auto_commits: $auto,
       transient_commits: $transient,
       transient_verified: $transient_verified}
+     + (if $auto_limit_exceeded then
+          {auto_limit_exceeded: true, auto_limit: $auto_limit}
+        else {} end)
      + (if $transient_failure_kind != "" then
           {transient_failure_kind: $transient_failure_kind}
+          + (if $transient_failure_kind == "range_too_large" then
+               {transient_replay_count: $transient_replay_count,
+                transient_replay_limit: $transient_replay_limit}
+             else {} end)
           + (if $transient_failed_sha != "" then
                {transient_failed_sha: $transient_failed_sha,
                 transient_failed_short: ($transient_failed_sha[0:7]),
@@ -524,6 +577,9 @@ output_summary() {
   echo "Automated commits (${#AUTO_COMMITS[@]}):"
   if [[ ${#AUTO_COMMITS[@]} -eq 0 ]]; then
     echo "  (none)"
+  elif [[ "$AUTO_LIMIT_EXCEEDED" == "true" ]]; then
+    log_error "Too many automated commits (${#AUTO_COMMITS[@]} > $MAX_AUTO_COMMITS); none were run"
+    echo "        Split this PR so each automated commit can be verified"
   else
     while IFS= read -r row; do
       local short subject verified failure_kind exit_code
@@ -561,6 +617,8 @@ output_summary() {
           log_error "Cherry-pick of ${TRANSIENT_FAILED_SHA:0:7} (${TRANSIENT_FAILED_SUBJECT}) failed" ;;
         tree_mismatch)
           log_error "Net effect is non-empty: transient commits modify the final tree" ;;
+        range_too_large)
+          log_error "Skipped: $TRANSIENT_REPLAY_COUNT non-transient commits exceed the replay limit ($MAX_TRANSIENT_REPLAY_COMMITS)" ;;
         *)
           log_error "Verification failed" ;;
       esac

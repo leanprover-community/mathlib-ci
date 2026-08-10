@@ -148,8 +148,30 @@ render_failed_auto() {
   emit ""
 }
 
+AUTO_LIMIT_EXCEEDED=$(echo "$JSON" | jq -r '.auto_limit_exceeded // false')
+
+# --- Automated commits: too many to verify (result — rendered first) ---
+if [[ "$AUTO_COUNT" -gt 0 && "$AUTO_LIMIT_EXCEEDED" == "true" ]]; then
+  AUTO_LIMIT=$(echo "$JSON" | jq -r '.auto_limit // "?"')
+  emit "### ❌ Automated commits ($AUTO_COUNT) — too many to verify (limit $AUTO_LIMIT)"
+  emit ""
+  emit "> [!WARNING]"
+  emit "> This PR has $AUTO_COUNT automated (\`x:\`) commits, more than the verification"
+  emit "> limit ($AUTO_LIMIT). None were run. Please split this into smaller PRs so each"
+  emit "> automated commit can be verified."
+  emit ""
+  while IFS= read -r line; do emit "$line"; done < <(
+    echo "$JSON" | jq -r --argjson cap "$SUBSTANTIVE_LIST_CAP" \
+      '.auto_commits[0:$cap][] | "- `\(.short)`: `\(.subject)`"'
+  )
+  if [[ "$AUTO_COUNT" -gt "$SUBSTANTIVE_LIST_CAP" ]]; then
+    emit "- …and $((AUTO_COUNT - SUBSTANTIVE_LIST_CAP)) more"
+  fi
+  emit ""
+fi
+
 # --- Automated commits (result — rendered first) ---
-if [[ "$AUTO_COUNT" -gt 0 ]]; then
+if [[ "$AUTO_COUNT" -gt 0 && "$AUTO_LIMIT_EXCEEDED" != "true" ]]; then
   if [[ "$AUTO_VERIFIED_COUNT" -eq "$AUTO_COUNT" ]]; then
     AUTO_STATUS_ICON="✅"
     AUTO_STATUS_TEXT="all verified"
@@ -205,6 +227,7 @@ if [[ "$TRANSIENT_COUNT" -gt 0 ]]; then
     case "$T_KIND" in
       cherry_pick_conflict) T_TEXT="cherry-pick conflict during replay" ;;
       tree_mismatch)        T_TEXT="net effect is non-empty" ;;
+      range_too_large)      T_TEXT="skipped — too many commits to replay" ;;
       *)                    T_TEXT="verification failed" ;;
     esac
   fi
@@ -247,6 +270,15 @@ if [[ "$TRANSIENT_COUNT" -gt 0 ]]; then
           emit ""
         fi
         emit "</details>"
+        emit ""
+        ;;
+      range_too_large)
+        T_RCOUNT=$(echo "$JSON" | jq -r '.transient_replay_count // "?"')
+        T_RLIMIT=$(echo "$JSON" | jq -r '.transient_replay_limit // "?"')
+        emit "> [!WARNING]"
+        emit "> Skipped verifying transient commits: this PR has $T_RCOUNT non-transient"
+        emit "> commits, more than the replay limit ($T_RLIMIT). Split the PR so the"
+        emit "> transient check can run."
         emit ""
         ;;
     esac
