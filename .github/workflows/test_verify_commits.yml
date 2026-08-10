@@ -1,0 +1,32 @@
+name: Test commit-verification scripts
+
+# Runs the unit-test suite for the commit-verification summary renderer
+# (`scripts/verification/verify_commits_summary.sh`) on every push / PR that
+# touches the scripts or their tests.
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - scripts/verification/**
+      - tests/verify_commits/**
+      - .github/workflows/test_verify_commits.yml
+  pull_request:
+    paths:
+      - scripts/verification/**
+      - tests/verify_commits/**
+      - .github/workflows/test_verify_commits.yml
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6.2.0
+        with:
+          python-version: '3.x'
+      - run: python3 -m pip install --upgrade pip pytest
+      - run: python3 -m pytest tests/verify_commits -v

@@ -4,18 +4,35 @@
 #
 # Usage: ./verify_commits.sh <base_ref> --json | ./verify_commits_summary.sh <repo> <pr_number>
 #
+# Section ordering matters: the verification *results* (Automated + Transient)
+# are rendered FIRST, and the (potentially huge) list of substantive commits is
+# rendered LAST. That way, if the soft/hard size cap ever truncates the comment,
+# it eats the least-important tail (the commit listing) rather than the result —
+# on the 10k-commit `bump/vX.Y.Z` PRs the old ordering pushed the result past
+# the cap and truncated it away entirely.
+#
+# The substantive-commit list is also capped (SUBSTANTIVE_LIST_CAP) so those
+# bump PRs don't produce a 50 KB wall of bullets.
+#
 # Failed commits get a collapsible `<details>` block containing the actual
 # error output. The renderer dispatches on `failure_kind` (no keyword
 # matching of error messages — the underlying tool's error message is the
 # diagnosis). A soft cap on total comment size is applied: if rendered
-# output would exceed MAX_COMMENT_BYTES (default 50000), output excerpts are
-# dropped from later failed commits, replaced by a "see CI logs" pointer.
+# output would exceed MAX_COMMENT_BYTES, output excerpts are dropped from
+# later failed commits, replaced by a "see CI logs" pointer.
+#
+# Untrusted content (command output, diff excerpts) is wrapped in code fences
+# sized to exceed any run of backticks in the content, so a crafted `x:` output
+# containing a ``` fence cannot break out and inject markdown into the comment.
 
 set -euo pipefail
 
 REPO="${1:-}"
 PR_NUMBER="${2:-}"
-MAX_COMMENT_BYTES="${MAX_COMMENT_BYTES:-50000}"
+MAX_COMMENT_BYTES="${MAX_COMMENT_BYTES:-15000}"
+# Show at most this many substantive commits as bullets; the rest are summarized
+# as a "…and N more" line. Keeps bump PRs from producing an enormous comment.
+SUBSTANTIVE_LIST_CAP="${SUBSTANTIVE_LIST_CAP:-10}"
 
 if [[ -z "$REPO" || -z "$PR_NUMBER" ]]; then
   echo "Usage: $0 <repo> <pr_number>" >&2
@@ -54,6 +71,24 @@ trap 'rm -f "$OUT"' EXIT
 emit()     { printf '%s\n' "$@" >> "$OUT"; }
 emit_raw() { printf '%s' "$1" >> "$OUT"; }
 
+# Emit `content` inside a fenced code block whose fence is longer than any run
+# of backticks in the content. GFM closes a fence of N backticks only with a
+# line of >= N backticks, so this guarantees the content cannot break out of
+# the fence and inject markdown (comment injection via crafted `x:` output).
+emit_fenced() {
+  local content="$1"
+  local longest=0
+  longest=$(printf '%s' "$content" | grep -oE '`+' | awk '{ if (length > m) m = length } END { print m+0 }') || longest=0
+  local fence_len=$(( longest + 1 ))
+  [[ $fence_len -lt 3 ]] && fence_len=3
+  local fence
+  fence=$(printf '`%.0s' $(seq "$fence_len"))
+  emit "$fence"
+  emit_raw "$content"
+  emit ""
+  emit "$fence"
+}
+
 emit "## Commit Verification Summary"
 emit ""
 
@@ -63,23 +98,6 @@ if [[ "$SUCCESS" == "true" ]]; then
 else
   emit "> [!WARNING]"
   emit "> Some verifications failed. See details below."
-  emit ""
-fi
-
-# --- Substantive commits ---
-if [[ "$SUBSTANTIVE_COUNT" -gt 0 ]]; then
-  emit "### Commits to Review ($SUBSTANTIVE_COUNT)"
-  emit ""
-  while IFS= read -r line; do emit "$line"; done < <(
-    echo "$JSON" | jq -r '.substantive_commits[] | "- `\(.short)`: \(.subject)"'
-  )
-  emit ""
-  emit "[View PR diff](https://github.com/$REPO/pull/$PR_NUMBER/files)"
-  emit ""
-else
-  emit "### Commits to Review"
-  emit ""
-  emit "No substantive commits — this PR consists entirely of automated and/or transient commits."
   emit ""
 fi
 
@@ -111,20 +129,14 @@ render_failed_auto() {
     if [[ -n "$output_excerpt" ]]; then
       emit "**Output:**"
       emit ""
-      emit '```'
-      emit_raw "$output_excerpt"
-      emit ""
-      emit '```'
+      emit_fenced "$output_excerpt"
       [[ "$output_truncated" == "true" ]] && emit "_(output truncated; see CI logs for the full output)_"
       emit ""
     fi
     if [[ "$failure_kind" == "tree_mismatch" && -n "$diff_excerpt" ]]; then
       emit "**Difference from committed tree:**"
       emit ""
-      emit '```'
-      emit_raw "$diff_excerpt"
-      emit ""
-      emit '```'
+      emit_fenced "$diff_excerpt"
       [[ "$diff_truncated" == "true" ]] && emit "_(diff truncated; see CI logs for the full diff)_"
       emit ""
     fi
@@ -136,7 +148,7 @@ render_failed_auto() {
   emit ""
 }
 
-# --- Automated commits ---
+# --- Automated commits (result — rendered first) ---
 if [[ "$AUTO_COUNT" -gt 0 ]]; then
   if [[ "$AUTO_VERIFIED_COUNT" -eq "$AUTO_COUNT" ]]; then
     AUTO_STATUS_ICON="✅"
@@ -182,7 +194,7 @@ if [[ "$AUTO_COUNT" -gt 0 ]]; then
   fi
 fi
 
-# --- Transient commits ---
+# --- Transient commits (result — rendered first) ---
 if [[ "$TRANSIENT_COUNT" -gt 0 ]]; then
   if [[ "$TRANSIENT_VERIFIED" == "true" ]]; then
     T_ICON="✅"
@@ -216,10 +228,7 @@ if [[ "$TRANSIENT_COUNT" -gt 0 ]]; then
         if [[ -n "$T_OUT" ]]; then
           emit "**Output:**"
           emit ""
-          emit '```'
-          emit_raw "$T_OUT"
-          emit ""
-          emit '```'
+          emit_fenced "$T_OUT"
           [[ "$T_OUT_T" == "true" ]] && emit "_(output truncated; see CI logs for the full output)_"
           emit ""
         fi
@@ -233,10 +242,7 @@ if [[ "$TRANSIENT_COUNT" -gt 0 ]]; then
         emit "<summary>Difference between final tree and replay-without-transients</summary>"
         emit ""
         if [[ -n "$T_DIFF" ]]; then
-          emit '```'
-          emit_raw "$T_DIFF"
-          emit ""
-          emit '```'
+          emit_fenced "$T_DIFF"
           [[ "$T_DIFF_T" == "true" ]] && emit "_(diff truncated; see CI logs for the full diff)_"
           emit ""
         fi
@@ -245,6 +251,27 @@ if [[ "$TRANSIENT_COUNT" -gt 0 ]]; then
         ;;
     esac
   fi
+fi
+
+# --- Substantive commits (listing — rendered last, capped) ---
+if [[ "$SUBSTANTIVE_COUNT" -gt 0 ]]; then
+  emit "### Commits to Review ($SUBSTANTIVE_COUNT)"
+  emit ""
+  while IFS= read -r line; do emit "$line"; done < <(
+    echo "$JSON" | jq -r --argjson cap "$SUBSTANTIVE_LIST_CAP" \
+      '.substantive_commits[0:$cap][] | "- `\(.short)`: \(.subject)"'
+  )
+  if [[ "$SUBSTANTIVE_COUNT" -gt "$SUBSTANTIVE_LIST_CAP" ]]; then
+    emit "- …and $((SUBSTANTIVE_COUNT - SUBSTANTIVE_LIST_CAP)) more (see PR diff)"
+  fi
+  emit ""
+  emit "[View PR diff](https://github.com/$REPO/pull/$PR_NUMBER/files)"
+  emit ""
+else
+  emit "### Commits to Review"
+  emit ""
+  emit "No substantive commits — this PR consists entirely of automated and/or transient commits."
+  emit ""
 fi
 
 emit "---"
