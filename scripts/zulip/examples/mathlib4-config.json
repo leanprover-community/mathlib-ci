@@ -11,6 +11,7 @@
     "email": "github-mathlib4-bot@leanprover.zulipchat.com"
   },
 
+  "_channels_comment": "Maps logical keys used elsewhere in this config to real Zulip channel names. 'mathlib reviewers' is a PRIVATE (invite-only) channel: the bot must be subscribed to it or it can neither read nor react there and the sweep can't even see it. Public channels ('PR reviews', the rss feed) need no subscription. See docs/zulip-emoji-quickstart.md step 2.",
   "channels": {
     "pr_reviews": "PR reviews",
     "reviewers": "mathlib reviewers",
@@ -22,6 +23,7 @@
     "check_names": ["Build", "Lint style", "Post-Build Step", "Check workflows"]
   },
 
+  "_emoji_comment": "Rows with 'reaction_type': 'realm_emoji' use custom emoji uploaded to this realm; 'emoji_code' is the emoji's numeric realm id (e.g. 'closed-pr' -> 61293, 'bors' -> 22134). Find a code by listing the realm's emoji with the bot's credentials: GET /api/v1/realm/emoji (see docs/zulip-emoji-quickstart.md). Standard unicode emoji ('merge', 'writing', 'cross_mark', ...) omit both fields.",
   "states": [
     {
       "name": "merged", "group": "pr", "priority": 30,
