@@ -52,7 +52,6 @@ def render(rows: list[dict], repo: str, sha: str) -> str:
         )
     return "\n".join(lines) + "\n"
 
-
 def parse_args(argv: list[str] | None) -> argparse.Namespace:
     p = argparse.ArgumentParser(
         prog="crossrefsDiff.py",
@@ -84,7 +83,6 @@ def main(argv: list[str] | None = None) -> int:
 
     rows = added_refs(base, head)
     print(render(rows, args.repo, args.new_sha), end="")
-    print(f"{len(rows)} cross-reference(s) added.", file=sys.stderr)
     return 0
 
 if __name__ == "__main__":
