@@ -20,26 +20,23 @@ def added_refs(base: dict, head: dict) -> list[dict]:
     }
     return [
         {"decl": entry["decl"], "module": entry["module"], "line": entry["line"],
-         "db": ref["db"], "id": ref["id"], "url": ref["url"],
-         "comment": ref.get("comment", "")}
+         "db": ref["db"], "id": ref["id"], "url": ref["url"]}
         for entry in head.get("entries", [])
         for ref in entry.get("refs", [])
         if (entry["decl"], ref["db"], ref["id"]) not in old
     ]
 
 def render(rows: list[dict], repo: str, sha: str) -> str:
-    """Render the Markdown table, one row per added cross-reference.
-    """
+    """Render the Markdown table, one row per added cross-reference."""
     if not rows:
         return ""
     lines = ["| Declaration | Reference |", "|---|---|"]
     for r in rows:
         path = r["module"].replace(".", "/") + ".lean"
         permalink = f"https://github.com/{repo}/blob/{sha}/{path}#L{r['line']}"
-        comment = f" ({r['comment']})" if r["comment"] else ""
         lines.append(
             f"| [`{r['decl']}`]({permalink}) "
-            f"| [{r['db']} {r['id']}]({r['url']}){comment} |"
+            f"| [{r['db']} {r['id']}]({r['url']}) |"
         )
     return "\n".join(lines) + "\n"
 
