@@ -1,9 +1,6 @@
 #!/usr/bin/env python3
-"""crossrefsDiff.py — compute the cross-references a PR adds by diffing two
-`crossrefs.json` exports (produced by mathlib4's `scripts/export_crossrefs.lean`)
-and print a Markdown table for the cross-reference summary comment on stdout.
-
-Output is empty when the PR adds no cross-references.
+"""crossrefsDiff.py — compute the cross-references a PR adds by diffing two `crossrefs.json` exports 
+(from mathlib4'/scripts/export_crossrefs.lean`) and prints to stdout an md summary table.
 """
 
 from __future__ import annotations
@@ -15,9 +12,6 @@ from pathlib import Path
 
 def added_refs(base: dict, head: dict) -> list[dict]:
     """Return the flattened references present in `head` but not in `base`.
-
-    One result per reference, not per declaration: a declaration that gains two
-    tags in the same PR yields two rows.
     """
     old = {
         (entry["decl"], ref["db"], ref["id"])
@@ -35,9 +29,6 @@ def added_refs(base: dict, head: dict) -> list[dict]:
 
 def render(rows: list[dict], repo: str, sha: str) -> str:
     """Render the Markdown table, one row per added cross-reference.
-
-    Empty when there is nothing to report, so the caller can treat empty output
-    as "this PR adds no cross-references".
     """
     if not rows:
         return ""
