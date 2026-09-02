@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-"""crossrefsDiff.py — compute the cross-references a PR adds by diffing two `crossrefs.json` exports
-(from `mathlib4/scripts/export_crossrefs.lean`) and print to stdout a Markdown summary table.
+"""crossrefsDiff.py — compute the cross-references a PR adds and print a Markdown summary table.
+
+Diffs the two `crossrefs.json` exports (from `mathlib4/scripts/export_crossrefs.lean`).
 """
 
 from __future__ import annotations
