@@ -11,12 +11,6 @@ import json
 import sys
 from pathlib import Path
 
-
-def read_refs(path: Path) -> dict:
-    """Read a `crossrefs.json` export into its parsed form."""
-    return json.loads(path.read_text(encoding="utf-8"))
-
-
 def ref_keys(data: dict) -> set[tuple[str, str, str]]:
     """Return the `(decl, db, id)` triples present in an export."""
     return {
@@ -24,7 +18,6 @@ def ref_keys(data: dict) -> set[tuple[str, str, str]]:
         for entry in data.get("entries", [])
         for ref in entry.get("refs", [])
     }
-
 
 def added_refs(base: dict, head: dict) -> list[dict]:
     """Return the flattened references present in `head` but not in `base`.
@@ -35,7 +28,7 @@ def added_refs(base: dict, head: dict) -> list[dict]:
     old = ref_keys(base)
     rows = [
         {"decl": entry["decl"], "module": entry["module"], "line": entry["line"],
-         "db": ref["db"], "id": ref["id"], "url": ref.get("url"),
+         "db": ref["db"], "id": ref["id"], "url": ref["url"],
          "comment": ref.get("comment", "")}
         for entry in head.get("entries", [])
         for ref in entry.get("refs", [])
@@ -44,17 +37,10 @@ def added_refs(base: dict, head: dict) -> list[dict]:
     rows.sort(key=lambda r: (r["decl"], r["db"], r["id"]))
     return rows
 
-
 def render(rows: list[dict], repo: str, sha: str) -> str:
-    """Render the Markdown table, one row per added cross-reference.
-
-    Rows without a `url` are skipped: the exporter resolves the link via Lean's
-    `Database.url`, so a missing one means the export predates that field.
-    """
+    """Render the Markdown table, one row per added cross-reference."""
     lines = ["| Declaration | Reference |", "|---|---|"]
     for r in rows:
-        if not r["url"]:
-            continue
         path = r["module"].replace(".", "/") + ".lean"
         permalink = f"https://github.com/{repo}/blob/{sha}/{path}#L{r['line']}"
         comment = f" ({r['comment']})" if r["comment"] else ""
@@ -84,7 +70,6 @@ def parse_args(argv: list[str] | None) -> argparse.Namespace:
                         "when the PR adds no cross-references")
     return p.parse_args(argv)
 
-
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
 
@@ -95,15 +80,15 @@ def main(argv: list[str] | None = None) -> int:
                   file=sys.stderr)
             return 1
 
-    rows = added_refs(read_refs(args.base_crossrefs),
-                      read_refs(args.head_crossrefs))
-    rows = [r for r in rows if r["url"]]
+    base = json.loads(args.base_crossrefs.read_text(encoding="utf-8"))
+    head = json.loads(args.head_crossrefs.read_text(encoding="utf-8"))
+
+    rows = added_refs(base, head)
     if args.table_out is not None and rows:
         args.table_out.write_text(render(rows, args.repo, args.new_sha))
 
     print(f"{len(rows)} cross-reference(s) added.")
     return 0
-
 
 if __name__ == "__main__":
     sys.exit(main())
