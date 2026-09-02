@@ -11,22 +11,19 @@ import json
 import sys
 from pathlib import Path
 
-def ref_keys(data: dict) -> set[tuple[str, str, str]]:
-    """Return the `(decl, db, id)` triples present in an export."""
-    return {
-        (entry["decl"], ref["db"], ref["id"])
-        for entry in data.get("entries", [])
-        for ref in entry.get("refs", [])
-    }
-
 def added_refs(base: dict, head: dict) -> list[dict]:
     """Return the flattened references present in `head` but not in `base`.
 
     One result per reference, not per declaration: a declaration that gains two
-    tags in the same PR yields two rows. The export is already sorted by
-    declaration, then by database and identifier, and filtering preserves that.
+    tags in the same PR yields two rows.
     """
-    old = ref_keys(base)
+    # Index the baseline by `(decl, db, id)` so the membership test below is a
+    # hash lookup rather than a scan of every entry per reference.
+    old = {
+        (entry["decl"], ref["db"], ref["id"])
+        for entry in base.get("entries", [])
+        for ref in entry.get("refs", [])
+    }
     return [
         {"decl": entry["decl"], "module": entry["module"], "line": entry["line"],
          "db": ref["db"], "id": ref["id"], "url": ref["url"],
