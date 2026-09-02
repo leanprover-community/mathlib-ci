@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """crossrefsDiff.py — compute the cross-references a PR adds by diffing two
 `crossrefs.json` exports (produced by mathlib4's `scripts/export_crossrefs.lean`)
-and render a Markdown table for the cross-reference summary comment.
+and print a Markdown table for the cross-reference summary comment on stdout.
+
+Output is empty when the PR adds no cross-references.
 """
 
 from __future__ import annotations
@@ -17,8 +19,6 @@ def added_refs(base: dict, head: dict) -> list[dict]:
     One result per reference, not per declaration: a declaration that gains two
     tags in the same PR yields two rows.
     """
-    # Index the baseline by `(decl, db, id)` so the membership test below is a
-    # hash lookup rather than a scan of every entry per reference.
     old = {
         (entry["decl"], ref["db"], ref["id"])
         for entry in base.get("entries", [])
@@ -34,7 +34,13 @@ def added_refs(base: dict, head: dict) -> list[dict]:
     ]
 
 def render(rows: list[dict], repo: str, sha: str) -> str:
-    """Render the Markdown table, one row per added cross-reference."""
+    """Render the Markdown table, one row per added cross-reference.
+
+    Empty when there is nothing to report, so the caller can treat empty output
+    as "this PR adds no cross-references".
+    """
+    if not rows:
+        return ""
     lines = ["| Declaration | Reference |", "|---|---|"]
     for r in rows:
         path = r["module"].replace(".", "/") + ".lean"
@@ -61,9 +67,6 @@ def parse_args(argv: list[str] | None) -> argparse.Namespace:
                    help="`owner/name` used to build the permalinks")
     p.add_argument("--new-sha", required=True,
                    help="full SHA of the new commit, pinned in the permalinks")
-    p.add_argument("--table-out", type=Path,
-                   help="write the Markdown table here; nothing is written "
-                        "when the PR adds no cross-references")
     return p.parse_args(argv)
 
 def main(argv: list[str] | None = None) -> int:
@@ -80,10 +83,8 @@ def main(argv: list[str] | None = None) -> int:
     head = json.loads(args.head_crossrefs.read_text(encoding="utf-8"))
 
     rows = added_refs(base, head)
-    if args.table_out is not None and rows:
-        args.table_out.write_text(render(rows, args.repo, args.new_sha))
-
-    print(f"{len(rows)} cross-reference(s) added.")
+    print(render(rows, args.repo, args.new_sha), end="")
+    print(f"{len(rows)} cross-reference(s) added.", file=sys.stderr)
     return 0
 
 if __name__ == "__main__":
