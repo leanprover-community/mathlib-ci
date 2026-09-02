@@ -23,10 +23,11 @@ def added_refs(base: dict, head: dict) -> list[dict]:
     """Return the flattened references present in `head` but not in `base`.
 
     One result per reference, not per declaration: a declaration that gains two
-    tags in the same PR yields two rows.
+    tags in the same PR yields two rows. The export is already sorted by
+    declaration, then by database and identifier, and filtering preserves that.
     """
     old = ref_keys(base)
-    rows = [
+    return [
         {"decl": entry["decl"], "module": entry["module"], "line": entry["line"],
          "db": ref["db"], "id": ref["id"], "url": ref["url"],
          "comment": ref.get("comment", "")}
@@ -34,8 +35,6 @@ def added_refs(base: dict, head: dict) -> list[dict]:
         for ref in entry.get("refs", [])
         if (entry["decl"], ref["db"], ref["id"]) not in old
     ]
-    rows.sort(key=lambda r: (r["decl"], r["db"], r["id"]))
-    return rows
 
 def render(rows: list[dict], repo: str, sha: str) -> str:
     """Render the Markdown table, one row per added cross-reference."""
