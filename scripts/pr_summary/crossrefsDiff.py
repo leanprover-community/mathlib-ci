@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """crossrefsDiff.py — compute the cross-references a PR adds by diffing two `crossrefs.json` exports 
-(from mathlib4'/scripts/export_crossrefs.lean`) and prints to stdout an md summary table.
+(from mathlib4'/scripts/export_crossrefs.lean`) and prints to stdout a Markdown summary table.
 """
 
 from __future__ import annotations
@@ -11,8 +11,7 @@ import sys
 from pathlib import Path
 
 def added_refs(base: dict, head: dict) -> list[dict]:
-    """Return the flattened references present in `head` but not in `base`.
-    """
+    """Return the flattened references present in `head` but not in `base`."""
     old = {
         (entry["decl"], ref["db"], ref["id"])
         for entry in base.get("entries", [])

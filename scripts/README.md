@@ -28,11 +28,9 @@ Layout:
   body for the `#### Declarations diff` section of the PR summary comment. With `--with-heading`
   it also emits the `#### Declarations diff (Lean)` heading and `<details>` wrap, for splicing
   into the comment.
-- `crossrefsDiff.py` takes two `crossrefs.json` exports (from mathlib4's
-  `scripts/export_crossrefs.lean`) and emits a Markdown table of the cross-references the PR
-  adds, each linked to its entry in the external database. Used by mathlib4's
-  `crossref_summary.yml`. The link URL comes from the export, so this
-  script needs no knowledge of which databases exist.
+- `crossrefsDiff.py` takes two `crossrefs.json` exports (`mathlib4/scripts/export_crossrefs.lean`) 
+  and emits a Markdown table of the cross-references the PR adds, each linked to its entry 
+  in the external database. 
 - `updateDeclsDiffSection.py` PATCHes the `#### Declarations diff (Lean)` block of a PR's
   `### PR summary` comment with the Lean-aware diff, by replacing the region between the
   `<!-- DECLS_DIFF_LEAN_BEGIN/END -->` markers (the regex block is left untouched). Invoked
