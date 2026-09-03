@@ -1,0 +1,10 @@
+"""Put the composite-action source dir on sys.path so tests can import it."""
+
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+_ACTIONS = Path(__file__).resolve().parents[2] / ".github" / "actions"
+
+sys.path.insert(0, str(_ACTIONS / "broker-create-cache-credentials"))
