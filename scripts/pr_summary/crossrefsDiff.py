@@ -2,7 +2,7 @@
 """crossrefsDiff.py — compute the cross-reference tags a PR adds and print a Markdown summary table.
 
 Diffs the two `crossrefs.json` exports (from `mathlib4/scripts/export_crossrefs.lean`), and displays
-links to the loc with the new tag and the correspodning elaborated databse entry.
+links to the loc with the new tag and the corresponding resolved database entry url.
 """
 
 from __future__ import annotations
