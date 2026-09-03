@@ -1,0 +1,54 @@
+name: Broker Create Cache Credentials
+description: >-
+  Exchange the job's GitHub OIDC token at the mathlib cache broker for
+  short-lived S3-compatible credentials, and export them for the cache
+  tool. The broker scopes each credential to the container namespace
+  that the token's deployment environment is trusted to write. The
+  calling job needs `id-token: write`.
+
+inputs:
+  broker-url:
+    description: Base URL of the cache broker (https, no trailing slash).
+    required: true
+  put-base-url:
+    description: >-
+      S3 base URL of the bucket the credentials write to; exported as
+      MATHLIB_CACHE_PUT_BASE_URL so the cache tool routes its upload
+      there.
+    required: true
+  audience:
+    description: OIDC audience the broker expects.
+    required: false
+    default: mathlib-cache-broker
+  on-failure:
+    description: >-
+      Posture when the mint fails. "warn-and-skip" warns and exports
+      nothing, so the caller's other upload path carries the run;
+      "fail" fails the step. Use "fail" once the broker-backed upload
+      is the only upload path.
+    required: false
+    default: warn-and-skip
+
+runs:
+  using: composite
+  steps:
+    - name: Mint cache credentials from the cache broker
+      shell: bash
+      # Inputs flow through `env:`, never `${{ … }}` inside `run:`:
+      # GitHub expands `${{ … }}` into the script before bash sees it.
+      # On success the script masks the credentials and appends
+      # MATHLIB_CACHE_S3_* , MATHLIB_CACHE_PUT_BASE_URL, and the
+      # non-secret sentinel MATHLIB_CACHE_DEVELOPER_MINTED=true to
+      # GITHUB_ENV for the job's later steps.
+      env:
+        BROKER_URL: ${{ inputs.broker-url }}
+        PUT_BASE_URL: ${{ inputs.put-base-url }}
+        AUDIENCE: ${{ inputs.audience }}
+        ON_FAILURE: ${{ inputs.on-failure }}
+      run: |
+        python3 "${{ github.action_path }}/mint.py" \
+          --broker-url "$BROKER_URL" \
+          --put-base-url "$PUT_BASE_URL" \
+          --audience "$AUDIENCE" \
+          --on-failure "$ON_FAILURE" \
+          --github-env "$GITHUB_ENV"
