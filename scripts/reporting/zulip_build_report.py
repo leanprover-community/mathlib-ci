@@ -302,3 +302,57 @@ def render_summary(messages: List[Message], ctx: ReportContext, limit: int = SUM
         shown[biggest] //= 2
         text = render()
     return text
+
+
+def _first(env: Mapping[str, str], *names: str) -> str:
+    for name in names:
+        value = env.get(name, "")
+        if value:
+            return value
+    return ""
+
+
+def context_from_env(env: Mapping[str, str]) -> ReportContext:
+    """Read the report context from the environment, with the shell script's fallbacks."""
+    return ReportContext(
+        target_repo=_first(env, "TARGET_REPO", "REPO", "GITHUB_REPOSITORY"),
+        target_sha=_first(env, "TARGET_SHA", "SHA", "GITHUB_SHA"),
+        workflow_repo=_first(env, "WORKFLOW_REPO", "REPO", "GITHUB_REPOSITORY"),
+        run_id=_first(env, "WORKFLOW_RUN_ID", "RUN_ID", "GITHUB_RUN_ID"),
+        workflow_name=_first(env, "WORKFLOW", "GITHUB_WORKFLOW"),
+        success=env.get("SUCCESS", "") == "true",
+        show_info=env.get("INFO", "false") != "false",
+    )
+
+
+def main(argv: List[str]) -> int:
+    if len(argv) != 2:
+        print(f"usage: {argv[0]} LOGFILE", file=sys.stderr)
+        return 2
+    with open(argv[1], encoding="utf-8", errors="replace") as f:
+        lines = f.read().split("\n")
+    if lines and lines[-1] == "":
+        lines.pop()
+    ctx = context_from_env(os.environ)
+    messages = classify(parse_build_log(lines))
+
+    # Progress on stderr, in the shell script's wording.
+    filtered = [line for line in lines if not line.startswith(("✔", "trace: "))]
+    print(f"{len(filtered)} lines of output", file=sys.stderr)
+    counts = severity_counts(messages)
+    for label, noun in (("Panics", "panic"), ("Errors", "errors"), ("Warnings", "warnings"), ("Info messages", "info")):
+        if label in counts:
+            print(f"{counts[label]} lines of {noun}", file=sys.stderr)
+
+    delimiter = str(uuid.uuid4())
+    sys.stdout.write(f"zulip-message<<{delimiter}\n{render_zulip(messages, ctx)}{delimiter}\n")
+
+    summary_path = os.environ.get("GITHUB_STEP_SUMMARY", "")
+    if summary_path:
+        with open(summary_path, "a", encoding="utf-8") as f:
+            f.write(render_summary(messages, ctx))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv))
