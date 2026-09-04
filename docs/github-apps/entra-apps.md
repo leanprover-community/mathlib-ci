@@ -10,3 +10,16 @@ Treat each Entra app registration as a security boundary: related GitHub Apps ca
   | GitHub Apps - Mathlib Triage | GH_APP_AZURE_CLIENT_ID_TRIAGE | mathlib-triage | mathlib-triage-app-pk |
   | GitHub Apps - Auto Merge | GH_APP_AZURE_CLIENT_ID_CI_AUTO_MERGE | mathlib-auto-merge | mathlib-auto-merge-app-pk |
   | GitHub Apps - Lean PR Testing | (not currently wired to Azure variable in mathlib4) | mathlib-lean-pr-testing | (no KV key currently used in this repo flow) |
+  | GitHub Apps - Crossref Exports | GH_APP_AZURE_CLIENT_ID_CROSSREFS (in mathlib4 environment "crossref-exports") | crossref-exports-app | crossref-exports-app-pk |
+
+## Cache writer identities
+
+These are not GitHub Apps but OIDC-federated Azure workload identities (no Key Vault keys) used by mathlib4 CI to upload the build cache to the `lakecache` storage account.
+Each is RBAC-scoped to write one Blob Storage container, which is the enforced trust boundary (see mathlib4 `Cache/SECURITY.md`).
+
+| Entra App | App (client) id variable | Container written |
+|---|---|---|
+| Mathlib CI Cache Writer - Master | CACHE_MASTER_WRITER_AZURE_APP_ID | `master` |
+| Mathlib CI Cache Writer - Non-Master | CACHE_NON_MASTER_WRITER_AZURE_APP_ID | `forks` |
+| Mathlib CI Cache Writer - Nightly Testing | CACHE_NIGHTLY_TESTING_WRITER_AZURE_APP_ID | `nightly-testing` |
+| Mathlib CI Cache Writer - PR Toolchain Tests | CACHE_PR_TOOLCHAIN_TESTS_WRITER_AZURE_APP_ID | `pr-toolchain-tests` |
