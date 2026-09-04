@@ -52,8 +52,16 @@ Layout:
 - `late_importers.sh` is the main script used by the `latest_import.yml` action: it formats
   the `linter.minImports` output, summarizing the data in a table.  See the module docs of
   `late_importers.sh` for further details.
-- `zulip_build_report.sh` is used to analyse the output from building the nightly-testing-green
-  branch with additional linting enabled, and posts a summary of its findings on zulip.
+- `zulip_build_report.py` summarises a `lake build` log (e.g. the weekly linting run) for
+  Zulip: severity counts, a per-linter count table, and spoiler tables for errors and panics.
+  The full per-occurrence detail, with links to the source at the built commit, goes to the
+  GitHub job summary (`GITHUB_STEP_SUMMARY`). Messages are attributed to linters via the
+  "This linter can be disabled with `set_option ... false`" note. It takes the same environment
+  variables as `zulip_build_report.sh`, which it supersedes.
+- `zulip_build_report.sh` is the previous, text-only version of the above: it analyses the
+  output from building the nightly-testing-green branch with additional linting enabled, and
+  posts a summary of its findings on zulip. Still used by the nightly-testing workflows in this
+  repository.
 
 ## `maintainer/`
 - `get_tlabel.sh` extracts the `t-`label that a PR has (assuming that there is exactly one).
