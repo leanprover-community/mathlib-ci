@@ -8,6 +8,14 @@ mathlib4 workflows should checkout this repository in a trusted path (for
 example `ci-tools/`) and execute scripts from `ci-tools/scripts/...`.
 
 
+## Tests
+
+Python test suites live under `tests/`, one directory per script or composite action.
+Run them all with `pytest`, or a single suite with `pytest tests/<suite>`. Each suite
+also has a `test_*.yml` workflow that runs it whenever its sources or tests change.
+
+Test file basenames must be unique across suites — see the comment in `pytest.ini`.
+
 ## Contents
 - PR/label/comment automation scripts
 - Zulip reporting and emoji sync scripts
