@@ -18,6 +18,9 @@ Layout:
   It is used by the `PR_summary` workflow to maintain an up-to-date report with a searchable history.
 - `count-trans-deps.py`, `import-graph-report.py` and `import_trans_difference.sh` produce various
   summaries of changes in transitive imports that the `PR_summary` message incorporates.
+  `count-trans-deps.py` parses import headers with a regex rather than building Mathlib, so
+  it must track Lean's import grammar — `(public)? (meta)? import (all)? <module>`, plus
+  mathlib's trailing `-- shake: keep` comments. Tested by `tests/trans_deps/`.
 - `dumpReasonableDecls.lean` writes (to `--out`) a sorted list of every "reasonable"
   declaration in the imported environment and (to `--imports-out`) a single-line JSON of
   per-module transitive-import counts (format-compatible with `count-trans-deps.py`). Both
