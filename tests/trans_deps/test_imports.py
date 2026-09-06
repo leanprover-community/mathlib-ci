@@ -2,10 +2,11 @@
 
 Lean's import grammar is `(public)? (meta)? import (all)? <module>` (see
 `Mathlib/Tactic/Linter/Header.lean`), and mathlib annotates many imports with a
-trailing `-- shake: keep` comment.  Every one of those shapes has to yield the bare
-module name: a `ref` that carries a comment along with it does not match any module
-in the graph, so it is silently treated as a boundary leaf and the whole subtree
-behind it vanishes from the count.
+trailing `-- shake: keep` comment.  A comment opener needs no whitespace in front of
+it, so the module name ends at the first whitespace *or* comment opener.  Every one
+of those shapes has to yield the bare module name: a `ref` that carries a comment
+along with it does not match any module in the graph, so it is silently treated as a
+boundary leaf and the whole subtree behind it vanishes from the count.
 """
 
 from __future__ import annotations
@@ -64,8 +65,33 @@ class TestTrailingText:
         """`Mathlib/Tactic/Lemma.lean` writes `--shake: keep` with no space."""
         assert _ref("public import Mathlib.Bar  --shake: keep\n") == "Mathlib.Bar"
 
+    def test_line_comment_with_no_separating_space(self) -> None:
+        """Lean needs no whitespace before `--`; the comment is still not the module."""
+        assert _ref("public import Mathlib.Bar-- shake: keep\n") == "Mathlib.Bar"
+
+    def test_line_comment_with_no_space_on_either_side(self) -> None:
+        assert _ref("public import Mathlib.Bar--shake: keep\n") == "Mathlib.Bar"
+
     def test_block_comment(self) -> None:
         assert _ref("public import Mathlib.Bar /- keep -/\n") == "Mathlib.Bar"
+
+    def test_block_comment_with_no_separating_space(self) -> None:
+        assert _ref("public import Mathlib.Bar/- keep -/\n") == "Mathlib.Bar"
+
+    def test_doc_comment_with_no_separating_space(self) -> None:
+        """`/--` opens a comment too, and starts with `--` only after the `/`."""
+        assert _ref("public import Mathlib.Bar/-- keep -/\n") == "Mathlib.Bar"
+
+    def test_comment_directly_after_import_all(self) -> None:
+        assert _ref("import all Mathlib.Bar-- keep\n") == "Mathlib.Bar"
+
+    def test_hyphen_is_not_a_comment(self) -> None:
+        """A single `-` opens nothing, so it stays part of the token it is read from.
+
+        No mathlib module is named this way, but the module name must not be truncated
+        at the first `-`: that would silently point the walk at a different module.
+        """
+        assert _ref("import Mathlib.Bar-Baz\n") == "Mathlib.Bar-Baz"
 
     def test_meta_import_with_comment(self) -> None:
         """`Mathlib/Tactic/Echelon/Parsing.lean` combines both; it counted 0 imports."""

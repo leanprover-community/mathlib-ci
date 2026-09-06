@@ -11,9 +11,10 @@ import json
 import sys
 
 # Lean's import grammar is `(public)? (meta)? import (all)? <module>`, and an import may
-# be followed by a trailing comment (`-- shake: keep`, ...), so the module name is the
-# first whitespace-delimited token after the keywords.
-IMPORT_RE = re.compile(r'^(?:public\s+)?(?:meta\s+)?import(?:\s+all)?\s+(?P<ref>\S+)')
+# be followed by a trailing comment (`-- shake: keep`, ...), so the module name ends at
+# the first whitespace or comment opener after the keywords.  The comment need not be
+# separated from the module name: `import Mathlib.Bar-- shake: keep` is one token.
+IMPORT_RE = re.compile(r'^(?:public\s+)?(?:meta\s+)?import(?:\s+all)?\s+(?P<ref>\S+?)(?=\s|--|/-|$)')
 
 def get_imports(directory):
     # Initialize an empty dictionary
