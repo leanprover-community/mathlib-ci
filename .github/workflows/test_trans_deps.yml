@@ -1,0 +1,33 @@
+name: Test transitive-import counting
+
+# Runs the unit-test suite for `scripts/pr_summary/count-trans-deps.py` on every
+# push / PR that touches its source or its tests.
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - scripts/pr_summary/count-trans-deps.py
+      - tests/trans_deps/**
+      - .github/workflows/test_trans_deps.yml
+      - pytest.ini
+  pull_request:
+    paths:
+      - scripts/pr_summary/count-trans-deps.py
+      - tests/trans_deps/**
+      - .github/workflows/test_trans_deps.yml
+      - pytest.ini
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6.2.0
+        with:
+          python-version: '3.x'
+      - run: python3 -m pip install --upgrade pip pytest
+      - run: python3 -m pytest tests/trans_deps -v

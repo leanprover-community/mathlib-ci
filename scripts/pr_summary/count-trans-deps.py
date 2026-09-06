@@ -10,6 +10,12 @@ import re
 import json
 import sys
 
+# Lean's import grammar is `(public)? (meta)? import (all)? <module>`, and an import may
+# be followed by a trailing comment (`-- shake: keep`, ...), so the module name ends at
+# the first whitespace or comment opener after the keywords.  The comment need not be
+# separated from the module name: `import Mathlib.Bar-- shake: keep` is one token.
+IMPORT_RE = re.compile(r'^(?:public\s+)?(?:meta\s+)?import(?:\s+all)?\s+(?P<ref>\S+?)(?=\s|--|/-|$)')
+
 def get_imports(directory):
     # Initialize an empty dictionary
     file_imports = {}
@@ -32,7 +38,7 @@ def get_imports(directory):
                         if '/-!' in line:
                             break
                         # Find an import statement
-                        match = re.match(r'^(public )?import\s+(?P<ref>.*)', line)
+                        match = IMPORT_RE.match(line)
                         if match:
                             imports.append(match.groupdict()['ref'])
 
@@ -76,16 +82,25 @@ def count_transitive_imports(transitive_imports):
 
     return count_imports
 
-# Check if the directory name is provided as a command line argument
-if len(sys.argv) < 2:
-    print("Please provide the directory name as a command line argument.")
-    sys.exit(1)
+def main(argv=None):
+    argv = sys.argv[1:] if argv is None else argv
 
-# Get the directory name from the command line argument
-directory = sys.argv[1]
+    # Check if the directory name is provided as a command line argument
+    if not argv:
+        print("Please provide the directory name as a command line argument.")
+        return 1
 
-# Compute the counts
-counts = count_transitive_imports(get_transitive_imports(get_imports(directory)))
+    # Get the directory name from the command line argument
+    directory = argv[0]
 
-# Print the counts in JSON format
-print(json.dumps(counts))
+    # Compute the counts
+    counts = count_transitive_imports(get_transitive_imports(get_imports(directory)))
+
+    # Print the counts in JSON format
+    print(json.dumps(counts))
+
+    return 0
+
+
+if __name__ == '__main__':
+    sys.exit(main())
