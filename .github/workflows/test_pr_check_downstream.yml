@@ -12,12 +12,14 @@ on:
       - .github/actions/check-downstream-ack/**
       - tests/pr_check_downstream/**
       - .github/workflows/test_pr_check_downstream.yml
+      - pytest.ini
   pull_request:
     paths:
       - .github/actions/check-downstream-validate/**
       - .github/actions/check-downstream-ack/**
       - tests/pr_check_downstream/**
       - .github/workflows/test_pr_check_downstream.yml
+      - pytest.ini
 
 permissions:
   contents: read

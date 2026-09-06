@@ -11,11 +11,13 @@ on:
       - scripts/verification/**
       - tests/verify_commits/**
       - .github/workflows/test_verify_commits.yml
+      - pytest.ini
   pull_request:
     paths:
       - scripts/verification/**
       - tests/verify_commits/**
       - .github/workflows/test_verify_commits.yml
+      - pytest.ini
 
 permissions:
   contents: read
