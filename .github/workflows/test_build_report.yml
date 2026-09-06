@@ -1,0 +1,35 @@
+name: Test build-report script
+
+# Runs the unit-test suite for `scripts/reporting/zulip_build_report.py` on every
+# push / PR that touches the script or its tests.
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - scripts/reporting/zulip_build_report.py
+      - tests/build_report/**
+      - .github/workflows/test_build_report.yml
+  pull_request:
+    paths:
+      - scripts/reporting/zulip_build_report.py
+      - tests/build_report/**
+      - .github/workflows/test_build_report.yml
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        # 3.8 is the floor the script targets (the self-hosted runners' Python is not pinned).
+        python-version: ['3.8', '3.x']
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6.2.0
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: python3 -m pip install --upgrade pip pytest
+      - run: python3 -m pytest tests/build_report -v

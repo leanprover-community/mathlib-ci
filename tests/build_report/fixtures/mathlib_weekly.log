@@ -1,0 +1,2658 @@
+⚠ [87/158] Built Mathlib.Tactic.CrossRefAttribute (2.4s)
+warning: Mathlib/Tactic/CrossRefAttribute.lean:217:0: expected '_' without preceding space
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Tactic/CrossRefAttribute.lean:224:0: expected '_' without preceding space
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [508/6091] Built Mathlib.Tactic.Polynomial.Core (1.7s)
+warning: Mathlib/Tactic/Polynomial/Core.lean:35:0: expected '_' without preceding space
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [581/8560] Built Mathlib.Order.Interval.Set.Defs (1.9s)
+warning: Mathlib/Order/Interval/Set/Defs.lean:58:0: expected ']'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [623/8570] Built Mathlib.Data.List.Triplewise (10s)
+warning: Mathlib/Data/List/Triplewise.lean:39:2: `grind?` suggestion failed: `grind only` did not close the goal
+ℹ [638/8737] Built Mathlib.Data.List.Defs (3.2s)
+info: Mathlib/Data/List/Defs.lean:173:27: 'simp_wf; grind' can be replaced with 'grind'
+
+Try this:
+  [apply] grind
+info: Mathlib/Data/List/Defs.lean:173:27: 'simp_wf; grind' can be replaced with 'grind'
+
+Try this:
+  [apply] grind
+⚠ [658/8741] Built Mathlib.Logic.Relation (4.8s)
+warning: Mathlib/Logic/Relation.lean:318:2: `grind?` suggestion failed: `grind only` did not close the goal
+warning: Mathlib/Logic/Relation.lean:322:2: `grind?` suggestion failed: `grind only` did not close the goal
+⚠ [851/8843] Built Mathlib.Algebra.Group.Units.Defs (5.9s)
+warning: Mathlib/Algebra/Group/Units/Defs.lean:10:0: expected identifier
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Algebra/Group/Units/Defs.lean:1:0: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [1005/8843] Built Mathlib.Order.Iterate (2.5s)
+warning: Mathlib/Order/Iterate.lean:32:0: expected token
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Order/Iterate.lean:32:0: unexpected '≤'; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Order/Iterate.lean:3:19: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [1055/8843] Built Mathlib.Data.List.Count (3.2s)
+warning: Mathlib/Data/List/Count.lean:42:2: `grind?` suggestion failed: `grind only [=_ erase_filter, = length_erase, usr length_pos_of_mem,
+  = mem_filter]` did not close the goal
+⚠ [1058/8843] Built Mathlib.Data.List.Basic (9.9s)
+warning: Mathlib/Data/List/Basic.lean:500:2: `grind?` suggestion failed: `grind only [length_eq_zero_iff]` did not close the goal
+warning: Mathlib/Data/List/Basic.lean:503:2: `grind?` suggestion failed: `grind only [length_eq_zero_iff]` did not close the goal
+warning: Mathlib/Data/List/Basic.lean:514:2: `grind?` suggestion failed: `grind only [head_dropLast hnil.1, head_dropLast hnil.2]` did not close the goal
+⚠ [1070/8843] Built Mathlib.Data.List.TakeDrop (10s)
+warning: Mathlib/Data/List/TakeDrop.lean:96:2: `grind?` suggestion failed: `grind only [= getElem_take, = getElem_tail, = getElem?_tail, = getElem?_nil,
+  = getElem?_pos]` did not close the goal
+warning: Mathlib/Data/List/TakeDrop.lean:100:2: `grind?` suggestion failed: `grind only [= getElem?_pos, = getElem?_take, = getElem_take, = getElem_dropLast,
+  = getElem?_dropLast, = getElem?_nil]` did not close the goal
+⚠ [1123/8843] Built Mathlib.Order.WithBot (20s)
+warning: Mathlib/Order/WithBot.lean:386:2: `grind?` suggestion failed: `grind only` did not close the goal
+⚠ [1125/8843] Built Mathlib.Data.List.Chain (6.5s)
+warning: Mathlib/Data/List/Chain.lean:154:41: `grind?` suggestion failed: `grind only` did not close the goal
+⚠ [1180/8843] Built Mathlib.Data.Set.Disjoint (2.5s)
+warning: Mathlib/Data/Set/Disjoint.lean:57:88: `grind?` suggestion failed: `grind only` did not close the goal
+⚠ [1198/8843] Built Mathlib.Data.List.Nodup (28s)
+info: Mathlib/Data/List/Nodup.lean:142:60: 'rw [← count_pos_iff]; grind' can be replaced with 'grind'
+
+Try this:
+  [apply] grind
+warning: Mathlib/Data/List/Nodup.lean:270:2: `grind?` suggestion failed: `grind only [= head_append, usr prefix_append, = head_eq_getElem,
+  usr getElem_mem]` did not close the goal
+warning: Mathlib/Data/List/Nodup.lean:278:2: `grind?` suggestion failed: `grind only [= head_append, = head_eq_getElem, usr getElem_mem,
+  = getLast_eq_getElem]` did not close the goal
+⚠ [1231/8843] Built Mathlib.Data.List.Sigma (5.0s)
+warning: Mathlib/Data/List/Sigma.lean:74:2: `grind?` suggestion failed: `grind only` did not close the goal
+ℹ [1316/8843] Built Mathlib.Data.Multiset.Find (3.3s)
+info: Mathlib/Data/Multiset/Find.lean:81:6: 'simp_rw [ih]; grind' can be replaced with 'grind'
+
+Try this:
+  [apply] grind
+info: Mathlib/Data/Multiset/Find.lean:92:4: 'dsimp [Set.Subsingleton] at hp; grind' can be replaced with 'grind'
+
+Try this:
+  [apply] grind
+⚠ [1436/8843] Built Mathlib.Data.Set.Prod (8.8s)
+warning: Mathlib/Data/Set/Prod.lean:476:0: expected '_' without preceding space
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Data/Set/Prod.lean:479:0: expected '_' without preceding space
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Data/Set/Prod.lean:492:0: expected '_' without preceding space
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Data/Set/Prod.lean:496:0: expected '_' without preceding space
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Data/Set/Prod.lean:3:59: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Data/Set/Prod.lean:4:16: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Data/Set/Prod.lean:499:0: expected '_' without preceding space
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [1640/8843] Built Mathlib.Data.Finset.Range (4.0s)
+warning: Mathlib/Data/Finset/Range.lean:113:2: `grind?` suggestion failed: `grind only [= nonempty_def, ← notMem_empty]` did not close the goal
+⚠ [1717/8843] Built Mathlib.Data.Finset.Image (8.3s)
+warning: Mathlib/Data/Finset/Image.lean:327:2: `grind?` suggestion failed: `grind only` did not close the goal
+⚠ [1860/8843] Built Mathlib.Control.Functor.Multivariate (4.8s)
+warning: Mathlib/Control/Functor/Multivariate.lean:12:0: expected '`' to close inline code
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Control/Functor/Multivariate.lean:30:0: expected '`' to close inline code
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [1864/8843] Built Mathlib.Data.Finset.Prod (7.5s)
+warning: Mathlib/Data/Finset/Prod.lean:374:2: `grind?` suggestion failed: `grind only [= card_disjUnion, Nat.mul_sub_one]` did not close the goal
+⚠ [1865/8843] Built Mathlib.Algebra.Order.Field.Basic (13s)
+warning: Mathlib/Algebra/Order/Field/Basic.lean:327:2: `grind?` suggestion failed: `grind only` did not close the goal
+⚠ [1919/8843] Built Mathlib.Order.SemiconjSup (2.8s)
+warning: Mathlib/Order/SemiconjSup.lean:113:0: expected identifier
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Order/SemiconjSup.lean:5:0: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [1943/8843] Built Mathlib.Algebra.BigOperators.Group.Finset.Basic (21s)
+warning: Mathlib/Algebra/BigOperators/Group/Finset/Basic.lean:582:2: `grind?` suggestion failed: `grind only` did not close the goal
+⚠ [2061/8843] Built Mathlib.Data.Finset.Powerset (6.4s)
+warning: Mathlib/Data/Finset/Powerset.lean:78:69: `grind?` suggestion failed: `grind only [= mem_coe, H.eq_iff]` did not close the goal
+⚠ [2157/8843] Built Mathlib.Data.DFinsupp.Defs (11s)
+warning: Mathlib/Data/DFinsupp/Defs.lean:794:0: unexpected '\'; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Data/DFinsupp/Defs.lean:3:54: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [2158/8843] Built Mathlib.Order.SuccPred.Limit (9.1s)
+warning: Mathlib/Order/SuccPred/Limit.lean:274:2: `grind?` suggestion failed: `grind only` did not close the goal
+⚠ [2162/8843] Built Mathlib.Basic.Real.Sign (2.9s)
+warning: Mathlib/Basic/Real/Sign.lean:1:0: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [2167/8843] Built Mathlib.Data.Set.Pointwise.Support (2.3s)
+warning: Mathlib/Data/Set/Pointwise/Support.lean:33:0: expected '_' without preceding space
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Data/Set/Pointwise/Support.lean:51:0: expected '_' without preceding space
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [2288/8843] Built Mathlib.Order.Interval.Finset.Defs (13s)
+warning: Mathlib/Order/Interval/Finset/Defs.lean:283:0: expected ']'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Order/Interval/Finset/Defs.lean:354:0: expected ']'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [2290/8843] Built Mathlib.Algebra.Order.BigOperators.Group.Finset (12s)
+warning: Mathlib/Algebra/Order/BigOperators/Group/Finset.lean:662:4: `grind?` suggestion failed: `grind only [= sum_singleton']` did not close the goal
+⚠ [2341/8843] Built Mathlib.Data.List.Cycle (40s)
+warning: Mathlib/Data/List/Cycle.lean:280:2: `grind?` suggestion failed: `grind only [!dropLast_append_getLast, usr idxOf_lt_length_iff, usr length_pos_of_mem,
+  = length_append, = idxOf_append, = dropLast_append, = mem_append, = length_dropLast, = length_cons, = idxOf_cons,
+  = mem_cons, → nil_of_isEmpty, ← not_mem_nil, = length_nil, = dropLast_singleton,
+  next_getLast_eq_head_of_notMem_dropLast, Nat.mod_self, = head_eq_getElem]` did not close the goal
+⚠ [2352/8843] Built Mathlib.Order.Filter.AtTopBot.Group (3.8s)
+warning: Mathlib/Order/Filter/AtTopBot/Group.lean:138:0: unexpected '\'; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Order/Filter/AtTopBot/Group.lean:2:3: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Order/Filter/AtTopBot/Group.lean:143:0: unexpected '\'; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Order/Filter/AtTopBot/Group.lean:2:3: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+ℹ [2497/8843] Built Mathlib.MeasureTheory.MeasurableSpace.Defs (4.8s)
+info: Mathlib/MeasureTheory/MeasurableSpace/Defs.lean:222:77: 'simp; grind' can be replaced with 'grind'
+
+Try this:
+  [apply] grind
+ℹ [2524/8843] Built Mathlib.Order.CountableSupClosed (6.4s)
+info: Mathlib/Order/CountableSupClosed.lean:58:35: 'simp [range]; grind' can be replaced with 'grind'
+
+Try this:
+  [apply] grind
+info: Mathlib/Order/CountableSupClosed.lean:184:26: 'simp; grind' can be replaced with 'grind'
+
+Try this:
+  [apply] grind
+⚠ [2583/8843] Built Mathlib.Combinatorics.SimpleGraph.Walk.Traversal (10s)
+warning: Mathlib/Combinatorics/SimpleGraph/Walk/Traversal.lean:111:2: `grind?` suggestion failed: `grind only [= getElem?_neg, = Option.getD_none]` did not close the goal
+⚠ [2607/8843] Built Mathlib.ModelTheory.Basic (8.1s)
+warning: Mathlib/ModelTheory/Basic.lean:10:0: '_'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [2650/8843] Built Mathlib.Order.Interval.Finset.Fin (9.8s)
+warning: Mathlib/Order/Interval/Finset/Fin.lean:914:2: `grind?` suggestion failed: `grind only` did not close the goal
+⚠ [2670/8843] Built Mathlib.Combinatorics.SimpleGraph.Coloring.EdgeLabeling (4.2s)
+warning: Mathlib/Combinatorics/SimpleGraph/Coloring/EdgeLabeling.lean:211:2: `grind?` suggestion failed: `grind only` did not close the goal
+⚠ [2685/8843] Built Mathlib.Algebra.Ring.Semireal.Defs (2.7s)
+warning: Mathlib/Algebra/Ring/Semireal/Defs.lean:10:0: '_'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [2735/8843] Built Mathlib.NumberTheory.ADEInequality (3.7s)
+warning: Mathlib/NumberTheory/ADEInequality.lean:54:0: expected '_' without preceding space
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/NumberTheory/ADEInequality.lean:62:0: expected token
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/NumberTheory/ADEInequality.lean:62:0: unexpected end of input; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/NumberTheory/ADEInequality.lean:8:9: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/NumberTheory/ADEInequality.lean:70:0: expected token
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/NumberTheory/ADEInequality.lean:70:0: unexpected end of input; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/NumberTheory/ADEInequality.lean:8:25: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/NumberTheory/ADEInequality.lean:78:0: expected '_' without preceding space
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/NumberTheory/ADEInequality.lean:86:0: expected '_' without preceding space
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/NumberTheory/ADEInequality.lean:94:0: expected '_' without preceding space
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [2765/8843] Built Mathlib.Computability.Partrec (10s)
+warning: Mathlib/Computability/Partrec.lean:749:4: `grind?` suggestion failed: `grind only [mem_unique]` did not close the goal
+⚠ [2849/8843] Built Mathlib.Tactic.Determinant.Bird.Meta (7.3s)
+warning: Mathlib/Tactic/Determinant/Bird/Meta.lean:48:0: expected '`' to close inline code
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [2887/8843] Built Mathlib.Computability.PartrecCode (20s)
+warning: Mathlib/Computability/PartrecCode.lean:11:0: '_'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Computability/PartrecCode.lean:525:0: expected '_' without preceding space
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [2966/8843] Built Mathlib.CategoryTheory.Limits.Fubini (14s)
+warning: Mathlib/CategoryTheory/Limits/Fubini.lean:13:0: unexpected '×'; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/CategoryTheory/Limits/Fubini.lean:3:9: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [2990/8843] Built Mathlib.Combinatorics.Hypergraph.Basic (4.4s)
+warning: Mathlib/Combinatorics/Hypergraph/Basic.lean:109:2: `grind?` suggestion failed: `grind only [he.subset_vertexSet, he'.subset_vertexSet]` did not close the goal
+info: Mathlib/Combinatorics/Hypergraph/Basic.lean:231:4: 'right; grind' can be replaced with 'grind'
+
+Try this:
+  [apply] grind
+⚠ [3001/8843] Built Mathlib.MeasureTheory.SetSemiring (29s)
+warning: Mathlib/MeasureTheory/SetSemiring.lean:502:6: `grind?` suggestion failed: `grind only [= mem_singleton_iff, = Set.mem_Ioc,
+  = mem_empty_iff_false]` did not close the goal
+warning: Mathlib/MeasureTheory/SetSemiring.lean:506:6: `grind?` suggestion failed: `grind only [= mem_singleton_iff, = Set.mem_Ioc,
+  = mem_empty_iff_false]` did not close the goal
+info: Mathlib/MeasureTheory/SetSemiring.lean:510:4: 'simp [Function.onFun]; grind' can be replaced with 'grind'
+
+Try this:
+  [apply] grind
+⚠ [3004/8843] Built Mathlib.Data.Fin.Tuple.NatAntidiagonal (7.2s)
+warning: Mathlib/Data/Fin/Tuple/NatAntidiagonal.lean:159:6: `grind?` suggestion failed: `grind only [= Prod.map_snd, = Prod.map_fst, = id.eq_1]` did not close the goal
+⚠ [3061/8843] Built Mathlib.Algebra.Ring.GeomSum (5.3s)
+warning: Mathlib/Algebra/Ring/GeomSum.lean:13:0: unexpected '='; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Algebra/Ring/GeomSum.lean:3:48: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Algebra/Ring/GeomSum.lean:75:0: expected token
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Algebra/Ring/GeomSum.lean:75:0: unexpected '`'; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Algebra/Ring/GeomSum.lean:1:0: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Algebra/Ring/GeomSum.lean:135:0: expected token
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Algebra/Ring/GeomSum.lean:135:0: unexpected '`'; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Algebra/Ring/GeomSum.lean:1:0: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [3090/8843] Built Mathlib.CategoryTheory.Limits.Preserves.Bifunctor (10s)
+warning: Mathlib/CategoryTheory/Limits/Preserves/Bifunctor.lean:13:0: expected identifier
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/CategoryTheory/Limits/Preserves/Bifunctor.lean:11:13: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/CategoryTheory/Limits/Preserves/Bifunctor.lean:71:0: expected identifier
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/CategoryTheory/Limits/Preserves/Bifunctor.lean:9:11: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/CategoryTheory/Limits/Preserves/Bifunctor.lean:81:0: expected identifier
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/CategoryTheory/Limits/Preserves/Bifunctor.lean:8:36: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [3137/8843] Built Mathlib.Combinatorics.Schnirelmann (12s)
+warning: Mathlib/Combinatorics/Schnirelmann.lean:17:0: unexpected '>'; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Combinatorics/Schnirelmann.lean:3:42: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Combinatorics/Schnirelmann.lean:53:0: expected identifier
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Combinatorics/Schnirelmann.lean:1:0: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [3147/8843] Built Mathlib.Algebra.Order.Ring.GeomSum (3.6s)
+warning: Mathlib/Algebra/Order/Ring/GeomSum.lean:12:0: unexpected '='; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Algebra/Order/Ring/GeomSum.lean:4:2: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [3150/8843] Built Mathlib.Algebra.Field.GeomSum (3.4s)
+warning: Mathlib/Algebra/Field/GeomSum.lean:11:0: unexpected '='; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Algebra/Field/GeomSum.lean:3:49: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Algebra/Field/GeomSum.lean:11:0: unexpected '='; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Algebra/Field/GeomSum.lean:9:35: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [3203/8843] Built Mathlib.Combinatorics.SimpleGraph.Paths (17s)
+warning: Mathlib/Combinatorics/SimpleGraph/Paths.lean:750:31: `grind?` suggestion failed: `grind only [usr List.length_pos_of_mem]` did not close the goal
+⚠ [3225/8843] Built Mathlib.Algebra.Order.Field.GeomSum (3.9s)
+warning: Mathlib/Algebra/Order/Field/GeomSum.lean:11:0: unexpected '='; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Algebra/Order/Field/GeomSum.lean:4:3: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [3229/8843] Built Mathlib.Combinatorics.Colex (6.9s)
+warning: Mathlib/Combinatorics/Colex.lean:14:0: unexpected '∈'; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Combinatorics/Colex.lean:12:20: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [3376/8843] Built Mathlib.Combinatorics.SimpleGraph.Connectivity.Subgraph (11s)
+warning: Mathlib/Combinatorics/SimpleGraph/Connectivity/Subgraph.lean:294:2: `grind?` suggestion failed: `grind only` did not close the goal
+⚠ [3377/8843] Built Mathlib.NumberTheory.MaricaSchoenheim (3.1s)
+warning: Mathlib/NumberTheory/MaricaSchoenheim.lean:11:0: unexpected ','; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/NumberTheory/MaricaSchoenheim.lean:4:16: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/NumberTheory/MaricaSchoenheim.lean:30:0: unexpected ','; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/NumberTheory/MaricaSchoenheim.lean:8:0: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [3514/8843] Built Mathlib.NumberTheory.ArithmeticFunction.Misc (6.0s)
+warning: Mathlib/NumberTheory/ArithmeticFunction/Misc.lean:52:0: unexpected '\'; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/NumberTheory/ArithmeticFunction/Misc.lean:2:22: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [3576/8843] Built Mathlib.Topology.MetricSpace.Pseudo.Defs (11s)
+warning: Mathlib/Topology/MetricSpace/Pseudo/Defs.lean:1156:23: `grind?` suggestion failed: `grind only` did not close the goal
+⚠ [3596/8843] Built Mathlib.CategoryTheory.Limits.Shapes.Equalizers (16s)
+warning: Mathlib/CategoryTheory/Limits/Shapes/Equalizers.lean:12:0: unexpected '∈'; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/CategoryTheory/Limits/Shapes/Equalizers.lean:1:0: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [3626/8843] Built Mathlib.NumberTheory.SelbergSieve (5.4s)
+warning: Mathlib/NumberTheory/SelbergSieve.lean:12:0: expected identifier
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/NumberTheory/SelbergSieve.lean:1:0: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/NumberTheory/SelbergSieve.lean:188:0: expected identifier
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/NumberTheory/SelbergSieve.lean:1:0: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [3633/8843] Built Mathlib.LinearAlgebra.Dual.Defs (9.6s)
+warning: Mathlib/LinearAlgebra/Dual/Defs.lean:1:0: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [3659/8843] Built Mathlib.Combinatorics.SimpleGraph.Extremal.Turan (12s)
+info: Mathlib/Combinatorics/SimpleGraph/Extremal/Turan.lean:416:4: 'nth_rw 1 [← n.mod_add_div 3]; grind' can be replaced with 'grind'
+
+Try this:
+  [apply] grind
+warning: Mathlib/Combinatorics/SimpleGraph/Extremal/Turan.lean:417:4: `grind?` suggestion failed: `grind only` did not close the goal
+⚠ [3678/8843] Built Mathlib.NumberTheory.FundamentalDiscriminant (133s)
+warning: Mathlib/NumberTheory/FundamentalDiscriminant.lean:74:4: `grind?` suggestion failed: `grind only [= Nat.odd_iff, = odd_iff]` did not close the goal
+⚠ [3688/8843] Built Mathlib.Combinatorics.SimpleGraph.UnitDistance.Basic (3.5s)
+warning: Mathlib/Combinatorics/SimpleGraph/UnitDistance/Basic.lean:11:0: '_'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [3689/8843] Built Mathlib.LinearAlgebra.Dual.Basis (5.1s)
+warning: Mathlib/LinearAlgebra/Dual/Basis.lean:272:0: unexpected '∈'; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/LinearAlgebra/Dual/Basis.lean:2:22: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [3710/8843] Built Mathlib.Combinatorics.SimpleGraph.CompleteMultipartite (11s)
+warning: Mathlib/Combinatorics/SimpleGraph/CompleteMultipartite.lean:207:0: '_'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+ℹ [3761/8843] Built Mathlib.Combinatorics.SimpleGraph.Tutte (16s)
+info: Mathlib/Combinatorics/SimpleGraph/Tutte.lean:232:6: 'rw [Walk.nil_takeUntil]; grind' can be replaced with 'grind'
+
+Try this:
+  [apply] grind
+⚠ [3814/8843] Built Mathlib.LinearAlgebra.LinearIndependent.Lemmas (18s)
+warning: Mathlib/LinearAlgebra/LinearIndependent/Lemmas.lean:558:2: `grind?` suggestion failed: `grind only` did not close the goal
+⚠ [3815/8843] Built Mathlib.Combinatorics.SimpleGraph.FiveWheelLike (28s)
+warning: Mathlib/Combinatorics/SimpleGraph/FiveWheelLike.lean:12:0: expected ']'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Combinatorics/SimpleGraph/FiveWheelLike.lean:12:0: expected ']'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+ℹ [3866/8843] Built Mathlib.Topology.Order.Basic (16s)
+info: Mathlib/Topology/Order/Basic.lean:175:4: 'simp only [mem_image, exists_exists_and_eq_and, ofPred_subset_ofPred, forall_exists_index,
+  and_imp]; grind' can be replaced with 'grind'
+
+Try this:
+  [apply] grind
+⚠ [3872/8843] Built Mathlib.GroupTheory.SpecificGroups.Alternating (11s)
+warning: Mathlib/GroupTheory/SpecificGroups/Alternating.lean:70:0: expected '_' without preceding space
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/GroupTheory/SpecificGroups/Alternating.lean:276:0: expected '_' without preceding space
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/GroupTheory/SpecificGroups/Alternating.lean:320:0: expected '_' without preceding space
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [3885/8843] Built Mathlib.LinearAlgebra.Projection (18s)
+warning: Mathlib/LinearAlgebra/Projection.lean:14:0: expected '`' to close inline code
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [3907/8843] Built Mathlib.Topology.Order.LowerUpperTopology (5.3s)
+warning: Mathlib/Topology/Order/LowerUpperTopology.lean:245:0: expected ']'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Topology/Order/LowerUpperTopology.lean:271:0: expected ']'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [3978/8843] Built Mathlib.Algebra.SkewPolynomial.Basic (9.5s)
+warning: Mathlib/Algebra/SkewPolynomial/Basic.lean:1:0: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [4004/8843] Built Mathlib.FieldTheory.RatFunc.Defs (5.1s)
+warning: Mathlib/FieldTheory/RatFunc/Defs.lean:11:0: '_'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [4013/8843] Built Mathlib.GroupTheory.SpecificGroups.Dihedral (6.8s)
+warning: Mathlib/GroupTheory/SpecificGroups/Dihedral.lean:253:0: expected '*' without preceding space
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [4060/8843] Built Mathlib.GroupTheory.CosetCover (16s)
+warning: Mathlib/GroupTheory/CosetCover.lean:13:0: '_'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/GroupTheory/CosetCover.lean:13:0: '_'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/GroupTheory/CosetCover.lean:13:0: '_'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [4097/8843] Built Mathlib.GroupTheory.SpecificGroups.Quaternion (5.7s)
+warning: Mathlib/GroupTheory/SpecificGroups/Quaternion.lean:11:0: expected identifier
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/GroupTheory/SpecificGroups/Quaternion.lean:1:0: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/GroupTheory/SpecificGroups/Quaternion.lean:48:0: expected identifier
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/GroupTheory/SpecificGroups/Quaternion.lean:1:0: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [4147/8843] Built Mathlib.LinearAlgebra.TensorPower.Basic (16s)
+warning: Mathlib/LinearAlgebra/TensorPower/Basic.lean:36:0: expected identifier
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/LinearAlgebra/TensorPower/Basic.lean:1:0: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [4198/8843] Built Mathlib.Algebra.Polynomial.Degree.Lemmas (7.4s)
+warning: Mathlib/Algebra/Polynomial/Degree/Lemmas.lean:363:2: `grind?` suggestion failed: `grind only [usr Set.mem_ofPred_eq, IsRoot, eval_add, eval_mul_X,
+  eval_C]` did not close the goal
+⚠ [4233/8843] Built Mathlib.Algebra.MvPolynomial.Basic (14s)
+warning: Mathlib/Algebra/MvPolynomial/Basic.lean:20:0: '_'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Algebra/MvPolynomial/Basic.lean:125:0: expected '_' without preceding space
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [4248/8843] Built Mathlib.Algebra.TrivSqZeroExt.Basic (27s)
+warning: Mathlib/Algebra/TrivSqZeroExt/Basic.lean:548:0: expected token
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Algebra/TrivSqZeroExt/Basic.lean:548:0: unexpected '
+'; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Algebra/TrivSqZeroExt/Basic.lean:1:0: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Algebra/TrivSqZeroExt/Basic.lean:634:0: unexpected '='; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Algebra/TrivSqZeroExt/Basic.lean:2:36: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Algebra/TrivSqZeroExt/Basic.lean:685:0: expected identifier
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Algebra/TrivSqZeroExt/Basic.lean:1:0: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [4258/8843] Built Mathlib.GroupTheory.Coxeter.Matrix (22s)
+warning: Mathlib/GroupTheory/Coxeter/Matrix.lean:11:0: unexpected ','; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/GroupTheory/Coxeter/Matrix.lean:22:6: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [4280/8843] Built Mathlib.Topology.ExtremallyDisconnected (3.0s)
+warning: Mathlib/Topology/ExtremallyDisconnected.lean:1:0: any number of backticks; expected '![', '$$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [4305/8843] Built Mathlib.Tactic.Polynomial.Basic (3.9s)
+warning: Mathlib/Tactic/Polynomial/Basic.lean:15:0: '_'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Tactic/Polynomial/Basic.lean:15:0: '_'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+ℹ [4350/8843] Built Mathlib.LinearAlgebra.AffineSpace.Simplex.Basic (15s)
+info: Mathlib/LinearAlgebra/AffineSpace/Simplex/Basic.lean:561:4: 'congr; grind' can be replaced with 'grind'
+
+Try this:
+  [apply] grind
+⚠ [4375/8843] Built Mathlib.GroupTheory.Coxeter.Basic (12s)
+warning: Mathlib/GroupTheory/Coxeter/Basic.lean:16:0: unexpected ','; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/GroupTheory/Coxeter/Basic.lean:4:22: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/GroupTheory/Coxeter/Basic.lean:16:0: '_'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/GroupTheory/Coxeter/Basic.lean:30:85: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/GroupTheory/Coxeter/Basic.lean:16:0: unexpected '\'; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/GroupTheory/Coxeter/Basic.lean:31:0: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/GroupTheory/Coxeter/Basic.lean:1:0: any number of backticks; expected '![', '$$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/GroupTheory/Coxeter/Basic.lean:1:0: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [4384/8843] Built Mathlib.LinearAlgebra.Alternating.Curry (3.1s)
+warning: Mathlib/LinearAlgebra/Alternating/Curry.lean:27:0: expected token
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/LinearAlgebra/Alternating/Curry.lean:27:0: unexpected ','; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/LinearAlgebra/Alternating/Curry.lean:1:0: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [4399/8843] Built Mathlib.LinearAlgebra.Alternating.DomCoprod (10s)
+warning: Mathlib/LinearAlgebra/Alternating/DomCoprod.lean:1:0: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [4404/8843] Built Mathlib.RingTheory.Valuation.Basic (24s)
+warning: Mathlib/RingTheory/Valuation/Basic.lean:15:0: '_'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/RingTheory/Valuation/Basic.lean:15:0: '_'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/RingTheory/Valuation/Basic.lean:15:0: '_'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/RingTheory/Valuation/Basic.lean:15:0: '_'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [4438/8843] Built Mathlib.LinearAlgebra.SymmetricAlgebra.Basic (10s)
+warning: Mathlib/LinearAlgebra/SymmetricAlgebra/Basic.lean:10:0: expected identifier
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/LinearAlgebra/SymmetricAlgebra/Basic.lean:1:0: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [4461/8843] Built Mathlib.RingTheory.Noetherian.Basic (7.2s)
+warning: Mathlib/RingTheory/Noetherian/Basic.lean:273:0: '_'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [4467/8843] Built Mathlib.GroupTheory.Coxeter.Length (4.0s)
+warning: Mathlib/GroupTheory/Coxeter/Length.lean:13:0: '_'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/GroupTheory/Coxeter/Length.lean:265:0: expected '_' without preceding space
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/GroupTheory/Coxeter/Length.lean:268:0: expected '_' without preceding space
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [4476/8843] Built Mathlib.LinearAlgebra.Alternating.Uncurry.Fin (6.8s)
+warning: Mathlib/LinearAlgebra/Alternating/Uncurry/Fin.lean:1:0: any number of backticks; expected '![', '$$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [4494/8843] Built Mathlib.Analysis.Convex.SimplicialComplex.Basic (7.2s)
+warning: Mathlib/Analysis/Convex/SimplicialComplex/Basic.lean:123:56: `grind?` suggestion failed: `grind only [← Set.mem_univ, ← Finset.notMem_empty, = Finset.nonempty_def,
+  = mem_empty_iff_false]` did not close the goal
+⚠ [4496/8843] Built Mathlib.Analysis.Convex.Extreme (7.6s)
+warning: Mathlib/Analysis/Convex/Extreme.lean:309:64: `grind?` suggestion failed: `grind only [= star_smul, = star_add]` did not close the goal
+warning: Mathlib/Analysis/Convex/Extreme.lean:315:64: `grind?` suggestion failed: `grind only [= star_smul, = star_add]` did not close the goal
+⚠ [4536/8843] Built Mathlib.Algebra.MvPolynomial.Degrees (8.4s)
+warning: Mathlib/Algebra/MvPolynomial/Degrees.lean:215:0: expected '_' without preceding space
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [4544/8843] Built Mathlib.Analysis.Convex.Mul (14s)
+warning: Mathlib/Analysis/Convex/Mul.lean:13:0: expected ']'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [4566/8843] Built Mathlib.LinearAlgebra.TensorProduct.Graded.External (14s)
+warning: Mathlib/LinearAlgebra/TensorProduct/Graded/External.lean:14:0: '_'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/LinearAlgebra/TensorProduct/Graded/External.lean:14:0: expected identifier
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/LinearAlgebra/TensorProduct/Graded/External.lean:1:0: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/LinearAlgebra/TensorProduct/Graded/External.lean:100:0: expected identifier
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/LinearAlgebra/TensorProduct/Graded/External.lean:1:0: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [4578/8843] Built Mathlib.GroupTheory.Coxeter.Inversion (8.7s)
+warning: Mathlib/GroupTheory/Coxeter/Inversion.lean:12:0: expected identifier
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/GroupTheory/Coxeter/Inversion.lean:17:12: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/GroupTheory/Coxeter/Inversion.lean:64:0: expected identifier
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/GroupTheory/Coxeter/Inversion.lean:3:22: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/GroupTheory/Coxeter/Inversion.lean:3:23: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/GroupTheory/Coxeter/Inversion.lean:183:0: unexpected '\'; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/GroupTheory/Coxeter/Inversion.lean:3:38: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/GroupTheory/Coxeter/Inversion.lean:3:21: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/GroupTheory/Coxeter/Inversion.lean:194:0: unexpected '\'; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/GroupTheory/Coxeter/Inversion.lean:3:36: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [4621/8843] Built Mathlib.RingTheory.TensorProduct.Maps (46s)
+warning: Mathlib/RingTheory/TensorProduct/Maps.lean:2:38: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/RingTheory/TensorProduct/Maps.lean:851:0: '_'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/RingTheory/TensorProduct/Maps.lean:2:53: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/RingTheory/TensorProduct/Maps.lean:863:0: expected '_' without preceding space
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [4668/8843] Built Mathlib.RingTheory.MvPowerSeries.Trunc (11s)
+warning: Mathlib/RingTheory/MvPowerSeries/Trunc.lean:1:0: any number of backticks; expected '![', '$$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/RingTheory/MvPowerSeries/Trunc.lean:1:0: any number of backticks; expected '![', '$$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [4677/8843] Built Mathlib.LinearAlgebra.InvariantBasisNumber (6.3s)
+warning: Mathlib/LinearAlgebra/InvariantBasisNumber.lean:14:0: '_'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [4698/8843] Built Mathlib.Algebra.Polynomial.SumIteratedDerivative (5.7s)
+warning: Mathlib/Algebra/Polynomial/SumIteratedDerivative.lean:53:0: expected '_' without preceding space
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [4713/8843] Built Mathlib.LinearAlgebra.TensorProduct.Graded.Internal (21s)
+warning: Mathlib/LinearAlgebra/TensorProduct/Graded/Internal.lean:12:0: '_'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/LinearAlgebra/TensorProduct/Graded/Internal.lean:361:0: expected identifier
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/LinearAlgebra/TensorProduct/Graded/Internal.lean:1:0: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [4781/8843] Built Mathlib.RingTheory.MvPolynomial.Symmetric.FundamentalTheorem (9.0s)
+warning: Mathlib/RingTheory/MvPolynomial/Symmetric/FundamentalTheorem.lean:133:0: '_'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [4799/8843] Built Mathlib.LinearAlgebra.Matrix.InvariantBasisNumber (6.3s)
+warning: Mathlib/LinearAlgebra/Matrix/InvariantBasisNumber.lean:56:0: '_'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [4860/8843] Built Mathlib.LinearAlgebra.TensorProduct.Vanishing (8.1s)
+warning: Mathlib/LinearAlgebra/TensorProduct/Vanishing.lean:8:27: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/LinearAlgebra/TensorProduct/Vanishing.lean:12:0: unexpected '\'; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/LinearAlgebra/TensorProduct/Vanishing.lean:12:34: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/LinearAlgebra/TensorProduct/Vanishing.lean:12:0: '_'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/LinearAlgebra/TensorProduct/Vanishing.lean:12:0: '_'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/LinearAlgebra/TensorProduct/Vanishing.lean:71:0: unexpected '\'; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/LinearAlgebra/TensorProduct/Vanishing.lean:4:23: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/LinearAlgebra/TensorProduct/Vanishing.lean:223:0: expected '_' without preceding space
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/LinearAlgebra/TensorProduct/Vanishing.lean:247:0: expected '_' without preceding space
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/LinearAlgebra/TensorProduct/Vanishing.lean:259:0: expected '_' without preceding space
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+ℹ [4863/8843] Built Mathlib.AlgebraicTopology.SimplexCategory.ToMkOne (8.2s)
+info: Mathlib/AlgebraicTopology/SimplexCategory/ToMkOne.lean:74:2: 'rw [Fin.eq_iff_eq_zero_iff, toMk₁_apply_eq_zero_iff, toMk₁_apply_eq_zero_iff]; grind' can be replaced with 'grind'
+
+Try this:
+  [apply] grind
+info: Mathlib/AlgebraicTopology/SimplexCategory/ToMkOne.lean:84:2: 'rw [Fin.eq_iff_eq_zero_iff, toMk₁_apply_eq_zero_iff, toMk₁_apply_eq_zero_iff]; grind' can be replaced with 'grind'
+
+Try this:
+  [apply] grind
+info: Mathlib/AlgebraicTopology/SimplexCategory/ToMkOne.lean:97:4: 'simp; grind' can be replaced with 'grind'
+
+Try this:
+  [apply] grind
+info: Mathlib/AlgebraicTopology/SimplexCategory/ToMkOne.lean:114:4: 'simp; grind' can be replaced with 'grind'
+
+Try this:
+  [apply] grind
+info: Mathlib/AlgebraicTopology/SimplexCategory/ToMkOne.lean:142:6: 'simp [S] at hi; grind' can be replaced with 'grind'
+
+Try this:
+  [apply] grind
+⚠ [4922/8843] Built Mathlib.LinearAlgebra.Dimension.Free (7.4s)
+warning: Mathlib/LinearAlgebra/Dimension/Free.lean:3:31: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/LinearAlgebra/Dimension/Free.lean:40:0: expected '_' without preceding space
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/LinearAlgebra/Dimension/Free.lean:3:31: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/LinearAlgebra/Dimension/Free.lean:53:0: expected '_' without preceding space
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/LinearAlgebra/Dimension/Free.lean:3:31: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/LinearAlgebra/Dimension/Free.lean:63:0: expected '_' without preceding space
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [4990/8843] Built Mathlib.Algebra.Quaternion (36s)
+warning: Mathlib/Algebra/Quaternion.lean:1:0: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [5007/8843] Built Mathlib.CategoryTheory.Subobject.Basic (8.4s)
+warning: Mathlib/CategoryTheory/Subobject/Basic.lean:726:0: '_'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [5076/8843] Built Mathlib.Topology.EMetricSpace.Lipschitz (6.4s)
+warning: Mathlib/Topology/EMetricSpace/Lipschitz.lean:1:0: any number of backticks; expected '![', '$$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [5152/8843] Built Mathlib.Algebra.MvPolynomial.SchwartzZippel (18s)
+warning: Mathlib/Algebra/MvPolynomial/SchwartzZippel.lean:18:0: '_'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Algebra/MvPolynomial/SchwartzZippel.lean:18:0: '_'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [5271/8843] Built Mathlib.LinearAlgebra.Reflection (17s)
+warning: Mathlib/LinearAlgebra/Reflection.lean:156:0: '*'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/LinearAlgebra/Reflection.lean:1:0: any number of backticks; expected '![', '$$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/LinearAlgebra/Reflection.lean:316:0: expected '_' without preceding space
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/LinearAlgebra/Reflection.lean:327:0: expected '_' without preceding space
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [5292/8843] Built Mathlib.Algebra.Polynomial.Splits (13s)
+warning: Mathlib/Algebra/Polynomial/Splits.lean:3:37: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+ℹ [5380/8843] Built Mathlib.RingTheory.MvPowerSeries.GaussNorm (15s)
+info: Mathlib/RingTheory/MvPowerSeries/GaussNorm.lean:91:4: 'specialize h_eq_zero (f.coeff n); grind' can be replaced with 'grind'
+
+Try this:
+  [apply] grind
+ℹ [5452/8843] Built Mathlib.Algebra.Polynomial.RuleOfSigns (153s)
+info: Mathlib/Algebra/Polynomial/RuleOfSigns.lean:195:4: 'have : 0 < natDegree ((X - C η) * P.eraseLead) := by lia; grind' can be replaced with 'grind'
+
+Try this:
+  [apply] grind
+⚠ [5508/8843] Built Mathlib.CategoryTheory.Adjunction.AdjointFunctorTheorems (2.8s)
+warning: Mathlib/CategoryTheory/Adjunction/AdjointFunctorTheorems.lean:13:0: unexpected ':'; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/CategoryTheory/Adjunction/AdjointFunctorTheorems.lean:1:0: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [5531/8843] Built Mathlib.Combinatorics.Nullstellensatz (6.6s)
+warning: Mathlib/Combinatorics/Nullstellensatz.lean:16:0: '_'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Combinatorics/Nullstellensatz.lean:16:0: '_'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Combinatorics/Nullstellensatz.lean:197:0: '_'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Combinatorics/Nullstellensatz.lean:234:0: '_'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [5556/8843] Built Mathlib.LinearAlgebra.Dimension.Localization (10s)
+warning: Mathlib/LinearAlgebra/Dimension/Localization.lean:268:0: '_'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [5637/8843] Built Mathlib.RingTheory.Polynomial.GaussNorm (15s)
+warning: Mathlib/RingTheory/Polynomial/GaussNorm.lean:99:2: `grind?` suggestion failed: `grind only [= map_zero]` did not close the goal
+⚠ [5648/8843] Built Mathlib.RingTheory.MvPolynomial.IrreducibleQuadratic (6.7s)
+warning: Mathlib/RingTheory/MvPolynomial/IrreducibleQuadratic.lean:12:0: expected ']'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/RingTheory/MvPolynomial/IrreducibleQuadratic.lean:12:0: '_'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [5694/8843] Built Mathlib.LinearAlgebra.Matrix.ToLinearEquiv (7.8s)
+warning: Mathlib/LinearAlgebra/Matrix/ToLinearEquiv.lean:170:2: `grind?` suggestion failed: `grind only` did not close the goal
+warning: Mathlib/LinearAlgebra/Matrix/ToLinearEquiv.lean:174:2: `grind?` suggestion failed: `grind only` did not close the goal
+warning: Mathlib/LinearAlgebra/Matrix/ToLinearEquiv.lean:177:2: `grind?` suggestion failed: `grind only` did not close the goal
+⚠ [5700/8843] Built Mathlib.LinearAlgebra.Matrix.GeneralLinearGroup.Basic (11s)
+warning: Mathlib/LinearAlgebra/Matrix/GeneralLinearGroup/Basic.lean:23:0: expected '_' without preceding space
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [5703/8843] Built Mathlib.LinearAlgebra.Dual.Lemmas (25s)
+warning: Mathlib/LinearAlgebra/Dual/Lemmas.lean:366:0: unexpected '='; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/LinearAlgebra/Dual/Lemmas.lean:3:21: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/LinearAlgebra/Dual/Lemmas.lean:1:0: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [5776/8843] Built Mathlib.RingTheory.PowerSeries.WeierstrassPreparation (11s)
+warning: Mathlib/RingTheory/PowerSeries/WeierstrassPreparation.lean:14:0: '_'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/RingTheory/PowerSeries/WeierstrassPreparation.lean:14:0: '_'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/RingTheory/PowerSeries/WeierstrassPreparation.lean:498:0: '_'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/RingTheory/PowerSeries/WeierstrassPreparation.lean:809:0: '_'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [5825/8843] Built Mathlib.Combinatorics.Enumerative.Pentagonal.Ring (7.8s)
+warning: Mathlib/Combinatorics/Enumerative/Pentagonal/Ring.lean:88:0: '_'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [5870/8843] Built Mathlib.RingTheory.Flat.Tensor (4.9s)
+warning: Mathlib/RingTheory/Flat/Tensor.lean:52:0: '_'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [5996/8843] Built Mathlib.RingTheory.Flat.EquationalCriterion (17s)
+warning: Mathlib/RingTheory/Flat/EquationalCriterion.lean:12:0: unexpected '\'; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/RingTheory/Flat/EquationalCriterion.lean:3:66: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/RingTheory/Flat/EquationalCriterion.lean:67:0: unexpected '\'; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/RingTheory/Flat/EquationalCriterion.lean:4:26: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/RingTheory/Flat/EquationalCriterion.lean:91:0: unexpected '\'; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/RingTheory/Flat/EquationalCriterion.lean:1:0: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/RingTheory/Flat/EquationalCriterion.lean:103:0: '_'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/RingTheory/Flat/EquationalCriterion.lean:103:0: '_'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/RingTheory/Flat/EquationalCriterion.lean:166:0: expected '_' without preceding space
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/RingTheory/Flat/EquationalCriterion.lean:173:0: expected '_' without preceding space
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/RingTheory/Flat/EquationalCriterion.lean:182:0: expected '_' without preceding space
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [6008/8843] Built Mathlib.LinearAlgebra.QuadraticForm.Basic (35s)
+warning: Mathlib/LinearAlgebra/QuadraticForm/Basic.lean:16:0: expected reference name
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [6011/8843] Built Mathlib.Topology.EMetricSpace.BoundedVariation (25s)
+warning: Mathlib/Topology/EMetricSpace/BoundedVariation.lean:388:45: `grind?` suggestion failed: `grind only` did not close the goal
+warning: Mathlib/Topology/EMetricSpace/BoundedVariation.lean:486:71: `grind?` suggestion failed: `grind only` did not close the goal
+warning: Mathlib/Topology/EMetricSpace/BoundedVariation.lean:640:25: `grind?` suggestion failed: `grind only [= mem_Iic]` did not close the goal
+⚠ [6055/8843] Built Mathlib.Combinatorics.Enumerative.Pentagonal.PowerSeries (7.0s)
+warning: Mathlib/Combinatorics/Enumerative/Pentagonal/PowerSeries.lean:15:0: '_'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Combinatorics/Enumerative/Pentagonal/PowerSeries.lean:78:0: unexpected '='; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Combinatorics/Enumerative/Pentagonal/PowerSeries.lean:2:20: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [6060/8843] Built Mathlib.Combinatorics.Enumerative.Partition.GenFun (7.9s)
+warning: Mathlib/Combinatorics/Enumerative/Partition/GenFun.lean:11:0: '_'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [6102/8843] Built Mathlib.RingTheory.Trace.Defs (7.1s)
+warning: Mathlib/RingTheory/Trace/Defs.lean:143:0: unexpected '/'; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/RingTheory/Trace/Defs.lean:3:22: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [6104/8843] Built Mathlib.NumberTheory.DiophantineApproximation.Basic (7.7s)
+warning: Mathlib/NumberTheory/DiophantineApproximation/Basic.lean:287:0: expected identifier
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/NumberTheory/DiophantineApproximation/Basic.lean:1:0: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [6159/8843] Built Mathlib.AlgebraicTopology.DoldKan.Homotopies (4.0s)
+warning: Mathlib/AlgebraicTopology/DoldKan/Homotopies.lean:11:0: '_'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [6175/8843] Built Mathlib.Topology.Homotopy.LocallyContractible (3.8s)
+warning: Mathlib/Topology/Homotopy/LocallyContractible.lean:13:0: '_'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Topology/Homotopy/LocallyContractible.lean:91:0: '_'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Topology/Homotopy/LocallyContractible.lean:169:0: '_'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+ℹ [6239/8843] Built Mathlib.AlgebraicTopology.SimplicialObject.ChainHomotopy (46s)
+info: Mathlib/AlgebraicTopology/SimplicialObject/ChainHomotopy.lean:125:4: 'simp; grind' can be replaced with 'grind'
+
+Try this:
+  [apply] grind
+⚠ [6288/8843] Built Mathlib.Topology.Algebra.AsymptoticCone (9.1s)
+warning: Mathlib/Topology/Algebra/AsymptoticCone.lean:12:0: '_'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [6289/8843] Built Mathlib.RingTheory.Kaehler.JacobiZariski (20s)
+warning: Mathlib/RingTheory/Kaehler/JacobiZariski.lean:544:0: unexpected '/'; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/RingTheory/Kaehler/JacobiZariski.lean:1:0: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/RingTheory/Kaehler/JacobiZariski.lean:552:0: unexpected '/'; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/RingTheory/Kaehler/JacobiZariski.lean:1:0: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/RingTheory/Kaehler/JacobiZariski.lean:559:0: unexpected '/'; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/RingTheory/Kaehler/JacobiZariski.lean:3:30: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [6300/8843] Built Mathlib.Topology.Homotopy.HomotopyGroup (12s)
+warning: Mathlib/Topology/Homotopy/HomotopyGroup.lean:64:0: unexpected '\'; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Topology/Homotopy/HomotopyGroup.lean:1:0: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Topology/Homotopy/HomotopyGroup.lean:69:0: unexpected '\'; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Topology/Homotopy/HomotopyGroup.lean:1:0: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Topology/Homotopy/HomotopyGroup.lean:263:0: unexpected '\'; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Topology/Homotopy/HomotopyGroup.lean:1:0: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Topology/Homotopy/HomotopyGroup.lean:283:0: unexpected '\'; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Topology/Homotopy/HomotopyGroup.lean:1:0: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [6375/8843] Built Mathlib.RingTheory.FormalGroup.Basic (25s)
+warning: Mathlib/RingTheory/FormalGroup/Basic.lean:117:0: expected '_' without preceding space
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [6398/8843] Built Mathlib.Analysis.Real.Cardinality (7.2s)
+warning: Mathlib/Analysis/Real/Cardinality.lean:228:0: expected ']'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Real/Cardinality.lean:254:0: expected ']'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [6400/8843] Built Mathlib.Dynamics.Circle.RotationNumber.TranslationNumber (11s)
+warning: Mathlib/Dynamics/Circle/RotationNumber/TranslationNumber.lean:546:0: unexpected '→'; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Dynamics/Circle/RotationNumber/TranslationNumber.lean:2:55: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Dynamics/Circle/RotationNumber/TranslationNumber.lean:682:0: unexpected '^'; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Dynamics/Circle/RotationNumber/TranslationNumber.lean:1:0: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [6412/8843] Built Mathlib.RingTheory.PowerSeries.Exp (4.0s)
+warning: Mathlib/RingTheory/PowerSeries/Exp.lean:1:0: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/RingTheory/PowerSeries/Exp.lean:1:0: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/RingTheory/PowerSeries/Exp.lean:1:0: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/RingTheory/PowerSeries/Exp.lean:163:0: unexpected '='; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/RingTheory/PowerSeries/Exp.lean:2:14: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [6415/8843] Built Mathlib.Algebra.Homology.Embedding.Extend (7.7s)
+warning: Mathlib/Algebra/Homology/Embedding/Extend.lean:360:0: expected '`' to close inline code
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [6449/8843] Built Mathlib.Analysis.Asymptotics.Defs (4.2s)
+warning: Mathlib/Analysis/Asymptotics/Defs.lean:10:0: expected identifier
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Asymptotics/Defs.lean:1:0: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [6504/8843] Built Mathlib.LinearAlgebra.CliffordAlgebra.Conjugation (7.0s)
+warning: Mathlib/LinearAlgebra/CliffordAlgebra/Conjugation.lean:176:0: expected identifier
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/LinearAlgebra/CliffordAlgebra/Conjugation.lean:1:0: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [6534/8843] Built Mathlib.RingTheory.LocalProperties.IntegrallyClosed (5.8s)
+warning: Mathlib/RingTheory/LocalProperties/IntegrallyClosed.lean:55:0: expected identifier
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/RingTheory/LocalProperties/IntegrallyClosed.lean:3:53: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [6573/8843] Built Mathlib.LinearAlgebra.CliffordAlgebra.BaseChange (9.1s)
+warning: Mathlib/LinearAlgebra/CliffordAlgebra/BaseChange.lean:178:0: '_'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [6601/8843] Built Mathlib.RingTheory.LocalIso (7.8s)
+warning: Mathlib/RingTheory/LocalIso.lean:63:2: `grind?` suggestion failed: `grind only [Ideal.IsPrime.ne_top, ←= top_unique, Ideal.span_le, = Set.subset_def,
+  SetLike.mem_coe, usr Set.mem_ofPred_eq]` did not close the goal
+⚠ [6642/8843] Built Mathlib.LinearAlgebra.CliffordAlgebra.Contraction (14s)
+warning: Mathlib/LinearAlgebra/CliffordAlgebra/Contraction.lean:237:0: expected '_' without preceding space
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/LinearAlgebra/CliffordAlgebra/Contraction.lean:326:0: expected '_' without preceding space
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [6653/8843] Built Mathlib.RepresentationTheory.Coinduced (19s)
+warning: Mathlib/RepresentationTheory/Coinduced.lean:13:0: '_'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/RepresentationTheory/Coinduced.lean:13:0: '_'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+ℹ [6676/8843] Built Mathlib.Analysis.Convex.MetricSpace (10s)
+info: Mathlib/Analysis/Convex/MetricSpace.lean:214:67: 'simp_all; grind' can be replaced with 'grind'
+
+Try this:
+  [apply] grind
+info: Mathlib/Analysis/Convex/MetricSpace.lean:215:53: 'simp_all; grind' can be replaced with 'grind'
+
+Try this:
+  [apply] grind
+⚠ [6698/8843] Built Mathlib.AlgebraicGeometry.StructureSheaf (48s)
+warning: Mathlib/AlgebraicGeometry/StructureSheaf.lean:94:0: unexpected '∈'; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/AlgebraicGeometry/StructureSheaf.lean:11:5: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [6703/8843] Built Mathlib.LinearAlgebra.CliffordAlgebra.Inversion (5.2s)
+warning: Mathlib/LinearAlgebra/CliffordAlgebra/Inversion.lean:10:0: expected identifier
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/LinearAlgebra/CliffordAlgebra/Inversion.lean:1:0: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/LinearAlgebra/CliffordAlgebra/Inversion.lean:34:0: expected identifier
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/LinearAlgebra/CliffordAlgebra/Inversion.lean:1:0: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/LinearAlgebra/CliffordAlgebra/Inversion.lean:45:0: expected identifier
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/LinearAlgebra/CliffordAlgebra/Inversion.lean:1:0: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/LinearAlgebra/CliffordAlgebra/Inversion.lean:51:0: expected identifier
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/LinearAlgebra/CliffordAlgebra/Inversion.lean:1:0: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [6709/8843] Built Mathlib.Algebra.Order.Ring.StandardPart (25s)
+warning: Mathlib/Algebra/Order/Ring/StandardPart.lean:194:2: `grind?` suggestion failed: `grind only` did not close the goal
+⚠ [6726/8843] Built Mathlib.RepresentationTheory.Homological.GroupHomology.Basic (11s)
+warning: Mathlib/RepresentationTheory/Homological/GroupHomology/Basic.lean:14:0: '_'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/RepresentationTheory/Homological/GroupHomology/Basic.lean:14:0: unexpected '^'; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/RepresentationTheory/Homological/GroupHomology/Basic.lean:11:29: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/RepresentationTheory/Homological/GroupHomology/Basic.lean:20:29: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/RepresentationTheory/Homological/GroupHomology/Basic.lean:21:10: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/RepresentationTheory/Homological/GroupHomology/Basic.lean:21:37: any number of backticks; expected '![', '$$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/RepresentationTheory/Homological/GroupHomology/Basic.lean:14:0: unexpected '^'; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/RepresentationTheory/Homological/GroupHomology/Basic.lean:29:31: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [6741/8843] Built Mathlib.RepresentationTheory.Homological.GroupCohomology.Basic (20s)
+warning: Mathlib/RepresentationTheory/Homological/GroupCohomology/Basic.lean:1:0: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [6745/8843] Built Mathlib.RepresentationTheory.Induced (31s)
+warning: Mathlib/RepresentationTheory/Induced.lean:10:0: '_'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [6769/8843] Built Mathlib.LinearAlgebra.CliffordAlgebra.SpinGroup (9.9s)
+warning: Mathlib/LinearAlgebra/CliffordAlgebra/SpinGroup.lean:15:0: expected identifier
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/LinearAlgebra/CliffordAlgebra/SpinGroup.lean:1:0: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [6770/8843] Built Mathlib.LinearAlgebra.Transvection.Generation (14s)
+warning: Mathlib/LinearAlgebra/Transvection/Generation.lean:12:0: expected ']'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [6785/8843] Built Mathlib.RingTheory.Spectrum.Prime.LTSeries (5.4s)
+warning: Mathlib/RingTheory/Spectrum/Prime/LTSeries.lean:8:14: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/RingTheory/Spectrum/Prime/LTSeries.lean:8:39: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/RingTheory/Spectrum/Prime/LTSeries.lean:11:20: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/RingTheory/Spectrum/Prime/LTSeries.lean:15:15: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/RingTheory/Spectrum/Prime/LTSeries.lean:15:40: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/RingTheory/Spectrum/Prime/LTSeries.lean:15:75: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/RingTheory/Spectrum/Prime/LTSeries.lean:16:9: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/RingTheory/Spectrum/Prime/LTSeries.lean:16:26: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/RingTheory/Spectrum/Prime/LTSeries.lean:16:47: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/RingTheory/Spectrum/Prime/LTSeries.lean:10:0: expected '_' without preceding space
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/RingTheory/Spectrum/Prime/LTSeries.lean:2:41: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/RingTheory/Spectrum/Prime/LTSeries.lean:3:15: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/RingTheory/Spectrum/Prime/LTSeries.lean:3:62: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/RingTheory/Spectrum/Prime/LTSeries.lean:8:25: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/RingTheory/Spectrum/Prime/LTSeries.lean:8:50: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/RingTheory/Spectrum/Prime/LTSeries.lean:11:19: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/RingTheory/Spectrum/Prime/LTSeries.lean:11:39: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/RingTheory/Spectrum/Prime/LTSeries.lean:13:7: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/RingTheory/Spectrum/Prime/LTSeries.lean:15:11: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/RingTheory/Spectrum/Prime/LTSeries.lean:75:0: expected '_' without preceding space
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [6837/8843] Built Mathlib.NumberTheory.Bernoulli (17s)
+warning: Mathlib/NumberTheory/Bernoulli.lean:16:0: '_'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/NumberTheory/Bernoulli.lean:16:0: '_'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/NumberTheory/Bernoulli.lean:80:0: expected '_' without preceding space
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [6910/8843] Built Mathlib.Analysis.Real.OfDigits (6.8s)
+warning: Mathlib/Analysis/Real/OfDigits.lean:13:0: expected ']'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [6915/8843] Built Mathlib.InformationTheory.Coding.KraftMcMillan (8.4s)
+warning: Mathlib/InformationTheory/Coding/KraftMcMillan.lean:88:39: `grind?` suggestion failed: `grind only` did not close the goal
+⚠ [6919/8843] Built Mathlib.NumberTheory.LegendreSymbol.Basic (5.1s)
+warning: Mathlib/NumberTheory/LegendreSymbol/Basic.lean:1:0: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [6927/8843] Built Mathlib.Analysis.Asymptotics.TVS (30s)
+warning: Mathlib/Analysis/Asymptotics/TVS.lean:16:0: unexpected ','; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Asymptotics/TVS.lean:17:34: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Asymptotics/TVS.lean:79:0: unexpected ','; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Asymptotics/TVS.lean:12:35: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Asymptotics/TVS.lean:99:0: unexpected ','; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Asymptotics/TVS.lean:12:32: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [6931/8843] Built Mathlib.NumberTheory.BernoulliPolynomials (11s)
+warning: Mathlib/NumberTheory/BernoulliPolynomials.lean:13:0: '_'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/NumberTheory/BernoulliPolynomials.lean:1:0: any number of backticks; expected '![', '$$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/NumberTheory/BernoulliPolynomials.lean:229:15: `grind?` suggestion failed: `grind only` did not close the goal
+⚠ [7036/8843] Built Mathlib.FieldTheory.IsAlgClosed.AlgebraicClosure (12s)
+warning: Mathlib/FieldTheory/IsAlgClosed/AlgebraicClosure.lean:12:0: unexpected ','; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/FieldTheory/IsAlgClosed/AlgebraicClosure.lean:10:15: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/FieldTheory/IsAlgClosed/AlgebraicClosure.lean:46:0: unexpected ','; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/FieldTheory/IsAlgClosed/AlgebraicClosure.lean:2:32: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/FieldTheory/IsAlgClosed/AlgebraicClosure.lean:50:0: unexpected ','; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/FieldTheory/IsAlgClosed/AlgebraicClosure.lean:1:0: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/FieldTheory/IsAlgClosed/AlgebraicClosure.lean:8:6: any number of backticks; expected '![', '$$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [7055/8843] Built Mathlib.Analysis.SpecialFunctions.PolynomialExp (3.6s)
+warning: Mathlib/Analysis/SpecialFunctions/PolynomialExp.lean:11:0: unexpected '\'; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/SpecialFunctions/PolynomialExp.lean:3:22: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/SpecialFunctions/PolynomialExp.lean:1:0: any number of backticks; expected '![', '$$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+ℹ [7065/8843] Built Mathlib.Analysis.SpecialFunctions.Log.Basic (9.6s)
+info: Mathlib/Analysis/SpecialFunctions/Log/Basic.lean:343:12: 'field_simp; grind' can be replaced with 'grind'
+
+Try this:
+  [apply] grind
+info: Mathlib/Analysis/SpecialFunctions/Log/Basic.lean:348:12: 'field_simp; grind' can be replaced with 'grind'
+
+Try this:
+  [apply] grind
+⚠ [7080/8843] Built Mathlib.RingTheory.Nilpotent.GeometricallyReduced (5.8s)
+warning: Mathlib/RingTheory/Nilpotent/GeometricallyReduced.lean:51:0: expected '`' to close inline code
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [7081/8843] Built Mathlib.Analysis.Normed.Operator.Fredholm.Basic (17s)
+warning: Mathlib/Analysis/Normed/Operator/Fredholm/Basic.lean:1:0: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Normed/Operator/Fredholm/Basic.lean:1:0: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [7110/8843] Built Mathlib.FieldTheory.SeparableDegree (20s)
+warning: Mathlib/FieldTheory/SeparableDegree.lean:14:0: '_'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/FieldTheory/SeparableDegree.lean:1:0: any number of backticks; expected '![', '$$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [7147/8843] Built Mathlib.Analysis.SpecialFunctions.Trigonometric.Angle (27s)
+warning: Mathlib/Analysis/SpecialFunctions/Trigonometric/Angle.lean:798:2: `grind?` suggestion failed: `grind only [!toReal_neg_iff_sign_neg, = sign_zero, = abs.eq_1, = toReal_zero,
+  = sign_eq_zero_iff, = sign_ne_zero_iff, = max_def]` did not close the goal
+⚠ [7233/8843] Built Mathlib.RingTheory.WittVector.Domain (4.2s)
+warning: Mathlib/RingTheory/WittVector/Domain.lean:18:19: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [7234/8843] Built Mathlib.FieldTheory.Galois.Basic (20s)
+warning: Mathlib/FieldTheory/Galois/Basic.lean:1:0: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/FieldTheory/Galois/Basic.lean:1:0: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+ℹ [7240/8843] Built Mathlib.MeasureTheory.Measure.Restrict (15s)
+info: Mathlib/MeasureTheory/Measure/Restrict.lean:932:2: 'simp; grind' can be replaced with 'grind'
+
+Try this:
+  [apply] grind
+⚠ [7264/8843] Built Mathlib.Analysis.SpecialFunctions.Complex.CircleMap (5.7s)
+warning: Mathlib/Analysis/SpecialFunctions/Complex/CircleMap.lean:1:0: any number of backticks; expected '![', '$$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/SpecialFunctions/Complex/CircleMap.lean:1:0: any number of backticks; expected '![', '$$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [7270/8843] Built Mathlib.RingTheory.Norm.Transitivity (9.4s)
+warning: Mathlib/RingTheory/Norm/Transitivity.lean:201:0: unexpected '/'; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/RingTheory/Norm/Transitivity.lean:3:41: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [7277/8843] Built Mathlib.Analysis.SpecialFunctions.Complex.Circle (17s)
+warning: Mathlib/Analysis/SpecialFunctions/Complex/Circle.lean:192:2: `grind?` suggestion failed: `grind only [neg_pi_lt_arg x.val, arg_le_pi y.val]` did not close the goal
+⚠ [7301/8843] Built Mathlib.Analysis.SpecialFunctions.Trigonometric.Complex (7.7s)
+warning: Mathlib/Analysis/SpecialFunctions/Trigonometric/Complex.lean:195:31: `grind?` suggestion failed: `grind only` did not close the goal
+⚠ [7348/8843] Built Mathlib.Analysis.SpecialFunctions.Log.PosLog (8.4s)
+warning: Mathlib/Analysis/SpecialFunctions/Log/PosLog.lean:90:0: expected ']'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/SpecialFunctions/Log/PosLog.lean:109:2: `grind?` suggestion failed: `grind only [half_mul_log_add_log_abs (x := x),
+  log_inv x ▸ half_mul_log_add_log_abs (x := x⁻¹)]` did not close the goal
+⚠ [7357/8843] Built Mathlib.Analysis.Convex.SpecificFunctions.Basic (9.2s)
+warning: Mathlib/Analysis/Convex/SpecificFunctions/Basic.lean:12:0: expected ']'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Convex/SpecificFunctions/Basic.lean:178:0: expected ']'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [7360/8843] Built Mathlib.Analysis.AbsoluteValue.Equivalence (19s)
+warning: Mathlib/Analysis/AbsoluteValue/Equivalence.lean:296:0: expected identifier
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/AbsoluteValue/Equivalence.lean:1:0: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [7377/8843] Built Mathlib.Analysis.SpecialFunctions.Log.RpowTendsto (19s)
+warning: Mathlib/Analysis/SpecialFunctions/Log/RpowTendsto.lean:77:37: `grind?` suggestion failed: `grind only` did not close the goal
+⚠ [7400/8843] Built Mathlib.AlgebraicGeometry.Modules.Sheaf (110s)
+warning: Mathlib/AlgebraicGeometry/Modules/Sheaf.lean:348:0: expected '`' to close inline code
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [7427/8843] Built Mathlib.Analysis.MeanInequalitiesPow (12s)
+warning: Mathlib/Analysis/MeanInequalitiesPow.lean:13:0: unexpected '\'; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/MeanInequalitiesPow.lean:10:34: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [7432/8843] Built Mathlib.Analysis.MeanInequalities (18s)
+warning: Mathlib/Analysis/MeanInequalities.lean:15:0: unexpected '\'; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/MeanInequalities.lean:18:39: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/MeanInequalities.lean:15:0: unexpected '\'; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/MeanInequalities.lean:37:29: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/MeanInequalities.lean:15:0: expected identifier
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/MeanInequalities.lean:1:0: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [7450/8843] Built Mathlib.Condensed.Light.Sequence (30s)
+warning: Mathlib/Condensed/Light/Sequence.lean:363:77: `grind?` suggestion failed: `grind only [= assoc, = comp_obj, = Functor.comp_map, = Functor.map_comp, =_ assoc,
+  =_ Functor.map_comp, = IsIso.inv_hom_id, = id_comp]` did not close the goal
+⚠ [7499/8843] Built Mathlib.MeasureTheory.VectorMeasure.Decomposition.Hahn (8.7s)
+warning: Mathlib/MeasureTheory/VectorMeasure/Decomposition/Hahn.lean:57:0: unexpected '\'; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/MeasureTheory/VectorMeasure/Decomposition/Hahn.lean:1:0: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [7519/8843] Built Mathlib.Analysis.Normed.Operator.Fredholm.Open (6.5s)
+warning: Mathlib/Analysis/Normed/Operator/Fredholm/Open.lean:1:0: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [7523/8843] Built Mathlib.NumberTheory.NumberField.DirichletDensity (7.5s)
+warning: Mathlib/NumberTheory/NumberField/DirichletDensity.lean:52:0: expected identifier
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/NumberTheory/NumberField/DirichletDensity.lean:2:32: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/NumberTheory/NumberField/DirichletDensity.lean:63:0: expected identifier
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/NumberTheory/NumberField/DirichletDensity.lean:3:0: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [7529/8843] Built Mathlib.Analysis.Normed.Module.Alternating.Curry (7.2s)
+warning: Mathlib/Analysis/Normed/Module/Alternating/Curry.lean:31:0: expected token
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Normed/Module/Alternating/Curry.lean:31:0: unexpected ','; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Normed/Module/Alternating/Curry.lean:1:0: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [7559/8843] Built Mathlib.Analysis.SpecialFunctions.CompareExp (4.8s)
+warning: Mathlib/Analysis/SpecialFunctions/CompareExp.lean:1:0: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [7571/8843] Built Mathlib.Analysis.Normed.Lp.PiLp (31s)
+warning: Mathlib/Analysis/Normed/Lp/PiLp.lean:13:0: unexpected '|'; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Normed/Lp/PiLp.lean:1:0: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [7582/8843] Built Mathlib.Analysis.Normed.Module.Alternating.Uncurry.Fin (15s)
+warning: Mathlib/Analysis/Normed/Module/Alternating/Uncurry/Fin.lean:1:0: any number of backticks; expected '![', '$$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [7587/8843] Built Mathlib.Analysis.InnerProductSpace.LinearMap (25s)
+warning: Mathlib/Analysis/InnerProductSpace/LinearMap.lean:368:2: `grind?` suggestion failed: `grind only` did not close the goal
+⚠ [7613/8843] Built Mathlib.RepresentationTheory.Homological.GroupCohomology.Hilbert90 (8.7s)
+warning: Mathlib/RepresentationTheory/Homological/GroupCohomology/Hilbert90.lean:11:0: '_'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/RepresentationTheory/Homological/GroupCohomology/Hilbert90.lean:11:0: unexpected '/'; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/RepresentationTheory/Homological/GroupCohomology/Hilbert90.lean:14:74: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/RepresentationTheory/Homological/GroupCohomology/Hilbert90.lean:11:0: '_'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/RepresentationTheory/Homological/GroupCohomology/Hilbert90.lean:11:0: '_'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [7647/8843] Built Mathlib.RingTheory.Perfectoid.BDeRham (10s)
+warning: Mathlib/RingTheory/Perfectoid/BDeRham.lean:2:35: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/RingTheory/Perfectoid/BDeRham.lean:3:4: any number of backticks; expected '![', '$$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/RingTheory/Perfectoid/BDeRham.lean:4:3: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/RingTheory/Perfectoid/BDeRham.lean:8:10: any number of backticks; expected '![', '$$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/RingTheory/Perfectoid/BDeRham.lean:16:33: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/RingTheory/Perfectoid/BDeRham.lean:17:12: any number of backticks; expected '![', '$$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/RingTheory/Perfectoid/BDeRham.lean:17:65: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/RingTheory/Perfectoid/BDeRham.lean:18:27: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/RingTheory/Perfectoid/BDeRham.lean:2:33: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/RingTheory/Perfectoid/BDeRham.lean:69:0: expected identifier
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/RingTheory/Perfectoid/BDeRham.lean:8:38: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/RingTheory/Perfectoid/BDeRham.lean:2:33: any number of backticks; expected '![', '$$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/RingTheory/Perfectoid/BDeRham.lean:3:42: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/RingTheory/Perfectoid/BDeRham.lean:81:0: expected identifier
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/RingTheory/Perfectoid/BDeRham.lean:10:25: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [7656/8843] Built Mathlib.Topology.EMetricSpace.PairReduction (12s)
+warning: Mathlib/Topology/EMetricSpace/PairReduction.lean:11:0: '_'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Topology/EMetricSpace/PairReduction.lean:11:0: '_'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [7672/8843] Built Mathlib.RingTheory.DedekindDomain.SelmerGroup (11s)
+warning: Mathlib/RingTheory/DedekindDomain/SelmerGroup.lean:16:70: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/RingTheory/DedekindDomain/SelmerGroup.lean:13:0: '_'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/RingTheory/DedekindDomain/SelmerGroup.lean:13:0: '_'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [7680/8843] Built Mathlib.Analysis.Analytic.RadiusLiminf (5.2s)
+warning: Mathlib/Analysis/Analytic/RadiusLiminf.lean:11:0: unexpected '\'; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Analytic/RadiusLiminf.lean:8:9: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Analytic/RadiusLiminf.lean:34:0: unexpected '\'; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Analytic/RadiusLiminf.lean:3:3: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Analytic/RadiusLiminf.lean:64:0: unexpected '\'; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Analytic/RadiusLiminf.lean:3:50: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [7732/8843] Built Mathlib.Analysis.SpecialFunctions.OrdinaryHypergeometric (10s)
+warning: Mathlib/Analysis/SpecialFunctions/OrdinaryHypergeometric.lean:12:0: '_'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [7773/8843] Built Mathlib.Analysis.Analytic.ChangeOrigin (16s)
+warning: Mathlib/Analysis/Analytic/ChangeOrigin.lean:11:3: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Analytic/ChangeOrigin.lean:1:0: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [7874/8843] Built Mathlib.NumberTheory.LegendreSymbol.JacobiSymbol (8.6s)
+warning: Mathlib/NumberTheory/LegendreSymbol/JacobiSymbol.lean:1:0: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [7888/8843] Built Mathlib.NumberTheory.LucasLehmer (20s)
+warning: Mathlib/NumberTheory/LucasLehmer.lean:432:0: expected identifier
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/NumberTheory/LucasLehmer.lean:1:0: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/NumberTheory/LucasLehmer.lean:636:12: `grind?` suggestion failed: `grind only [sModNat, sMod, usr Nat.pow_pos]` did not close the goal
+info: Mathlib/NumberTheory/LucasLehmer.lean:638:4: 'have : 2 ^ 2 ≤ 2 ^ p := Nat.pow_le_pow_right (by lia) hp; grind' can be replaced with 'grind'
+
+Try this:
+  [apply] grind
+⚠ [7891/8843] Built Mathlib.Analysis.Analytic.Inverse (25s)
+warning: Mathlib/Analysis/Analytic/Inverse.lean:293:0: unexpected '='; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Analytic/Inverse.lean:1:0: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [7893/8843] Built Mathlib.MeasureTheory.Integral.Marginal (8.7s)
+warning: Mathlib/MeasureTheory/Integral/Marginal.lean:26:10: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [7910/8843] Built Mathlib.Probability.Kernel.Category.Stoch (7.9s)
+warning: Mathlib/Probability/Kernel/Category/Stoch.lean:14:0: expected identifier
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Probability/Kernel/Category/Stoch.lean:22:75: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [7912/8843] Built Mathlib.Analysis.SpecialFunctions.ContinuousFunctionalCalculus.Rpow.Basic (48s)
+warning: Mathlib/Analysis/SpecialFunctions/ContinuousFunctionalCalculus/Rpow/Basic.lean:788:2: `grind?` suggestion failed: `grind only [= IsStrictlyPositive.iff_of_unital,
+  = isUnit_ringInverse]` did not close the goal
+⚠ [7937/8843] Built Mathlib.Analysis.Matrix.Normed (14s)
+warning: Mathlib/Analysis/Matrix/Normed.lean:223:0: '_'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Matrix/Normed.lean:3:18: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Matrix/Normed.lean:3:60: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Matrix/Normed.lean:496:0: expected identifier
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Matrix/Normed.lean:1:0: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [8010/8843] Built Mathlib.Probability.Independence.Process.Basic (6.3s)
+warning: Mathlib/Probability/Independence/Process/Basic.lean:11:0: unexpected '\'; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Probability/Independence/Process/Basic.lean:1:0: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Probability/Independence/Process/Basic.lean:88:0: unexpected '\'; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Probability/Independence/Process/Basic.lean:1:0: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Probability/Independence/Process/Basic.lean:119:0: unexpected '\'; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Probability/Independence/Process/Basic.lean:1:0: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Probability/Independence/Process/Basic.lean:136:0: unexpected '\'; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Probability/Independence/Process/Basic.lean:1:0: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Probability/Independence/Process/Basic.lean:147:0: unexpected '\'; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Probability/Independence/Process/Basic.lean:1:0: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Probability/Independence/Process/Basic.lean:160:0: unexpected '\'; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Probability/Independence/Process/Basic.lean:1:0: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Probability/Independence/Process/Basic.lean:172:0: unexpected '\'; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Probability/Independence/Process/Basic.lean:1:0: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Probability/Independence/Process/Basic.lean:234:0: unexpected '\'; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Probability/Independence/Process/Basic.lean:1:0: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Probability/Independence/Process/Basic.lean:276:0: unexpected '\'; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Probability/Independence/Process/Basic.lean:1:0: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Probability/Independence/Process/Basic.lean:328:0: unexpected '\'; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Probability/Independence/Process/Basic.lean:1:0: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Probability/Independence/Process/Basic.lean:337:0: unexpected '\'; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Probability/Independence/Process/Basic.lean:1:0: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Probability/Independence/Process/Basic.lean:348:0: unexpected '\'; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Probability/Independence/Process/Basic.lean:1:0: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Probability/Independence/Process/Basic.lean:358:0: unexpected '\'; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Probability/Independence/Process/Basic.lean:1:0: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Probability/Independence/Process/Basic.lean:370:0: unexpected '\'; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Probability/Independence/Process/Basic.lean:1:0: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Probability/Independence/Process/Basic.lean:381:0: unexpected '\'; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Probability/Independence/Process/Basic.lean:1:0: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Probability/Independence/Process/Basic.lean:405:0: unexpected '\'; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Probability/Independence/Process/Basic.lean:1:0: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Probability/Independence/Process/Basic.lean:416:0: unexpected '\'; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Probability/Independence/Process/Basic.lean:1:0: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [8058/8843] Built Mathlib.Analysis.Normed.Algebra.QuaternionExponential (6.1s)
+warning: Mathlib/Analysis/Normed/Algebra/QuaternionExponential.lean:58:0: expected identifier
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Normed/Algebra/QuaternionExponential.lean:1:0: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [8071/8843] Built Mathlib.Analysis.Calculus.ContDiff.FaaDiBruno (41s)
+warning: Mathlib/Analysis/Calculus/ContDiff/FaaDiBruno.lean:1:0: any number of backticks; expected '![', '$$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [8097/8843] Built Mathlib.Geometry.Euclidean.Angle.Unoriented.TriangleInequality (20s)
+warning: Mathlib/Geometry/Euclidean/Angle/Unoriented/TriangleInequality.lean:142:2: `grind?` suggestion failed: `grind only` did not close the goal
+warning: Mathlib/Geometry/Euclidean/Angle/Unoriented/TriangleInequality.lean:260:6: `grind?` suggestion failed: `grind only` did not close the goal
+warning: Mathlib/Geometry/Euclidean/Angle/Unoriented/TriangleInequality.lean:262:6: `grind?` suggestion failed: `grind only` did not close the goal
+warning: Mathlib/Geometry/Euclidean/Angle/Unoriented/TriangleInequality.lean:264:6: `grind?` suggestion failed: `grind only` did not close the goal
+⚠ [8123/8843] Built Mathlib.Analysis.Calculus.ContDiffHolder.Pointwise (6.5s)
+warning: Mathlib/Analysis/Calculus/ContDiffHolder/Pointwise.lean:11:0: expected token
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Calculus/ContDiffHolder/Pointwise.lean:11:0: unexpected '`'; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Calculus/ContDiffHolder/Pointwise.lean:1:0: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Calculus/ContDiffHolder/Pointwise.lean:50:0: expected token
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Calculus/ContDiffHolder/Pointwise.lean:50:0: unexpected '`'; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Calculus/ContDiffHolder/Pointwise.lean:1:0: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Calculus/ContDiffHolder/Pointwise.lean:50:0: expected token
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Calculus/ContDiffHolder/Pointwise.lean:50:0: unexpected '$'; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Calculus/ContDiffHolder/Pointwise.lean:1:0: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Calculus/ContDiffHolder/Pointwise.lean:50:0: expected token
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Calculus/ContDiffHolder/Pointwise.lean:50:0: unexpected '$'; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Calculus/ContDiffHolder/Pointwise.lean:1:0: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Calculus/ContDiffHolder/Pointwise.lean:61:0: expected token
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Calculus/ContDiffHolder/Pointwise.lean:61:0: unexpected '`'; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Calculus/ContDiffHolder/Pointwise.lean:1:0: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Calculus/ContDiffHolder/Pointwise.lean:80:0: expected token
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Calculus/ContDiffHolder/Pointwise.lean:80:0: unexpected '$'; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Calculus/ContDiffHolder/Pointwise.lean:1:0: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Calculus/ContDiffHolder/Pointwise.lean:86:0: expected identifier
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Calculus/ContDiffHolder/Pointwise.lean:1:0: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Calculus/ContDiffHolder/Pointwise.lean:1:0: any number of backticks; expected '![', '$$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Calculus/ContDiffHolder/Pointwise.lean:152:0: expected token
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Calculus/ContDiffHolder/Pointwise.lean:152:0: unexpected '$'; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Calculus/ContDiffHolder/Pointwise.lean:1:0: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Calculus/ContDiffHolder/Pointwise.lean:192:0: expected token
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Calculus/ContDiffHolder/Pointwise.lean:192:0: unexpected ','; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Calculus/ContDiffHolder/Pointwise.lean:1:0: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Calculus/ContDiffHolder/Pointwise.lean:2:23: expected no space before
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Calculus/ContDiffHolder/Pointwise.lean:238:0: expected token
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Calculus/ContDiffHolder/Pointwise.lean:238:0: unexpected '$'; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Calculus/ContDiffHolder/Pointwise.lean:1:0: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Calculus/ContDiffHolder/Pointwise.lean:246:0: expected token
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Calculus/ContDiffHolder/Pointwise.lean:246:0: unexpected '`'; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Calculus/ContDiffHolder/Pointwise.lean:1:0: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [8170/8843] Built Mathlib.NumberTheory.Transcendental.Liouville.LiouvilleNumber (3.4s)
+warning: Mathlib/NumberTheory/Transcendental/Liouville/LiouvilleNumber.lean:1:0: any number of backticks; expected '![', '$$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [8218/8843] Built Mathlib.Analysis.Calculus.DifferentialForm.Basic (11s)
+warning: Mathlib/Analysis/Calculus/DifferentialForm/Basic.lean:1:0: any number of backticks; expected '![', '$$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Calculus/DifferentialForm/Basic.lean:1:0: any number of backticks; expected '![', '$$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Calculus/DifferentialForm/Basic.lean:1:0: any number of backticks; expected '![', '$$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [8221/8843] Built Mathlib.Analysis.SpecialFunctions.SmoothTransition (5.6s)
+warning: Mathlib/Analysis/SpecialFunctions/SmoothTransition.lean:79:0: expected identifier
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/SpecialFunctions/SmoothTransition.lean:4:15: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/SpecialFunctions/SmoothTransition.lean:89:0: expected identifier
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/SpecialFunctions/SmoothTransition.lean:1:0: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [8233/8843] Built Mathlib.Analysis.Calculus.DifferentialForm.VectorField (5.6s)
+warning: Mathlib/Analysis/Calculus/DifferentialForm/VectorField.lean:12:0: expected ':='
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Calculus/DifferentialForm/VectorField.lean:12:0: expected ')'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Calculus/DifferentialForm/VectorField.lean:12:0: unexpected '
+'; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Calculus/DifferentialForm/VectorField.lean:1:0: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Calculus/DifferentialForm/VectorField.lean:3:63: expected no space before
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Calculus/DifferentialForm/VectorField.lean:49:0: expected token
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Calculus/DifferentialForm/VectorField.lean:49:0: unexpected '$'; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Calculus/DifferentialForm/VectorField.lean:3:53: '['; expected '![', '$$', '$', '*', '_', '`', '{' or Already in a link
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Calculus/DifferentialForm/VectorField.lean:3:63: expected no space before
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Calculus/DifferentialForm/VectorField.lean:110:0: expected token
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Calculus/DifferentialForm/VectorField.lean:110:0: unexpected '$'; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Calculus/DifferentialForm/VectorField.lean:3:53: '['; expected '![', '$$', '$', '*', '_', '`', '{' or Already in a link
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [8252/8843] Built Mathlib.Analysis.SpecialFunctions.Arcosh (6.2s)
+warning: Mathlib/Analysis/SpecialFunctions/Arcosh.lean:11:0: expected ']'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/SpecialFunctions/Arcosh.lean:11:0: expected ']'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/SpecialFunctions/Arcosh.lean:11:0: expected ']'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/SpecialFunctions/Arcosh.lean:11:0: expected ']'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/SpecialFunctions/Arcosh.lean:11:0: expected ']'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/SpecialFunctions/Arcosh.lean:11:0: expected ']'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/SpecialFunctions/Arcosh.lean:76:0: expected ']'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/SpecialFunctions/Arcosh.lean:92:0: expected ']'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/SpecialFunctions/Arcosh.lean:122:0: expected ']'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [8253/8843] Built Mathlib.Analysis.SpecialFunctions.Log.Deriv (22s)
+warning: Mathlib/Analysis/SpecialFunctions/Log/Deriv.lean:256:0: expected identifier
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/SpecialFunctions/Log/Deriv.lean:1:0: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/SpecialFunctions/Log/Deriv.lean:281:0: expected identifier
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/SpecialFunctions/Log/Deriv.lean:1:0: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/SpecialFunctions/Log/Deriv.lean:315:0: expected identifier
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/SpecialFunctions/Log/Deriv.lean:1:0: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [8261/8843] Built Mathlib.Analysis.Convex.SpecificFunctions.Deriv (6.5s)
+warning: Mathlib/Analysis/Convex/SpecificFunctions/Deriv.lean:15:0: expected ']'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Convex/SpecificFunctions/Deriv.lean:15:0: expected ']'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [8277/8843] Built Mathlib.Analysis.SpecialFunctions.Log.Monotone (5.9s)
+warning: Mathlib/Analysis/SpecialFunctions/Log/Monotone.lean:41:2: `grind?` suggestion failed: `grind only [= ofPred_true, = ofPred_false, MonotoneOn.mono, = subset_def, = mem_Ici,
+  usr mem_ofPred_eq, show exp (-1) < 1 by norm_num]` did not close the goal
+⚠ [8296/8843] Built Mathlib.Computability.AkraBazzi.SumTransform (20s)
+warning: Mathlib/Computability/AkraBazzi/SumTransform.lean:15:0: '_'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [8302/8843] Built Mathlib.Combinatorics.SimpleGraph.LapMatrix (9.6s)
+warning: Mathlib/Combinatorics/SimpleGraph/LapMatrix.lean:1:0: any number of backticks; expected '![', '$$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [8325/8843] Built Mathlib.Geometry.Manifold.Submersion (16s)
+warning: Mathlib/Geometry/Manifold/Submersion.lean:516:0: expected '`' to close inline code
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [8335/8843] Built Mathlib.MeasureTheory.Integral.IntervalIntegral.Basic (24s)
+warning: Mathlib/MeasureTheory/Integral/IntervalIntegral/Basic.lean:15:0: '_'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [8365/8843] Built Mathlib.MeasureTheory.Integral.CurveIntegral.Basic (22s)
+warning: Mathlib/MeasureTheory/Integral/CurveIntegral/Basic.lean:14:0: '_'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/MeasureTheory/Integral/CurveIntegral/Basic.lean:117:0: '_'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [8383/8843] Built Mathlib.Analysis.Distribution.ContDiffMapSupportedIn (100s)
+warning: Mathlib/Analysis/Distribution/ContDiffMapSupportedIn.lean:3:23: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [8411/8843] Built Mathlib.MeasureTheory.Integral.IntervalIntegral.DistLEIntegral (7.6s)
+warning: Mathlib/MeasureTheory/Integral/IntervalIntegral/DistLEIntegral.lean:8:5: expected no space before
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/MeasureTheory/Integral/IntervalIntegral/DistLEIntegral.lean:173:0: expected token
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/MeasureTheory/Integral/IntervalIntegral/DistLEIntegral.lean:173:0: unexpected '`'; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/MeasureTheory/Integral/IntervalIntegral/DistLEIntegral.lean:1:0: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/MeasureTheory/Integral/IntervalIntegral/DistLEIntegral.lean:8:13: expected no space before
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/MeasureTheory/Integral/IntervalIntegral/DistLEIntegral.lean:196:0: expected token
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/MeasureTheory/Integral/IntervalIntegral/DistLEIntegral.lean:196:0: unexpected '`'; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/MeasureTheory/Integral/IntervalIntegral/DistLEIntegral.lean:1:0: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [8430/8843] Built Mathlib.Analysis.Complex.CanonicalDecomposition (21s)
+warning: Mathlib/Analysis/Complex/CanonicalDecomposition.lean:138:45: `grind?` suggestion failed: `grind only [mem_ball_zero_iff]` did not close the goal
+warning: Mathlib/Analysis/Complex/CanonicalDecomposition.lean:165:4: `grind?` suggestion failed: `grind only [mem_ball_zero_iff, mem_sphere_zero_iff_norm]` did not close the goal
+ℹ [8431/8843] Built Mathlib.Analysis.SpecialFunctions.Integrability.Basic (7.8s)
+info: Mathlib/Analysis/SpecialFunctions/Integrability/Basic.lean:248:6: 'intro s ⟨hs₁, hs₂⟩; grind' can be replaced with 'grind'
+
+Try this:
+  [apply] grind
+⚠ [8439/8843] Built Mathlib.Probability.Independence.BoundedContinuousFunction (14s)
+warning: Mathlib/Probability/Independence/BoundedContinuousFunction.lean:1:0: any number of backticks; expected '![', '$$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Probability/Independence/BoundedContinuousFunction.lean:1:0: any number of backticks; expected '![', '$$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Probability/Independence/BoundedContinuousFunction.lean:331:0: unexpected '\'; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Probability/Independence/BoundedContinuousFunction.lean:1:0: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Probability/Independence/BoundedContinuousFunction.lean:387:0: unexpected '\'; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Probability/Independence/BoundedContinuousFunction.lean:1:0: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Probability/Independence/BoundedContinuousFunction.lean:1:0: any number of backticks; expected '![', '$$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [8441/8843] Built Mathlib.MeasureTheory.Integral.CircleIntegral (18s)
+warning: Mathlib/MeasureTheory/Integral/CircleIntegral.lean:13:0: expected identifier
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/MeasureTheory/Integral/CircleIntegral.lean:3:48: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/MeasureTheory/Integral/CircleIntegral.lean:13:0: expected identifier
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/MeasureTheory/Integral/CircleIntegral.lean:17:58: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/MeasureTheory/Integral/CircleIntegral.lean:13:0: unexpected '='; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/MeasureTheory/Integral/CircleIntegral.lean:19:48: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/MeasureTheory/Integral/CircleIntegral.lean:13:0: expected identifier
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/MeasureTheory/Integral/CircleIntegral.lean:51:3: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/MeasureTheory/Integral/CircleIntegral.lean:424:0: expected identifier
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/MeasureTheory/Integral/CircleIntegral.lean:2:19: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/MeasureTheory/Integral/CircleIntegral.lean:625:0: expected identifier
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/MeasureTheory/Integral/CircleIntegral.lean:1:0: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/MeasureTheory/Integral/CircleIntegral.lean:737:0: expected identifier
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/MeasureTheory/Integral/CircleIntegral.lean:2:13: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [8443/8843] Built Mathlib.Analysis.SpecialFunctions.JapaneseBracket (7.9s)
+warning: Mathlib/Analysis/SpecialFunctions/JapaneseBracket.lean:15:0: expected identifier
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/SpecialFunctions/JapaneseBracket.lean:1:0: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [8448/8843] Built Mathlib.Analysis.InnerProductSpace.NormDet (23s)
+warning: Mathlib/Analysis/InnerProductSpace/NormDet.lean:16:0: expected ':='
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/InnerProductSpace/NormDet.lean:16:0: expected ')'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/InnerProductSpace/NormDet.lean:16:0: unexpected '
+'; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/InnerProductSpace/NormDet.lean:1:0: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [8452/8843] Built Mathlib.MeasureTheory.Integral.TorusIntegral (9.2s)
+warning: Mathlib/MeasureTheory/Integral/TorusIntegral.lean:12:7: any number of backticks; expected '![', '$$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/MeasureTheory/Integral/TorusIntegral.lean:11:0: expected ']'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/MeasureTheory/Integral/TorusIntegral.lean:11:0: expected token
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/MeasureTheory/Integral/TorusIntegral.lean:11:0: unexpected '$'; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/MeasureTheory/Integral/TorusIntegral.lean:1:0: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/MeasureTheory/Integral/TorusIntegral.lean:78:0: unexpected '*'; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/MeasureTheory/Integral/TorusIntegral.lean:2:34: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [8453/8843] Built Mathlib.MeasureTheory.Integral.CircleTransform (9.2s)
+warning: Mathlib/MeasureTheory/Integral/CircleTransform.lean:10:0: expected identifier
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/MeasureTheory/Integral/CircleTransform.lean:1:0: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [8458/8843] Built Mathlib.Analysis.Complex.CauchyIntegral (14s)
+warning: Mathlib/Analysis/Complex/CauchyIntegral.lean:19:0: expected identifier
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Complex/CauchyIntegral.lean:1:0: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Complex/CauchyIntegral.lean:181:0: expected identifier
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Complex/CauchyIntegral.lean:1:0: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Complex/CauchyIntegral.lean:225:0: expected identifier
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Complex/CauchyIntegral.lean:1:0: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Complex/CauchyIntegral.lean:243:0: expected identifier
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Complex/CauchyIntegral.lean:1:0: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Complex/CauchyIntegral.lean:375:0: expected identifier
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Complex/CauchyIntegral.lean:10:15: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Complex/CauchyIntegral.lean:423:0: expected identifier
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Complex/CauchyIntegral.lean:9:37: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Complex/CauchyIntegral.lean:437:0: expected identifier
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Complex/CauchyIntegral.lean:9:5: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Complex/CauchyIntegral.lean:456:0: expected identifier
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Complex/CauchyIntegral.lean:8:24: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Complex/CauchyIntegral.lean:493:0: expected identifier
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Complex/CauchyIntegral.lean:1:0: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Complex/CauchyIntegral.lean:529:0: expected identifier
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Complex/CauchyIntegral.lean:9:7: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Complex/CauchyIntegral.lean:541:0: expected identifier
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Complex/CauchyIntegral.lean:8:10: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Complex/CauchyIntegral.lean:550:0: expected identifier
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Complex/CauchyIntegral.lean:1:0: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Complex/CauchyIntegral.lean:562:0: expected identifier
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Complex/CauchyIntegral.lean:5:1: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Complex/CauchyIntegral.lean:569:0: expected identifier
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Complex/CauchyIntegral.lean:9:9: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [8468/8843] Built Mathlib.Analysis.Complex.RemovableSingularity (7.5s)
+warning: Mathlib/Analysis/Complex/RemovableSingularity.lean:12:0: expected identifier
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Complex/RemovableSingularity.lean:1:0: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Complex/RemovableSingularity.lean:67:0: expected identifier
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Complex/RemovableSingularity.lean:1:0: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Complex/RemovableSingularity.lean:88:0: expected identifier
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Complex/RemovableSingularity.lean:1:0: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Complex/RemovableSingularity.lean:109:0: expected identifier
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Complex/RemovableSingularity.lean:1:0: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [8475/8843] Built Mathlib.Analysis.Complex.MeanValue (7.8s)
+warning: Mathlib/Analysis/Complex/MeanValue.lean:103:27: `grind?` suggestion failed: `grind only [= max_def]` did not close the goal
+warning: Mathlib/Analysis/Complex/MeanValue.lean:117:27: `grind?` suggestion failed: `grind only [= max_def]` did not close the goal
+⚠ [8477/8843] Built Mathlib.Analysis.Complex.UpperHalfPlane.Manifold (12s)
+warning: Mathlib/Analysis/Complex/UpperHalfPlane/Manifold.lean:160:0: expected token
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Complex/UpperHalfPlane/Manifold.lean:160:0: unexpected end of input; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Complex/UpperHalfPlane/Manifold.lean:1:0: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Complex/UpperHalfPlane/Manifold.lean:168:0: expected token
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Complex/UpperHalfPlane/Manifold.lean:168:0: unexpected end of input; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Complex/UpperHalfPlane/Manifold.lean:1:0: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [8497/8843] Built Mathlib.Analysis.Analytic.Binomial (13s)
+warning: Mathlib/Analysis/Analytic/Binomial.lean:1:0: any number of backticks; expected '![', '$$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [8510/8843] Built Mathlib.MeasureTheory.Integral.IntegralEqImproper (25s)
+warning: Mathlib/MeasureTheory/Integral/IntegralEqImproper.lean:1:2: invalid 'many' parser combinator application, parser did not consume anything
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [8540/8843] Built Mathlib.Analysis.ODE.PicardLindelof (13s)
+warning: Mathlib/Analysis/ODE/PicardLindelof.lean:362:0: expected identifier
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/ODE/PicardLindelof.lean:3:46: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [8559/8843] Built Mathlib.Analysis.SumIntegralComparisons (18s)
+warning: Mathlib/Analysis/SumIntegralComparisons.lean:270:27: `grind?` suggestion failed: `grind only [= mem_Icc]` did not close the goal
+warning: Mathlib/Analysis/SumIntegralComparisons.lean:275:8: `grind?` suggestion failed: `grind only [= mem_Ioo]` did not close the goal
+⚠ [8565/8843] Built Mathlib.Analysis.Calculus.Taylor (24s)
+warning: Mathlib/Analysis/Calculus/Taylor.lean:65:0: expected identifier
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Calculus/Taylor.lean:1:0: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Calculus/Taylor.lean:294:0: expected '_' without preceding space
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+info: Mathlib/Analysis/Calculus/Taylor.lean:316:2: 'use y, hy; grind' can be replaced with 'grind'
+
+Try this:
+  [apply] grind
+warning: Mathlib/Analysis/Calculus/Taylor.lean:318:2: `grind?` suggestion failed: `grind only [taylorWithinEval_self]` did not close the goal
+warning: Mathlib/Analysis/Calculus/Taylor.lean:321:0: expected identifier
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Calculus/Taylor.lean:10:14: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Calculus/Taylor.lean:363:0: expected identifier
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Calculus/Taylor.lean:10:12: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Calculus/Taylor.lean:445:0: expected identifier
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Calculus/Taylor.lean:11:11: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Calculus/Taylor.lean:503:0: expected identifier
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Calculus/Taylor.lean:9:34: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Calculus/Taylor.lean:528:0: expected identifier
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/Calculus/Taylor.lean:8:22: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+ℹ [8570/8843] Built Mathlib.Probability.Process.LocalProperty (13s)
+info: Mathlib/Probability/Process/LocalProperty.lean:245:4: 'specialize hmem N; grind' can be replaced with 'grind'
+
+Try this:
+  [apply] grind
+⚠ [8581/8843] Built Mathlib.Analysis.SpecialFunctions.Stirling (13s)
+warning: Mathlib/Analysis/SpecialFunctions/Stirling.lean:11:0: expected identifier
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/SpecialFunctions/Stirling.lean:1:0: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/SpecialFunctions/Stirling.lean:52:0: expected identifier
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Analysis/SpecialFunctions/Stirling.lean:1:0: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+info: Mathlib/Analysis/SpecialFunctions/Stirling.lean:136:62: 'norm_cast; grind' can be replaced with 'grind'
+
+Try this:
+  [apply] grind
+⚠ [8596/8843] Built Mathlib.NumberTheory.Harmonic.Bounds (5.2s)
+warning: Mathlib/NumberTheory/Harmonic/Bounds.lean:12:0: '_'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [8614/8843] Built Mathlib.Probability.Martingale.Upcrossing (11s)
+warning: Mathlib/Probability/Martingale/Upcrossing.lean:14:0: unexpected '\'; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Probability/Martingale/Upcrossing.lean:1:0: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Probability/Martingale/Upcrossing.lean:1:0: any number of backticks; expected '![', '$$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Probability/Martingale/Upcrossing.lean:698:0: '_'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+ℹ [8630/8843] Built Mathlib.Analysis.Complex.JensenFormula (17s)
+info: Mathlib/Analysis/Complex/JensenFormula.lean:62:4: 'by_contra h; grind' can be replaced with 'grind'
+
+Try this:
+  [apply] grind
+info: Mathlib/Analysis/Complex/JensenFormula.lean:62:4: 'by_contra h; grind' can be replaced with 'grind'
+
+Try this:
+  [apply] grind
+⚠ [8640/8843] Built Mathlib.Probability.Martingale.Convergence (8.1s)
+warning: Mathlib/Probability/Martingale/Convergence.lean:60:0: unexpected '\'; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Probability/Martingale/Convergence.lean:1:0: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Probability/Martingale/Convergence.lean:30:53: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Probability/Martingale/Convergence.lean:245:0: '_'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+ℹ [8648/8843] Built Mathlib.MeasureTheory.VectorMeasure.IntegrationByParts (29s)
+info: Mathlib/MeasureTheory/VectorMeasure/IntegrationByParts.lean:75:4: 'intro m n hmn x hx; grind' can be replaced with 'grind'
+
+Try this:
+  [apply] grind
+⚠ [8660/8843] Built Mathlib.Probability.Martingale.BorelCantelli (10s)
+warning: Mathlib/Probability/Martingale/BorelCantelli.lean:9:20: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Probability/Martingale/BorelCantelli.lean:11:14: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Probability/Martingale/BorelCantelli.lean:170:0: '_'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [8740/8843] Built Mathlib.NumberTheory.Chebyshev (133s)
+warning: Mathlib/NumberTheory/Chebyshev.lean:228:41: `grind?` suggestion failed: `grind only` did not close the goal
+ℹ [8744/8843] Built Mathlib.Probability.Moments.SubGaussian (16s)
+info: Mathlib/Probability/Moments/SubGaussian.lean:803:4: 'congr with ω; grind' can be replaced with 'grind'
+
+Try this:
+  [apply] grind
+⚠ [8750/8843] Built Mathlib.InformationTheory.KullbackLeibler.KLFun (4.6s)
+warning: Mathlib/InformationTheory/KullbackLeibler/KLFun.lean:12:0: expected ']'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/InformationTheory/KullbackLeibler/KLFun.lean:61:0: expected ']'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/InformationTheory/KullbackLeibler/KLFun.lean:66:0: expected ']'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/InformationTheory/KullbackLeibler/KLFun.lean:69:0: expected ']'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [8752/8843] Built Mathlib.Analysis.Distribution.SchwartzSpace.Basic (81s)
+warning: Mathlib/Analysis/Distribution/SchwartzSpace/Basic.lean:8:16: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [8782/8843] Built Mathlib.NumberTheory.NumberField.Cyclotomic.Three (8.1s)
+warning: Mathlib/NumberTheory/NumberField/Cyclotomic/Three.lean:13:0: '_'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [8785/8843] Built Mathlib.Probability.Distributions.Gaussian.HasGaussianLaw.Independence (23s)
+warning: Mathlib/Probability/Distributions/Gaussian/HasGaussianLaw/Independence.lean:15:0: unexpected '\'; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Probability/Distributions/Gaussian/HasGaussianLaw/Independence.lean:1:0: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Probability/Distributions/Gaussian/HasGaussianLaw/Independence.lean:191:0: unexpected '\'; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Probability/Distributions/Gaussian/HasGaussianLaw/Independence.lean:1:0: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Probability/Distributions/Gaussian/HasGaussianLaw/Independence.lean:222:0: unexpected '\'; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Probability/Distributions/Gaussian/HasGaussianLaw/Independence.lean:1:0: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Probability/Distributions/Gaussian/HasGaussianLaw/Independence.lean:235:0: unexpected ','; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Probability/Distributions/Gaussian/HasGaussianLaw/Independence.lean:2:5: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Probability/Distributions/Gaussian/HasGaussianLaw/Independence.lean:259:0: unexpected '\'; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Probability/Distributions/Gaussian/HasGaussianLaw/Independence.lean:1:0: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Probability/Distributions/Gaussian/HasGaussianLaw/Independence.lean:336:0: unexpected '\'; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Probability/Distributions/Gaussian/HasGaussianLaw/Independence.lean:1:0: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Probability/Distributions/Gaussian/HasGaussianLaw/Independence.lean:1:0: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [8791/8843] Built Mathlib.Probability.Distributions.Gaussian.IsGaussianProcess.Independence (5.2s)
+warning: Mathlib/Probability/Distributions/Gaussian/IsGaussianProcess/Independence.lean:15:0: unexpected '\'; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Probability/Distributions/Gaussian/IsGaussianProcess/Independence.lean:1:0: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Probability/Distributions/Gaussian/IsGaussianProcess/Independence.lean:62:0: unexpected '\'; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Probability/Distributions/Gaussian/IsGaussianProcess/Independence.lean:1:0: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Probability/Distributions/Gaussian/IsGaussianProcess/Independence.lean:89:0: unexpected '\'; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Probability/Distributions/Gaussian/IsGaussianProcess/Independence.lean:1:0: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Probability/Distributions/Gaussian/IsGaussianProcess/Independence.lean:101:0: unexpected '\'; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Probability/Distributions/Gaussian/IsGaussianProcess/Independence.lean:1:0: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Probability/Distributions/Gaussian/IsGaussianProcess/Independence.lean:118:0: unexpected '\'; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Probability/Distributions/Gaussian/IsGaussianProcess/Independence.lean:1:0: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Probability/Distributions/Gaussian/IsGaussianProcess/Independence.lean:144:0: unexpected '\'; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Probability/Distributions/Gaussian/IsGaussianProcess/Independence.lean:1:0: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Probability/Distributions/Gaussian/IsGaussianProcess/Independence.lean:154:0: unexpected '\'; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Probability/Distributions/Gaussian/IsGaussianProcess/Independence.lean:1:0: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [8796/8843] Built Mathlib.Analysis.SpecialFunctions.ContinuousFunctionalCalculus.Rpow.RingInverseOrder (57s)
+warning: Mathlib/Analysis/SpecialFunctions/ContinuousFunctionalCalculus/Rpow/RingInverseOrder.lean:99:10: `grind?` suggestion failed: `grind only [ConvexOn, = mem_Ioi]` did not close the goal
+⚠ [8833/8843] Built Mathlib.NumberTheory.ModularForms.DedekindEta (4.7s)
+warning: Mathlib/NumberTheory/ModularForms/DedekindEta.lean:158:4: `grind?` suggestion failed: `grind only` did not close the goal
+⚠ [8836/8843] Built Mathlib.NumberTheory.ModularForms.Discriminant (3.9s)
+warning: Mathlib/NumberTheory/ModularForms/Discriminant.lean:73:60: `grind?` suggestion failed: `grind only [im_pnat_div_pos 1 z]` did not close the goal
+⚠ [8837/8843] Built Mathlib.NumberTheory.ModularForms.Derivative (6.1s)
+warning: Mathlib/NumberTheory/ModularForms/Derivative.lean:12:0: expected identifier
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/NumberTheory/ModularForms/Derivative.lean:1:0: '['; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/NumberTheory/ModularForms/Derivative.lean:35:0: expected identifier
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/NumberTheory/ModularForms/Derivative.lean:1:0: unexpected end of input; expected '![', '$$', '$', '*', '[', '[^', '_', '`' or '{'
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/NumberTheory/ModularForms/Derivative.lean:202:4: `grind?` suggestion failed: `grind only [= max_def]` did not close the goal
+warning: Mathlib/NumberTheory/ModularForms/Derivative.lean:221:0: expected '_' without preceding space
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+Build completed successfully (8843 jobs).
