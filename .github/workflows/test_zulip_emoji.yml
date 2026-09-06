@@ -13,6 +13,7 @@ on:
       - scripts/zulip/examples/**
       - tests/zulip_emoji/**
       - .github/workflows/test_zulip_emoji.yml
+      - pytest.ini
   pull_request:
     paths:
       - scripts/zulip/emoji_reconcile/**
@@ -20,6 +21,7 @@ on:
       - scripts/zulip/examples/**
       - tests/zulip_emoji/**
       - .github/workflows/test_zulip_emoji.yml
+      - pytest.ini
 
 permissions:
   contents: read

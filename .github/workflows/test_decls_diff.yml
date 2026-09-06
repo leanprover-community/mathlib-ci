@@ -12,12 +12,14 @@ on:
       - .github/actions/decls-diff/**
       - tests/decls_diff/**
       - .github/workflows/test_decls_diff.yml
+      - pytest.ini
   pull_request:
     paths:
       - scripts/pr_summary/declsDiff.py
       - .github/actions/decls-diff/**
       - tests/decls_diff/**
       - .github/workflows/test_decls_diff.yml
+      - pytest.ini
 
 permissions:
   contents: read
