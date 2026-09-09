@@ -1,0 +1,18 @@
+⚠ [12/345] Built Mathlib.Data.List.Basic (10s)
+warning: Mathlib/Data/List/Basic.lean:39:2: `grind?` suggestion failed: `grind only` did not close the goal
+
+Note: This linter can be disabled with `set_option linter.tacticAnalysis.verifyGrindOnly false`
+✖ [13/345] Building Mathlib.Algebra.Group.Defs
+error: Mathlib/Algebra/Group/Defs.lean:101:4: unexpected token '|'; expected term
+error: Mathlib/Algebra/Group/Defs.lean:120:0: unknown identifier 'foo'
+error: Lean exited with code 1
+ℹ [14/345] Built Mathlib.Order.Basic (3s)
+info: stderr:
+PANIC at Lean.Expr.bindingBody! Lean.Expr:1247:14: binding expected
+PANIC at Lean.Meta.whnf Lean.Meta.WHNF:80:2: unreachable
+warning: Mathlib/Order/Basic.lean:12:0: The `have` tactic was used, but the term is a proof
+
+Note: This linter can be disabled with `set_option linter.haveLet 0`
+Some required targets logged failures:
+- Mathlib.Algebra.Group.Defs
+error: build failed
