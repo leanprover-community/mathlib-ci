@@ -16,7 +16,6 @@ import pytest
 import mint
 
 BROKER = "https://broker.example.workers.dev"
-PUT_BASE = "https://acct.r2.cloudflarestorage.com/mathlib4-devcache"
 OIDC_ENV = {
     "ACTIONS_ID_TOKEN_REQUEST_TOKEN": "runtime-token",
     "ACTIONS_ID_TOKEN_REQUEST_URL": "https://oidc.example/token?api-version=2",
@@ -42,7 +41,6 @@ def good_fetch(url, bearer, method="GET"):
 def args(on_failure, github_env):
     return [
         "--broker-url", BROKER,
-        "--put-base-url", PUT_BASE,
         "--audience", "mathlib-cache-broker",
         "--on-failure", on_failure,
         "--github-env", str(github_env),
@@ -100,11 +98,10 @@ class TestParseCredentials:
 class TestExportBlock:
     def test_exact_lines_and_order(self):
         credentials = mint.parse_credentials(json.dumps(GOOD_ANSWER))
-        assert mint.export_block(credentials, PUT_BASE) == (
+        assert mint.export_block(credentials) == (
             "MATHLIB_CACHE_S3_ACCESS_KEY_ID=AKIAMOCK\n"
             "MATHLIB_CACHE_S3_SECRET_ACCESS_KEY=secret/mock+1=\n"
             "MATHLIB_CACHE_S3_SESSION_TOKEN=sess.token_a-b\n"
-            f"MATHLIB_CACHE_PUT_BASE_URL={PUT_BASE}\n"
             "MATHLIB_CACHE_DEVELOPER_MINTED=true\n"
         )
 
@@ -169,18 +166,13 @@ class TestRun:
         ],
         ids=["newline-injection", "not-https", "query-string", "trailing-space"],
     )
-    def test_a_url_input_outside_the_charset_never_reaches_github_env(self, tmp_path, url):
-        code, exported, output = run_mint(tmp_path, broker=url)
+    def test_a_broker_url_outside_the_charset_never_reaches_the_transport(self, tmp_path, url):
+        def fetch(*a, **k):
+            raise AssertionError("the transport must not see a rejected URL")
+
+        code, exported, output = run_mint(tmp_path, broker=url, fetch=fetch)
         assert (code, exported) == (0, "")
         assert "broker-url is not one plain https URL" in output
-        github_env = tmp_path / "github_env"
-        github_env.write_text("")
-        out = io.StringIO()
-        argv = args("warn-and-skip", github_env)
-        argv[3] = url  # --put-base-url value
-        assert mint.run(argv, env=OIDC_ENV, fetch=good_fetch, out=out) == 0
-        assert github_env.read_text() == ""
-        assert "put-base-url is not one plain https URL" in out.getvalue()
 
 
 class TestFetchRetries:

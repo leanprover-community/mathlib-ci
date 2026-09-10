@@ -24,9 +24,9 @@ from typing import Callable, Mapping
 # base64- and URL-safe material only.
 CREDENTIAL_RE = re.compile(r"[A-Za-z0-9+/=._-]+")
 
-# The URL inputs reach GITHUB_ENV and the transport layer, so each must
-# be one plain https URL: no whitespace, no control characters, no
-# query string, no trailing slash.
+# The broker URL reaches the transport layer with the route appended,
+# so it must be one plain https URL: no whitespace, no control
+# characters, no query string, no trailing slash.
 URL_RE = re.compile(r"https://[A-Za-z0-9.-]+(?::[0-9]+)?(?:/[A-Za-z0-9._~%-]+)*")
 
 # The audience is appended to the OIDC token endpoint's query string.
@@ -103,30 +103,28 @@ def parse_credentials(body: str) -> dict[str, str]:
     return credentials
 
 
-def export_block(credentials: Mapping[str, str], put_base_url: str) -> str:
+def export_block(credentials: Mapping[str, str]) -> str:
     """The GITHUB_ENV block, written in one piece.
 
-    The put base sits after the credentials: the cache tool routes the
-    write to the bucket only on MATHLIB_CACHE_PUT_BASE_URL, so a
-    truncated write leaves the credentials without a bucket destination
-    rather than a foreign credential aimed at the bucket. MINTED is the
-    non-secret sentinel callers gate later steps on; testing a masked
-    credential's presence in an `if:` works but reads poorly.
+    MINTED is the non-secret sentinel callers gate later steps on;
+    testing a masked credential's presence in an `if:` works but reads
+    poorly. It sits last, so a truncated write leaves no sentinel
+    rather than a sentinel over a partial credential. Where the cache
+    tool writes (MATHLIB_CACHE_PUT_BASE_URL and the like) is the
+    caller's to set.
     """
     return (
         f"MATHLIB_CACHE_S3_ACCESS_KEY_ID={credentials['accessKeyId']}\n"
         f"MATHLIB_CACHE_S3_SECRET_ACCESS_KEY={credentials['secretAccessKey']}\n"
         f"MATHLIB_CACHE_S3_SESSION_TOKEN={credentials['sessionToken']}\n"
-        f"MATHLIB_CACHE_PUT_BASE_URL={put_base_url}\n"
         "MATHLIB_CACHE_DEVELOPER_MINTED=true\n"
     )
 
 
 def obtain(args: argparse.Namespace, env: Mapping[str, str], fetch: Fetch) -> dict[str, str]:
     """Run the two-request mint and return validated credentials."""
-    for name, value in (("broker-url", args.broker_url), ("put-base-url", args.put_base_url)):
-        if not URL_RE.fullmatch(value):
-            raise MintError(f"{name} is not one plain https URL")
+    if not URL_RE.fullmatch(args.broker_url):
+        raise MintError("broker-url is not one plain https URL")
     if not AUDIENCE_RE.fullmatch(args.audience):
         raise MintError("audience carries characters outside its charset")
     request_token = env.get("ACTIONS_ID_TOKEN_REQUEST_TOKEN", "")
@@ -153,7 +151,6 @@ def obtain(args: argparse.Namespace, env: Mapping[str, str], fetch: Fetch) -> di
 def run(argv: list[str] | None = None, env: Mapping[str, str] | None = None, fetch: Fetch = fetch_text, out=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--broker-url", required=True)
-    parser.add_argument("--put-base-url", required=True)
     parser.add_argument("--audience", required=True)
     parser.add_argument("--on-failure", required=True, choices=("warn-and-skip", "fail"))
     parser.add_argument("--github-env", required=True)
@@ -180,7 +177,7 @@ def run(argv: list[str] | None = None, env: Mapping[str, str] | None = None, fet
         print(f"::add-mask::{credentials[field]}", file=out)
     out.flush()
     with open(args.github_env, "a", encoding="utf-8") as github_env:
-        github_env.write(export_block(credentials, args.put_base_url))
+        github_env.write(export_block(credentials))
     print(f"cache credentials minted (grant: {credentials['grant']})", file=out)
     return 0
 
