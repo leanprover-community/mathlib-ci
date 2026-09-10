@@ -38,7 +38,7 @@ TIMEOUT_SECONDS = 30
 # Cloudflare's browser integrity check in front of the broker answers 403
 # (error 1010) to Python's default `Python-urllib/x.y` agent. A named
 # agent passes, and names the caller in the broker's logs.
-USER_AGENT = "mathlib-ci/broker-create-cache-credentials"
+USER_AGENT = "mathlib-ci/broker-create-credentials"
 
 # The credential fields, in order. `sessionToken` is deliberately
 # required: the broker always mints one, and its absence marks a
@@ -194,7 +194,7 @@ def run(argv: list[str] | None = None, env: Mapping[str, str] | None = None, fet
     out.flush()
     with open(args.github_output, "a", encoding="utf-8") as github_output:
         github_output.write(output_block(credentials))
-    print(f"cache credentials minted (grant: {credentials['grant']})", file=out)
+    print(f"credentials minted (grant: {credentials['grant']})", file=out)
     return 0
 
 

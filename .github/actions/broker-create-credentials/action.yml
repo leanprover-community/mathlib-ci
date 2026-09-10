@@ -1,4 +1,4 @@
-name: Broker Create Cache Credentials
+name: Broker Create Credentials
 description: >-
   Exchange the job's GitHub OIDC token at the mathlib cache broker for
   short-lived S3-compatible credentials, and expose them as masked step
@@ -46,7 +46,7 @@ outputs:
 runs:
   using: composite
   steps:
-    - name: Mint cache credentials from the cache broker
+    - name: Mint credentials from the cache broker
       id: mint
       shell: bash
       # Inputs flow through `env:`, never `${{ … }}` inside `run:`:

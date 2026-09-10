@@ -121,7 +121,7 @@ class TestRun:
         # Every credential is masked before the summary line prints.
         mask_lines = [line for line in output.splitlines() if line.startswith("::add-mask::")]
         assert len(mask_lines) == 3
-        assert output.splitlines()[-1] == "cache credentials minted (grant: cache-upload-forks)"
+        assert output.splitlines()[-1] == "credentials minted (grant: cache-upload-forks)"
         assert output.index("::add-mask::") < output.index("minted")
 
     def test_no_oidc_endpoint_warns_and_skips(self, tmp_path):
