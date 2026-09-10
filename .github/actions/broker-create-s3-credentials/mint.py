@@ -21,7 +21,8 @@ from urllib.parse import urlencode, urlsplit
 ATTEMPTS = 3
 TIMEOUT_SECONDS = 30
 
-# The tail of every warn-and-skip message: what the caller sees next.
+# Every warn-and-skip warning ends with this clause, which states the
+# consequence for the caller.
 SKIP_NOTE = "no credential output, so the steps gated on minted skip"
 
 # A Cloudflare browser integrity check in front of the broker answers 403
