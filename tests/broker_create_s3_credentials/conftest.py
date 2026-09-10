@@ -7,4 +7,4 @@ from pathlib import Path
 
 _ACTIONS = Path(__file__).resolve().parents[2] / ".github" / "actions"
 
-sys.path.insert(0, str(_ACTIONS / "broker-create-credentials"))
+sys.path.insert(0, str(_ACTIONS / "broker-create-s3-credentials"))
