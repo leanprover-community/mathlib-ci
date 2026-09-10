@@ -21,7 +21,7 @@ TIMEOUT_SECONDS = 30
 # A Cloudflare browser integrity check in front of the broker answers 403
 # (error 1010) to Python's default `Python-urllib/x.y` agent. A named
 # agent passes and identifies the caller in the broker's logs.
-USER_AGENT = "mathlib-ci/broker-create-s3-credentials"
+USER_AGENT = "mathlib-ci/mint-s3-credentials"
 
 # The credential fields, in order. `sessionToken` is required: the
 # broker always mints one, and its absence marks a malformed or foreign

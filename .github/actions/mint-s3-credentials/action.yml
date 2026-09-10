@@ -1,4 +1,4 @@
-name: Broker Create S3 Credentials
+name: Mint S3 Credentials
 description: >-
   Exchange the job's GitHub OIDC token at a credential broker for
   short-lived S3-compatible credentials, and expose them as masked step
