@@ -5,7 +5,7 @@ description: >-
   outputs. The broker decides from the token's claims which grant
   applies. The caller maps the outputs into the variables its tool
   reads. The step fails when the mint fails; a caller with a fallback
-  sets `continue-on-error: true` on the step and tests the `minted`
+  sets `continue-on-error: true` on the step and tests the `success`
   output in later steps. The calling job needs `id-token: write`.
 
 inputs:
@@ -29,11 +29,11 @@ outputs:
   grant:
     description: The name of the broker grant that matched the token. Display-only.
     value: ${{ steps.mint.outputs.grant }}
-  minted:
+  success:
     description: >-
       "true" when the credential outputs are set, unset when the mint
       failed. Test it in the `if:` of the steps that use the credential.
-    value: ${{ steps.mint.outputs.minted }}
+    value: ${{ steps.mint.outputs.success }}
 
 runs:
   using: composite

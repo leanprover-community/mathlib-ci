@@ -172,7 +172,7 @@ class TestOutputBlock:
             "secret-access-key=secret/mock+1=\n"
             "session-token=sess.token_a-b\n"
             "grant=example-grant\n"
-            "minted=true\n"
+            "success=true\n"
         )
 
 

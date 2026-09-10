@@ -163,7 +163,7 @@ def output_block(credentials: Mapping[str, str]) -> str:
     """The GITHUB_OUTPUT block, written in one piece.
 
     `run` masks the credential values before it writes this block. The
-    grant is display-only. `minted` is the non-secret flag that callers
+    grant is display-only. `success` is the non-secret flag that callers
     test in the `if:` of later steps. It is the last line, so it appears
     only after every credential line is complete.
     """
@@ -172,7 +172,7 @@ def output_block(credentials: Mapping[str, str]) -> str:
         f"secret-access-key={credentials['secretAccessKey']}\n"
         f"session-token={credentials['sessionToken']}\n"
         f"grant={credentials['grant']}\n"
-        "minted=true\n"
+        "success=true\n"
     )
 
 
@@ -233,7 +233,7 @@ def run(
         with open(args.github_output, "a", encoding="utf-8") as github_output:
             github_output.write(output_block(credentials))
     except OSError as error:
-        # A partial write stops before the `minted` line.
+        # A partial write stops before the `success` line.
         print(f"::error::could not write the step outputs ({error.strerror or error})", file=out)
         return 1
     print(f"credentials minted (grant: {credentials['grant']})", file=out)
