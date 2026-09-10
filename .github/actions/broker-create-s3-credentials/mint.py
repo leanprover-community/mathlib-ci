@@ -27,15 +27,10 @@ TIMEOUT_SECONDS = 30
 # agent passes and identifies the caller in the broker's logs.
 USER_AGENT = "mathlib-ci/broker-create-s3-credentials"
 
-# Each credential as (broker field, step output), in output order.
-# `sessionToken` is required: the broker always mints one, and its
-# absence marks a malformed or foreign answer.
-CREDENTIAL_OUTPUTS = (
-    ("accessKeyId", "access-key-id"),
-    ("secretAccessKey", "secret-access-key"),
-    ("sessionToken", "session-token"),
-)
-CREDENTIAL_FIELDS = tuple(field for field, _ in CREDENTIAL_OUTPUTS)
+# The credential fields, in order. `sessionToken` is required: the
+# broker always mints one, and its absence marks a malformed or foreign
+# answer.
+CREDENTIAL_FIELDS = ("accessKeyId", "secretAccessKey", "sessionToken")
 
 # What one HTTP request can raise. `OSError` covers `urllib.error.URLError`
 # and its subclass `HTTPError`; `http.client.HTTPException` covers
@@ -172,10 +167,13 @@ def output_block(credentials: Mapping[str, str]) -> str:
     test in the `if:` of later steps. It is the last line, so it appears
     only after every credential line is complete.
     """
-    lines = [f"{output}={credentials[field]}" for field, output in CREDENTIAL_OUTPUTS]
-    lines.append(f"grant={credentials['grant']}")
-    lines.append("minted=true")
-    return "".join(f"{line}\n" for line in lines)
+    return (
+        f"access-key-id={credentials['accessKeyId']}\n"
+        f"secret-access-key={credentials['secretAccessKey']}\n"
+        f"session-token={credentials['sessionToken']}\n"
+        f"grant={credentials['grant']}\n"
+        "minted=true\n"
+    )
 
 
 def mint_credentials(broker_url: str, audience: str, env: Mapping[str, str], fetch: Fetch) -> dict[str, str]:
