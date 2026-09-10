@@ -21,9 +21,8 @@ from urllib.parse import urlencode, urlsplit
 ATTEMPTS = 3
 TIMEOUT_SECONDS = 30
 
-# Every warn-and-skip warning ends with this clause, which states the
-# consequence for the caller.
-SKIP_NOTE = "no credential output, so the steps gated on minted skip"
+# Every warn-and-skip warning ends with this sentence.
+NO_OUTPUTS = "The step set no outputs."
 
 # A Cloudflare browser integrity check in front of the broker answers 403
 # (error 1010) to Python's default `Python-urllib/x.y` agent. A named
@@ -136,8 +135,8 @@ def output_block(credentials: Mapping[str, str]) -> str:
 
     `run` masks the credential values before it writes this block. The
     grant is display-only. `minted` is the non-secret flag that callers
-    gate later steps on. It is the last line, so a truncated write leaves
-    no flag over a partial credential.
+    test in the `if:` of later steps. It is the last line, so a truncated
+    write leaves no flag over a partial credential.
     """
     return (
         f"access-key-id={credentials['accessKeyId']}\n"
@@ -196,7 +195,7 @@ def run(argv: list[str] | None = None, env: Mapping[str, str] | None = None, fet
         if args.on_failure == "fail":
             print(f"::error::{error}", file=out)
             return 1
-        print(f"::warning::{error}; {SKIP_NOTE}", file=out)
+        print(f"::warning::{error}. {NO_OUTPUTS}", file=out)
         return 0
 
     # Mask before any other output can carry a credential value.
@@ -214,7 +213,7 @@ def run(argv: list[str] | None = None, env: Mapping[str, str] | None = None, fet
         if args.on_failure == "fail":
             print(f"::error::{message}", file=out)
             return 1
-        print(f"::warning::{message}; {SKIP_NOTE}", file=out)
+        print(f"::warning::{message}. {NO_OUTPUTS}", file=out)
         return 0
     print(f"credentials minted (grant: {credentials['grant']})", file=out)
     return 0

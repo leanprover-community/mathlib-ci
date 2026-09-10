@@ -171,7 +171,7 @@ class TestRun:
         assert code == 0
         assert outputs == ""
         assert output.startswith("::warning::the job has no OIDC token endpoint")
-        assert output.endswith("no credential output, so the steps gated on minted skip\n")
+        assert output.endswith("(id-token: write missing?). The step set no outputs.\n")
 
     def test_no_oidc_endpoint_fails_in_fail_posture(self, tmp_path):
         code, outputs, output = run_mint(tmp_path, on_failure="fail", env={})

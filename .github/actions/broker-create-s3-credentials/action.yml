@@ -37,8 +37,8 @@ outputs:
   minted:
     description: >-
       "true" when the credential outputs are set; unset when the mint
-      failed in the warn-and-skip posture. Gate the steps that use the
-      credential on it.
+      failed in the warn-and-skip posture. Test it in the `if:` of the
+      steps that use the credential.
     value: ${{ steps.mint.outputs.minted }}
 
 runs:
