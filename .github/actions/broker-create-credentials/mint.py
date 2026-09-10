@@ -18,9 +18,9 @@ import urllib.error
 import urllib.request
 from typing import Callable, Mapping
 
-# A credential must be a single line from a strict charset before it
-# reaches `::add-mask::` (which masks one line) or GITHUB_OUTPUT (where
-# an embedded newline could define arbitrary outputs). The broker mints
+# A credential must be one line from a strict charset before it reaches
+# `::add-mask::`, which masks one line, or GITHUB_OUTPUT, where an
+# embedded newline could define arbitrary outputs. The broker mints
 # base64- and URL-safe material only.
 CREDENTIAL_RE = re.compile(r"[A-Za-z0-9+/=._-]+")
 
@@ -29,7 +29,8 @@ CREDENTIAL_RE = re.compile(r"[A-Za-z0-9+/=._-]+")
 # no query string, no trailing slash.
 URL_RE = re.compile(r"https://[A-Za-z0-9.-]+(?::[0-9]+)?(?:/[A-Za-z0-9._~%-]+)*")
 
-# The audience is appended to the OIDC token endpoint's query string.
+# The audience joins the OIDC token endpoint's query string, so it stays
+# inside a URL-safe charset.
 AUDIENCE_RE = re.compile(r"[A-Za-z0-9._:/-]+")
 
 ATTEMPTS = 3
@@ -38,15 +39,14 @@ TIMEOUT_SECONDS = 30
 # The tail of every warn-and-skip message: what the caller sees next.
 SKIP_NOTE = "no credential output, so the steps gated on minted skip"
 
-# Cloudflare's browser integrity check in front of the broker answers 403
+# A Cloudflare browser integrity check in front of the broker answers 403
 # (error 1010) to Python's default `Python-urllib/x.y` agent. A named
-# agent passes, and names the caller in the broker's logs.
+# agent passes and identifies the caller in the broker's logs.
 USER_AGENT = "mathlib-ci/broker-create-credentials"
 
-# The credential fields, in order. `sessionToken` is deliberately
-# required: the broker always mints one, and its absence marks a
-# malformed or foreign answer. A static-keypair grant would need this
-# relaxed.
+# The credential fields, in order. `sessionToken` is required: the
+# broker always mints one, and its absence marks a malformed or foreign
+# answer.
 CREDENTIAL_FIELDS = ("accessKeyId", "secretAccessKey", "sessionToken")
 
 
@@ -93,9 +93,9 @@ def audience_url(request_url: str, audience: str) -> str:
 def parse_credentials(body: str) -> dict[str, str]:
     """Validate the broker's answer field by field.
 
-    A 200 with a malformed body must take the same failure path as a
-    transport error, and no field may reach the caller without passing
-    the credential charset.
+    A 200 with a malformed body takes the same failure path as a
+    transport error. Every field passes the credential charset before it
+    reaches the caller.
     """
     try:
         answer = json.loads(body)
@@ -109,8 +109,8 @@ def parse_credentials(body: str) -> dict[str, str]:
         if not isinstance(value, str) or not CREDENTIAL_RE.fullmatch(value):
             raise MintError("the broker answer carried no well-formed credential")
         credentials[field] = value
-    # The grant name is display-only; a missing or malformed one must
-    # not fail a mint that already produced good credentials.
+    # The grant name is display-only. A missing or malformed grant prints
+    # as `?` and the mint succeeds.
     grant = answer.get("grant")
     if not isinstance(grant, str) or not CREDENTIAL_RE.fullmatch(grant):
         grant = "?"
@@ -121,11 +121,10 @@ def parse_credentials(body: str) -> dict[str, str]:
 def output_block(credentials: Mapping[str, str]) -> str:
     """The GITHUB_OUTPUT block, written in one piece.
 
-    The credential values are masked before this block is written; the
-    grant is display-only. `minted` is the non-secret flag callers gate
-    later steps on; testing a masked output's presence in an `if:` works
-    but reads poorly. It sits last, so a truncated write leaves no flag
-    rather than a flag over a partial credential.
+    `run` masks the credential values before it writes this block. The
+    grant is display-only. `minted` is the non-secret flag that callers
+    gate later steps on. It is the last line, so a truncated write leaves
+    no flag over a partial credential.
     """
     return (
         f"access-key-id={credentials['accessKeyId']}\n"
@@ -196,8 +195,8 @@ def run(argv: list[str] | None = None, env: Mapping[str, str] | None = None, fet
         with open(args.github_output, "a", encoding="utf-8") as github_output:
             github_output.write(output_block(credentials))
     except OSError as error:
-        # A runner fault, not a broker fault, but the posture still
-        # decides: the caller's fallback must not depend on which side
+        # A runner fault, not a broker fault. The posture decides here
+        # too, so the caller's fallback does not depend on which side
         # failed. `minted` is the last line, so a partial write set no flag.
         message = f"could not write the step outputs ({error.strerror or error})"
         if args.on_failure == "fail":
