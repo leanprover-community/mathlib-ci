@@ -1,7 +1,7 @@
 """The mint policy, driven through an injected transport.
 
 Layout: pure helpers first (audience URL, credential parsing, the
-export block), then `run()` end to end for both failure postures, then
+output block), then `run()` end to end for both failure postures, then
 the transport's retry behavior.
 """
 
@@ -38,24 +38,29 @@ def good_fetch(url, bearer, method="GET"):
     return json.dumps(GOOD_ANSWER)
 
 
-def args(on_failure, github_env):
+def args(on_failure, github_output):
     return [
         "--broker-url", BROKER,
         "--audience", "mathlib-cache-broker",
         "--on-failure", on_failure,
-        "--github-env", str(github_env),
+        "--github-output", str(github_output),
     ]
 
 
 def run_mint(tmp_path, on_failure="warn-and-skip", fetch=good_fetch, env=OIDC_ENV, broker=None):
-    github_env = tmp_path / "github_env"
-    github_env.touch()
+    """Run the mint; return the exit code, the GITHUB_OUTPUT text, and the log."""
+    github_output = tmp_path / "github_output"
+    github_output.touch()
     out = io.StringIO()
-    argv = args(on_failure, github_env)
+    argv = args(on_failure, github_output)
     if broker is not None:
         argv[1] = broker
     code = mint.run(argv, env=env, fetch=fetch, out=out)
-    return code, github_env.read_text(), out.getvalue()
+    return code, github_output.read_text(), out.getvalue()
+
+
+def http_error(code):
+    return urllib.error.HTTPError("https://x.example", code, "status", {}, None)
 
 
 class TestAudienceUrl:
@@ -95,23 +100,24 @@ class TestParseCredentials:
         assert mint.parse_credentials(json.dumps(answer))["grant"] == "?"
 
 
-class TestExportBlock:
+class TestOutputBlock:
     def test_exact_lines_and_order(self):
         credentials = mint.parse_credentials(json.dumps(GOOD_ANSWER))
-        assert mint.export_block(credentials) == (
-            "MATHLIB_CACHE_S3_ACCESS_KEY_ID=AKIAMOCK\n"
-            "MATHLIB_CACHE_S3_SECRET_ACCESS_KEY=secret/mock+1=\n"
-            "MATHLIB_CACHE_S3_SESSION_TOKEN=sess.token_a-b\n"
-            "MATHLIB_CACHE_DEVELOPER_MINTED=true\n"
+        assert mint.output_block(credentials) == (
+            "access-key-id=AKIAMOCK\n"
+            "secret-access-key=secret/mock+1=\n"
+            "session-token=sess.token_a-b\n"
+            "grant=cache-upload-forks\n"
+            "minted=true\n"
         )
 
 
 class TestRun:
-    def test_happy_path_exports_and_masks(self, tmp_path):
-        code, exported, output = run_mint(tmp_path)
+    def test_happy_path_sets_outputs_and_masks(self, tmp_path):
+        code, outputs, output = run_mint(tmp_path)
         assert code == 0
-        assert "MATHLIB_CACHE_DEVELOPER_MINTED=true\n" in exported
-        assert exported.endswith("MINTED=true\n")
+        assert "session-token=sess.token_a-b\n" in outputs
+        assert outputs.endswith("minted=true\n")
         # Every credential is masked before the summary line prints.
         mask_lines = [line for line in output.splitlines() if line.startswith("::add-mask::")]
         assert len(mask_lines) == 3
@@ -119,16 +125,16 @@ class TestRun:
         assert output.index("::add-mask::") < output.index("minted")
 
     def test_no_oidc_endpoint_warns_and_skips(self, tmp_path):
-        code, exported, output = run_mint(tmp_path, env={})
+        code, outputs, output = run_mint(tmp_path, env={})
         assert code == 0
-        assert exported == ""
+        assert outputs == ""
         assert output.startswith("::warning::the job has no OIDC token endpoint")
         assert "will be skipped" in output
 
     def test_no_oidc_endpoint_fails_in_fail_posture(self, tmp_path):
-        code, exported, output = run_mint(tmp_path, on_failure="fail", env={})
+        code, outputs, output = run_mint(tmp_path, on_failure="fail", env={})
         assert code == 1
-        assert exported == ""
+        assert outputs == ""
         assert output.startswith("::error::the job has no OIDC token endpoint")
 
     def test_broker_transport_error_takes_the_failure_path(self, tmp_path):
@@ -137,23 +143,44 @@ class TestRun:
                 raise urllib.error.URLError("boom")
             return json.dumps({"value": "jwt"})
 
-        code, exported, output = run_mint(tmp_path, fetch=fetch)
-        assert (code, exported) == (0, "")
+        code, outputs, output = run_mint(tmp_path, fetch=fetch)
+        assert (code, outputs) == (0, "")
         assert "the cache broker did not answer with credentials" in output
-        code, exported, _ = run_mint(tmp_path, on_failure="fail", fetch=fetch)
-        assert (code, exported) == (1, "")
+        code, outputs, _ = run_mint(tmp_path, on_failure="fail", fetch=fetch)
+        assert (code, outputs) == (1, "")
+
+    def test_a_broker_error_status_names_the_status(self, tmp_path):
+        def fetch(url, bearer, method="GET"):
+            if method == "POST":
+                raise http_error(403)
+            return json.dumps({"value": "jwt"})
+
+        code, outputs, output = run_mint(tmp_path, fetch=fetch)
+        assert (code, outputs) == (0, "")
+        assert "the cache broker answered HTTP 403" in output
+        code, outputs, output = run_mint(tmp_path, on_failure="fail", fetch=fetch)
+        assert (code, outputs) == (1, "")
+        assert output.startswith("::error::the cache broker answered HTTP 403")
+
+    def test_an_oidc_endpoint_error_status_names_the_status(self, tmp_path):
+        def fetch(url, bearer, method="GET"):
+            raise http_error(500)
+
+        code, outputs, output = run_mint(tmp_path, fetch=fetch)
+        assert (code, outputs) == (0, "")
+        assert "the GitHub OIDC token endpoint answered HTTP 500" in output
 
     def test_a_200_with_a_malformed_body_takes_the_failure_path(self, tmp_path):
         def fetch(url, bearer, method="GET"):
             return json.dumps({"value": "jwt"}) if method == "GET" else "<html>oops</html>"
 
-        code, exported, output = run_mint(tmp_path, fetch=fetch)
-        assert (code, exported) == (0, "")
+        code, outputs, output = run_mint(tmp_path, fetch=fetch)
+        assert (code, outputs) == (0, "")
         assert "the broker answer was not JSON" in output
 
     def test_an_oidc_answer_without_a_value_takes_the_failure_path(self, tmp_path):
-        code, exported, output = run_mint(tmp_path, fetch=lambda *a, **k: "{}")
-        assert (code, exported) == (0, "")
+        code, outputs, output = run_mint(tmp_path, fetch=lambda *a, **k: "{}")
+        assert (code, outputs) == (0, "")
         assert "the OIDC token response carried no value" in output
 
     @pytest.mark.parametrize(
@@ -170,8 +197,8 @@ class TestRun:
         def fetch(*a, **k):
             raise AssertionError("the transport must not see a rejected URL")
 
-        code, exported, output = run_mint(tmp_path, broker=url, fetch=fetch)
-        assert (code, exported) == (0, "")
+        code, outputs, output = run_mint(tmp_path, broker=url, fetch=fetch)
+        assert (code, outputs) == (0, "")
         assert "broker-url is not one plain https URL" in output
 
 
@@ -208,3 +235,30 @@ class TestFetchRetries:
         monkeypatch.setattr(mint.urllib.request, "urlopen", urlopen)
         with pytest.raises(urllib.error.URLError):
             mint.fetch_text("https://x.example", "b", sleep=lambda _: None)
+
+    def test_retries_a_5xx_but_not_a_4xx(self, monkeypatch):
+        calls = []
+
+        def urlopen(request, timeout):
+            calls.append(request.get_method())
+            raise http_error(503 if len(calls) < 3 else 403)
+
+        monkeypatch.setattr(mint.urllib.request, "urlopen", urlopen)
+        with pytest.raises(urllib.error.HTTPError) as raised:
+            mint.fetch_text("https://x.example", "b", method="POST", sleep=lambda _: None)
+        assert raised.value.code == 403
+        assert calls == ["POST", "POST", "POST"]
+
+    def test_sends_the_named_user_agent(self, monkeypatch):
+        seen = {}
+
+        def urlopen(request, timeout):
+            seen["agent"] = request.get_header("User-agent")
+            seen["auth"] = request.get_header("Authorization")
+            raise http_error(401)
+
+        monkeypatch.setattr(mint.urllib.request, "urlopen", urlopen)
+        with pytest.raises(urllib.error.HTTPError):
+            mint.fetch_text("https://x.example", "b", sleep=lambda _: None)
+        assert seen == {"agent": mint.USER_AGENT, "auth": "Bearer b"}
+        assert "urllib" not in mint.USER_AGENT

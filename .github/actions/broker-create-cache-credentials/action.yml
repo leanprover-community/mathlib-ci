@@ -1,11 +1,11 @@
 name: Broker Create Cache Credentials
 description: >-
   Exchange the job's GitHub OIDC token at the mathlib cache broker for
-  short-lived S3-compatible credentials, and export them for the cache
-  tool. The broker scopes each credential to the container namespace
-  that the token's deployment environment is trusted to write. Where
-  the cache tool writes is the caller's decision. The calling job needs
-  `id-token: write`.
+  short-lived S3-compatible credentials, and expose them as masked step
+  outputs. The broker scopes each credential to the container namespace
+  that the token's deployment environment is trusted to write. The
+  caller maps the outputs into the variables its cache tool reads and
+  decides where that tool writes. The calling job needs `id-token: write`.
 
 inputs:
   broker-url:
@@ -17,24 +17,42 @@ inputs:
     default: mathlib-cache-broker
   on-failure:
     description: >-
-      Posture when the mint fails. "warn-and-skip" warns and exports
-      nothing, so the caller's other upload path carries the run;
-      "fail" fails the step. Use "fail" once the broker-backed upload
-      is the only upload path.
+      Posture when the mint fails. "warn-and-skip" warns and sets no
+      outputs, so the caller's other upload path carries the run; "fail"
+      fails the step. Use "fail" once the broker-backed upload is the
+      only upload path.
     required: false
     default: warn-and-skip
+
+outputs:
+  access-key-id:
+    description: The S3 access key id. Masked.
+    value: ${{ steps.mint.outputs.access-key-id }}
+  secret-access-key:
+    description: The S3 secret access key. Masked.
+    value: ${{ steps.mint.outputs.secret-access-key }}
+  session-token:
+    description: The S3 session token, sent as x-amz-security-token. Masked.
+    value: ${{ steps.mint.outputs.session-token }}
+  grant:
+    description: The name of the broker grant that matched the token. Display-only.
+    value: ${{ steps.mint.outputs.grant }}
+  minted:
+    description: >-
+      "true" when the credential outputs are set, empty when the mint was
+      skipped. Gate the broker-backed upload on it.
+    value: ${{ steps.mint.outputs.minted }}
 
 runs:
   using: composite
   steps:
     - name: Mint cache credentials from the cache broker
+      id: mint
       shell: bash
       # Inputs flow through `env:`, never `${{ … }}` inside `run:`:
       # GitHub expands `${{ … }}` into the script before bash sees it.
-      # On success the script masks the credentials and appends
-      # MATHLIB_CACHE_S3_* and the non-secret sentinel
-      # MATHLIB_CACHE_DEVELOPER_MINTED=true to GITHUB_ENV for the job's
-      # later steps.
+      # On success the script masks the credentials, then writes the
+      # outputs to GITHUB_OUTPUT in one block.
       env:
         BROKER_URL: ${{ inputs.broker-url }}
         AUDIENCE: ${{ inputs.audience }}
@@ -44,4 +62,4 @@ runs:
           --broker-url "$BROKER_URL" \
           --audience "$AUDIENCE" \
           --on-failure "$ON_FAILURE" \
-          --github-env "$GITHUB_ENV"
+          --github-output "$GITHUB_OUTPUT"
