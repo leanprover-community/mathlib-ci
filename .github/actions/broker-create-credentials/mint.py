@@ -24,9 +24,9 @@ from typing import Callable, Mapping
 # base64- and URL-safe material only.
 CREDENTIAL_RE = re.compile(r"[A-Za-z0-9+/=._-]+")
 
-# The broker URL reaches the transport layer with the route appended,
-# so it must be one plain https URL: no whitespace, no control
-# characters, no query string, no trailing slash.
+# The broker URL is the credential endpoint the transport POSTs to, so
+# it must be one plain https URL: no whitespace, no control characters,
+# no query string, no trailing slash.
 URL_RE = re.compile(r"https://[A-Za-z0-9.-]+(?::[0-9]+)?(?:/[A-Za-z0-9._~%-]+)*")
 
 # The audience is appended to the OIDC token endpoint's query string.
@@ -156,7 +156,7 @@ def obtain(args: argparse.Namespace, env: Mapping[str, str], fetch: Fetch) -> di
     if not isinstance(oidc_token, str) or not oidc_token:
         raise MintError("the OIDC token response carried no value")
     try:
-        credentials_body = fetch(f"{args.broker_url}/r2-credentials", oidc_token, method="POST")
+        credentials_body = fetch(args.broker_url, oidc_token, method="POST")
     except urllib.error.HTTPError as error:
         raise MintError(f"the cache broker answered HTTP {error.code}") from None
     except Exception:
@@ -192,8 +192,19 @@ def run(argv: list[str] | None = None, env: Mapping[str, str] | None = None, fet
     for field in CREDENTIAL_FIELDS:
         print(f"::add-mask::{credentials[field]}", file=out)
     out.flush()
-    with open(args.github_output, "a", encoding="utf-8") as github_output:
-        github_output.write(output_block(credentials))
+    try:
+        with open(args.github_output, "a", encoding="utf-8") as github_output:
+            github_output.write(output_block(credentials))
+    except OSError as error:
+        # A runner fault, not a broker fault, but the posture still
+        # decides: the caller's fallback must not depend on which side
+        # failed. `minted` is the last line, so a partial write set no flag.
+        message = f"could not write the step outputs ({error.strerror or error})"
+        if args.on_failure == "fail":
+            print(f"::error::{message}", file=out)
+            return 1
+        print(f"::warning::{message}; no credential output, the broker-backed upload will be skipped", file=out)
+        return 0
     print(f"credentials minted (grant: {credentials['grant']})", file=out)
     return 0
 

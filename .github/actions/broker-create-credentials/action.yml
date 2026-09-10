@@ -9,7 +9,11 @@ description: >-
 
 inputs:
   broker-url:
-    description: Base URL of the cache broker (https, no trailing slash).
+    description: >-
+      URL of the broker's credential endpoint, e.g.
+      https://<broker-host>/r2-credentials (https, no query string, no
+      trailing slash). The MATHLIB_CACHE_BROKER_URL repository variable
+      carries it.
     required: true
   audience:
     description: OIDC audience the broker expects.
@@ -39,8 +43,9 @@ outputs:
     value: ${{ steps.mint.outputs.grant }}
   minted:
     description: >-
-      "true" when the credential outputs are set, empty when the mint was
-      skipped. Gate the broker-backed upload on it.
+      "true" when the credential outputs are set; unset when the mint
+      failed in the warn-and-skip posture. Gate the broker-backed upload
+      on it.
     value: ${{ steps.mint.outputs.minted }}
 
 runs:

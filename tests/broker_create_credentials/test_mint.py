@@ -15,7 +15,8 @@ import pytest
 
 import mint
 
-BROKER = "https://broker.example.workers.dev"
+BROKER = "https://broker.example.workers.dev/r2-credentials"
+AUDIENCE = "mathlib-cache-broker"
 OIDC_ENV = {
     "ACTIONS_ID_TOKEN_REQUEST_TOKEN": "runtime-token",
     "ACTIONS_ID_TOKEN_REQUEST_URL": "https://oidc.example/token?api-version=2",
@@ -30,33 +31,40 @@ GOOD_ANSWER = {
 
 def good_fetch(url, bearer, method="GET"):
     if method == "GET":
-        assert "audience=mathlib-cache-broker" in url
+        assert url.endswith(f"&audience={AUDIENCE}")
         assert bearer == "runtime-token"
         return json.dumps({"value": "jwt"})
-    assert url == f"{BROKER}/r2-credentials"
+    assert url == BROKER
     assert bearer == "jwt"
     return json.dumps(GOOD_ANSWER)
 
 
-def args(on_failure, github_output):
+def args(on_failure, github_output, broker=BROKER, audience=AUDIENCE):
     return [
-        "--broker-url", BROKER,
-        "--audience", "mathlib-cache-broker",
+        "--broker-url", broker,
+        "--audience", audience,
         "--on-failure", on_failure,
         "--github-output", str(github_output),
     ]
 
 
-def run_mint(tmp_path, on_failure="warn-and-skip", fetch=good_fetch, env=OIDC_ENV, broker=None):
+def run_mint(
+    tmp_path,
+    on_failure="warn-and-skip",
+    fetch=good_fetch,
+    env=OIDC_ENV,
+    broker=BROKER,
+    audience=AUDIENCE,
+    github_output=None,
+):
     """Run the mint; return the exit code, the GITHUB_OUTPUT text, and the log."""
-    github_output = tmp_path / "github_output"
-    github_output.touch()
+    if github_output is None:
+        github_output = tmp_path / "github_output"
+        github_output.touch()
     out = io.StringIO()
-    argv = args(on_failure, github_output)
-    if broker is not None:
-        argv[1] = broker
-    code = mint.run(argv, env=env, fetch=fetch, out=out)
-    return code, github_output.read_text(), out.getvalue()
+    code = mint.run(args(on_failure, github_output, broker, audience), env=env, fetch=fetch, out=out)
+    outputs = github_output.read_text() if github_output.exists() else ""
+    return code, outputs, out.getvalue()
 
 
 def http_error(code):
@@ -182,6 +190,37 @@ class TestRun:
         code, outputs, output = run_mint(tmp_path, fetch=lambda *a, **k: "{}")
         assert (code, outputs) == (0, "")
         assert "the OIDC token response carried no value" in output
+
+    def test_the_audience_input_reaches_the_token_request(self, tmp_path):
+        seen = []
+
+        def fetch(url, bearer, method="GET"):
+            seen.append(url)
+            return json.dumps({"value": "jwt"}) if method == "GET" else json.dumps(GOOD_ANSWER)
+
+        code, outputs, _ = run_mint(tmp_path, fetch=fetch, audience="other.broker/aud")
+        assert code == 0 and outputs.endswith("minted=true\n")
+        assert seen == [f"{OIDC_ENV['ACTIONS_ID_TOKEN_REQUEST_URL']}&audience=other.broker/aud", BROKER]
+
+    @pytest.mark.parametrize("audience", ["two words", "aud&extra=1", "aud\nEVIL"], ids=["space", "ampersand", "newline"])
+    def test_an_audience_outside_the_charset_never_reaches_the_transport(self, tmp_path, audience):
+        def fetch(*a, **k):
+            raise AssertionError("the transport must not see a rejected audience")
+
+        code, outputs, output = run_mint(tmp_path, fetch=fetch, audience=audience)
+        assert (code, outputs) == (0, "")
+        assert "audience carries characters outside its charset" in output
+
+    def test_an_unwritable_github_output_follows_the_posture(self, tmp_path):
+        missing = tmp_path / "no-such-dir" / "github_output"
+        code, outputs, output = run_mint(tmp_path, github_output=missing)
+        assert (code, outputs) == (0, "")
+        assert "::warning::could not write the step outputs" in output
+        # The credentials were still masked before the failed write.
+        assert output.count("::add-mask::") == 3
+        code, outputs, output = run_mint(tmp_path, on_failure="fail", github_output=missing)
+        assert (code, outputs) == (1, "")
+        assert "::error::could not write the step outputs" in output
 
     @pytest.mark.parametrize(
         "url",
