@@ -31,7 +31,7 @@ outputs:
     description: The S3 secret access key. Masked.
     value: ${{ steps.mint.outputs.secret-access-key }}
   session-token:
-    description: The S3 session token, sent as x-amz-security-token. Masked.
+    description: The S3 session token. Masked.
     value: ${{ steps.mint.outputs.session-token }}
   grant:
     description: The name of the broker grant that matched the token. Display-only.
