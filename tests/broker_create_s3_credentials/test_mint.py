@@ -1,7 +1,7 @@
 """The mint policy, driven through an injected transport.
 
-Layout: pure helpers first (audience URL, credential parsing, the
-output block), then `run()` end to end for both failure postures, then
+Layout: pure helpers first (token and endpoint checks, audience URL,
+credential parsing, the output block), then `run()` end to end, then
 the transport's retry behavior.
 """
 
@@ -39,30 +39,21 @@ def good_fetch(url, bearer, method="GET"):
     return json.dumps(GOOD_ANSWER)
 
 
-def args(on_failure, github_output, broker=BROKER, audience=AUDIENCE):
+def args(github_output, broker=BROKER, audience=AUDIENCE):
     return [
         "--broker-url", broker,
         "--audience", audience,
-        "--on-failure", on_failure,
         "--github-output", str(github_output),
     ]
 
 
-def run_mint(
-    tmp_path,
-    on_failure="warn-and-skip",
-    fetch=good_fetch,
-    env=OIDC_ENV,
-    broker=BROKER,
-    audience=AUDIENCE,
-    github_output=None,
-):
+def run_mint(tmp_path, fetch=good_fetch, env=OIDC_ENV, broker=BROKER, audience=AUDIENCE, github_output=None):
     """Run the mint; return the exit code, the GITHUB_OUTPUT text, and the log."""
     if github_output is None:
         github_output = tmp_path / "github_output"
         github_output.touch()
     out = io.StringIO()
-    code = mint.run(args(on_failure, github_output, broker, audience), env=env, fetch=fetch, out=out)
+    code = mint.run(args(github_output, broker, audience), env=env, fetch=fetch, out=out)
     outputs = github_output.read_text() if github_output.exists() else ""
     return code, outputs, out.getvalue()
 
@@ -166,18 +157,10 @@ class TestRun:
         assert output.splitlines()[-1] == "credentials minted (grant: example-grant)"
         assert output.index("::add-mask::") < output.index("minted")
 
-    def test_no_oidc_endpoint_warns_and_sets_no_outputs(self, tmp_path):
+    def test_no_oidc_endpoint_fails_with_no_outputs(self, tmp_path):
         code, outputs, output = run_mint(tmp_path, env={})
-        assert code == 0
-        assert outputs == ""
-        assert output.startswith("::warning::the job has no OIDC token endpoint")
-        assert output.endswith("(id-token: write missing?). The step set no outputs.\n")
-
-    def test_no_oidc_endpoint_fails_in_fail_posture(self, tmp_path):
-        code, outputs, output = run_mint(tmp_path, on_failure="fail", env={})
-        assert code == 1
-        assert outputs == ""
-        assert output.startswith("::error::the job has no OIDC token endpoint")
+        assert (code, outputs) == (1, "")
+        assert output == "::error::the job has no OIDC token endpoint (id-token: write missing?)\n"
 
     def test_broker_transport_error_takes_the_failure_path(self, tmp_path):
         def fetch(url, bearer, method="GET"):
@@ -186,10 +169,8 @@ class TestRun:
             return json.dumps({"value": "jwt"})
 
         code, outputs, output = run_mint(tmp_path, fetch=fetch)
-        assert (code, outputs) == (0, "")
-        assert "the broker did not answer with credentials" in output
-        code, outputs, _ = run_mint(tmp_path, on_failure="fail", fetch=fetch)
         assert (code, outputs) == (1, "")
+        assert output == "::error::the broker did not answer with credentials\n"
 
     def test_a_broker_error_status_names_the_status(self, tmp_path):
         def fetch(url, bearer, method="GET"):
@@ -198,18 +179,15 @@ class TestRun:
             return json.dumps({"value": "jwt"})
 
         code, outputs, output = run_mint(tmp_path, fetch=fetch)
-        assert (code, outputs) == (0, "")
-        assert "the broker answered HTTP 403" in output
-        code, outputs, output = run_mint(tmp_path, on_failure="fail", fetch=fetch)
         assert (code, outputs) == (1, "")
-        assert output.startswith("::error::the broker answered HTTP 403")
+        assert output == "::error::the broker answered HTTP 403\n"
 
     def test_an_oidc_endpoint_error_status_names_the_status(self, tmp_path):
         def fetch(url, bearer, method="GET"):
             raise http_error(500)
 
         code, outputs, output = run_mint(tmp_path, fetch=fetch)
-        assert (code, outputs) == (0, "")
+        assert (code, outputs) == (1, "")
         assert "the GitHub OIDC token endpoint answered HTTP 500" in output
 
     def test_a_200_with_a_malformed_body_takes_the_failure_path(self, tmp_path):
@@ -217,12 +195,12 @@ class TestRun:
             return json.dumps({"value": "jwt"}) if method == "GET" else "<html>oops</html>"
 
         code, outputs, output = run_mint(tmp_path, fetch=fetch)
-        assert (code, outputs) == (0, "")
+        assert (code, outputs) == (1, "")
         assert "the broker answer was not JSON" in output
 
     def test_an_oidc_answer_without_a_value_takes_the_failure_path(self, tmp_path):
         code, outputs, output = run_mint(tmp_path, fetch=lambda *a, **k: "{}")
-        assert (code, outputs) == (0, "")
+        assert (code, outputs) == (1, "")
         assert "the OIDC token response carried no value" in output
 
     def test_the_audience_input_reaches_the_token_request(self, tmp_path):
@@ -241,19 +219,16 @@ class TestRun:
             raise AssertionError("the transport must not run without an audience")
 
         code, outputs, output = run_mint(tmp_path, fetch=fetch, audience="")
-        assert (code, outputs) == (0, "")
+        assert (code, outputs) == (1, "")
         assert "audience is empty" in output
 
-    def test_an_unwritable_github_output_follows_the_posture(self, tmp_path):
+    def test_an_unwritable_github_output_fails_after_masking(self, tmp_path):
         missing = tmp_path / "no-such-dir" / "github_output"
         code, outputs, output = run_mint(tmp_path, github_output=missing)
-        assert (code, outputs) == (0, "")
-        assert "::warning::could not write the step outputs" in output
-        # The credentials were still masked before the failed write.
-        assert output.count("::add-mask::") == 3
-        code, outputs, output = run_mint(tmp_path, on_failure="fail", github_output=missing)
         assert (code, outputs) == (1, "")
         assert "::error::could not write the step outputs" in output
+        # The credentials were masked before the failed write.
+        assert output.count("::add-mask::") == 3
 
     @pytest.mark.parametrize("url", ["https://x.example\nEVIL=1", "http://x.example"], ids=["newline", "not-https"])
     def test_a_rejected_broker_url_never_reaches_the_transport(self, tmp_path, url):
@@ -261,7 +236,7 @@ class TestRun:
             raise AssertionError("the transport must not see a rejected URL")
 
         code, outputs, output = run_mint(tmp_path, broker=url, fetch=fetch)
-        assert (code, outputs) == (0, "")
+        assert (code, outputs) == (1, "")
         assert "broker-url is not one https URL" in output
 
 

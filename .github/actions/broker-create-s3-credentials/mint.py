@@ -1,9 +1,10 @@
 """Exchange the job's GitHub OIDC token at a credential broker for
 short-lived S3-compatible credentials, and expose them as step outputs.
 
-The transport is injectable (`fetch`), so the test suite drives every
-policy path without a network. Stdlib only: the action runs with the
-runner's `python3` and installs nothing.
+The step fails when the mint fails. The transport is injectable
+(`fetch`), so the test suite drives every failure path without a
+network. Stdlib only: the action runs with the runner's `python3` and
+installs nothing.
 """
 
 from __future__ import annotations
@@ -20,9 +21,6 @@ from urllib.parse import urlencode, urlsplit
 
 ATTEMPTS = 3
 TIMEOUT_SECONDS = 30
-
-# Every warn-and-skip warning ends with this sentence.
-NO_OUTPUTS = "The step set no outputs."
 
 # A Cloudflare browser integrity check in front of the broker answers 403
 # (error 1010) to Python's default `Python-urllib/x.y` agent. A named
@@ -181,7 +179,6 @@ def run(argv: list[str] | None = None, env: Mapping[str, str] | None = None, fet
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--broker-url", required=True)
     parser.add_argument("--audience", required=True)
-    parser.add_argument("--on-failure", required=True, choices=("warn-and-skip", "fail"))
     parser.add_argument("--github-output", required=True)
     args = parser.parse_args(argv)
     env = os.environ if env is None else env
@@ -190,13 +187,8 @@ def run(argv: list[str] | None = None, env: Mapping[str, str] | None = None, fet
     try:
         credentials = obtain(args, env, fetch)
     except MintError as error:
-        # In the warn-and-skip posture the step sets no outputs and
-        # exits 0, so the caller's fallback path carries the run.
-        if args.on_failure == "fail":
-            print(f"::error::{error}", file=out)
-            return 1
-        print(f"::warning::{error}. {NO_OUTPUTS}", file=out)
-        return 0
+        print(f"::error::{error}", file=out)
+        return 1
 
     # Mask before any other output can carry a credential value.
     for field in CREDENTIAL_FIELDS:
@@ -206,15 +198,9 @@ def run(argv: list[str] | None = None, env: Mapping[str, str] | None = None, fet
         with open(args.github_output, "a", encoding="utf-8") as github_output:
             github_output.write(output_block(credentials))
     except OSError as error:
-        # A runner fault, not a broker fault. The posture decides here
-        # too, so the caller's fallback does not depend on which side
-        # failed. `minted` is the last line, so a partial write set no flag.
-        message = f"could not write the step outputs ({error.strerror or error})"
-        if args.on_failure == "fail":
-            print(f"::error::{message}", file=out)
-            return 1
-        print(f"::warning::{message}. {NO_OUTPUTS}", file=out)
-        return 0
+        # `minted` is the last line, so a partial write set no flag.
+        print(f"::error::could not write the step outputs ({error.strerror or error})", file=out)
+        return 1
     print(f"credentials minted (grant: {credentials['grant']})", file=out)
     return 0
 

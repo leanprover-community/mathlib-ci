@@ -4,7 +4,9 @@ description: >-
   short-lived S3-compatible credentials, and expose them as masked step
   outputs. The broker decides from the token's claims which grant
   applies. The caller maps the outputs into the variables its tool
-  reads. The calling job needs `id-token: write`.
+  reads. The step fails when the mint fails; a caller with a fallback
+  sets `continue-on-error: true` on the step and tests the `minted`
+  output in later steps. The calling job needs `id-token: write`.
 
 inputs:
   broker-url:
@@ -13,13 +15,6 @@ inputs:
   audience:
     description: OIDC audience the broker expects.
     required: true
-  on-failure:
-    description: >-
-      Posture when the mint fails. "warn-and-skip" warns and sets no
-      outputs, so the caller's fallback path carries the run; "fail"
-      fails the step. Use "fail" when the caller has no fallback.
-    required: false
-    default: warn-and-skip
 
 outputs:
   access-key-id:
@@ -36,9 +31,8 @@ outputs:
     value: ${{ steps.mint.outputs.grant }}
   minted:
     description: >-
-      "true" when the credential outputs are set; unset when the mint
-      failed in the warn-and-skip posture. Test it in the `if:` of the
-      steps that use the credential.
+      "true" when the credential outputs are set, unset when the mint
+      failed. Test it in the `if:` of the steps that use the credential.
     value: ${{ steps.mint.outputs.minted }}
 
 runs:
@@ -54,10 +48,8 @@ runs:
       env:
         BROKER_URL: ${{ inputs.broker-url }}
         AUDIENCE: ${{ inputs.audience }}
-        ON_FAILURE: ${{ inputs.on-failure }}
       run: |
         python3 "${{ github.action_path }}/mint.py" \
           --broker-url "$BROKER_URL" \
           --audience "$AUDIENCE" \
-          --on-failure "$ON_FAILURE" \
           --github-output "$GITHUB_OUTPUT"
