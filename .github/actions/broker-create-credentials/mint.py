@@ -1,4 +1,4 @@
-"""Exchange the job's GitHub OIDC token at the mathlib cache broker for
+"""Exchange the job's GitHub OIDC token at a credential broker for
 short-lived S3-compatible credentials, and expose them as step outputs.
 
 The transport is injectable (`fetch`), so the test suite drives every
@@ -34,6 +34,9 @@ AUDIENCE_RE = re.compile(r"[A-Za-z0-9._:/-]+")
 
 ATTEMPTS = 3
 TIMEOUT_SECONDS = 30
+
+# The tail of every warn-and-skip message: what the caller sees next.
+SKIP_NOTE = "no credential output, so the steps gated on minted skip"
 
 # Cloudflare's browser integrity check in front of the broker answers 403
 # (error 1010) to Python's default `Python-urllib/x.y` agent. A named
@@ -158,9 +161,9 @@ def obtain(args: argparse.Namespace, env: Mapping[str, str], fetch: Fetch) -> di
     try:
         credentials_body = fetch(args.broker_url, oidc_token, method="POST")
     except urllib.error.HTTPError as error:
-        raise MintError(f"the cache broker answered HTTP {error.code}") from None
+        raise MintError(f"the broker answered HTTP {error.code}") from None
     except Exception:
-        raise MintError("the cache broker did not answer with credentials") from None
+        raise MintError("the broker did not answer with credentials") from None
     return parse_credentials(credentials_body)
 
 
@@ -178,14 +181,11 @@ def run(argv: list[str] | None = None, env: Mapping[str, str] | None = None, fet
         credentials = obtain(args, env, fetch)
     except MintError as error:
         # In the warn-and-skip posture the step sets no outputs and
-        # exits 0, so the caller's other upload path carries the run.
+        # exits 0, so the caller's fallback path carries the run.
         if args.on_failure == "fail":
             print(f"::error::{error}", file=out)
             return 1
-        print(
-            f"::warning::{error}; no credential output, the broker-backed upload will be skipped",
-            file=out,
-        )
+        print(f"::warning::{error}; {SKIP_NOTE}", file=out)
         return 0
 
     # Mask before any other output can carry a credential value.
@@ -203,7 +203,7 @@ def run(argv: list[str] | None = None, env: Mapping[str, str] | None = None, fet
         if args.on_failure == "fail":
             print(f"::error::{message}", file=out)
             return 1
-        print(f"::warning::{message}; no credential output, the broker-backed upload will be skipped", file=out)
+        print(f"::warning::{message}; {SKIP_NOTE}", file=out)
         return 0
     print(f"credentials minted (grant: {credentials['grant']})", file=out)
     return 0

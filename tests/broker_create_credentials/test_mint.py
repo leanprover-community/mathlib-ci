@@ -16,7 +16,7 @@ import pytest
 import mint
 
 BROKER = "https://broker.example.workers.dev/r2-credentials"
-AUDIENCE = "mathlib-cache-broker"
+AUDIENCE = "example-broker"
 OIDC_ENV = {
     "ACTIONS_ID_TOKEN_REQUEST_TOKEN": "runtime-token",
     "ACTIONS_ID_TOKEN_REQUEST_URL": "https://oidc.example/token?api-version=2",
@@ -25,7 +25,7 @@ GOOD_ANSWER = {
     "accessKeyId": "AKIAMOCK",
     "secretAccessKey": "secret/mock+1=",
     "sessionToken": "sess.token_a-b",
-    "grant": "cache-upload-forks",
+    "grant": "example-grant",
 }
 
 
@@ -83,7 +83,7 @@ class TestParseCredentials:
     def test_accepts_the_broker_answer(self):
         credentials = mint.parse_credentials(json.dumps(GOOD_ANSWER))
         assert credentials["accessKeyId"] == "AKIAMOCK"
-        assert credentials["grant"] == "cache-upload-forks"
+        assert credentials["grant"] == "example-grant"
 
     @pytest.mark.parametrize(
         "body",
@@ -115,7 +115,7 @@ class TestOutputBlock:
             "access-key-id=AKIAMOCK\n"
             "secret-access-key=secret/mock+1=\n"
             "session-token=sess.token_a-b\n"
-            "grant=cache-upload-forks\n"
+            "grant=example-grant\n"
             "minted=true\n"
         )
 
@@ -129,7 +129,7 @@ class TestRun:
         # Every credential is masked before the summary line prints.
         mask_lines = [line for line in output.splitlines() if line.startswith("::add-mask::")]
         assert len(mask_lines) == 3
-        assert output.splitlines()[-1] == "credentials minted (grant: cache-upload-forks)"
+        assert output.splitlines()[-1] == "credentials minted (grant: example-grant)"
         assert output.index("::add-mask::") < output.index("minted")
 
     def test_no_oidc_endpoint_warns_and_skips(self, tmp_path):
@@ -137,7 +137,7 @@ class TestRun:
         assert code == 0
         assert outputs == ""
         assert output.startswith("::warning::the job has no OIDC token endpoint")
-        assert "will be skipped" in output
+        assert output.endswith("no credential output, so the steps gated on minted skip\n")
 
     def test_no_oidc_endpoint_fails_in_fail_posture(self, tmp_path):
         code, outputs, output = run_mint(tmp_path, on_failure="fail", env={})
@@ -153,7 +153,7 @@ class TestRun:
 
         code, outputs, output = run_mint(tmp_path, fetch=fetch)
         assert (code, outputs) == (0, "")
-        assert "the cache broker did not answer with credentials" in output
+        assert "the broker did not answer with credentials" in output
         code, outputs, _ = run_mint(tmp_path, on_failure="fail", fetch=fetch)
         assert (code, outputs) == (1, "")
 
@@ -165,10 +165,10 @@ class TestRun:
 
         code, outputs, output = run_mint(tmp_path, fetch=fetch)
         assert (code, outputs) == (0, "")
-        assert "the cache broker answered HTTP 403" in output
+        assert "the broker answered HTTP 403" in output
         code, outputs, output = run_mint(tmp_path, on_failure="fail", fetch=fetch)
         assert (code, outputs) == (1, "")
-        assert output.startswith("::error::the cache broker answered HTTP 403")
+        assert output.startswith("::error::the broker answered HTTP 403")
 
     def test_an_oidc_endpoint_error_status_names_the_status(self, tmp_path):
         def fetch(url, bearer, method="GET"):

@@ -1,30 +1,25 @@
 name: Broker Create Credentials
 description: >-
-  Exchange the job's GitHub OIDC token at the mathlib cache broker for
+  Exchange the job's GitHub OIDC token at a credential broker for
   short-lived S3-compatible credentials, and expose them as masked step
-  outputs. The broker scopes each credential to the container namespace
-  that the token's deployment environment is trusted to write. The
-  caller maps the outputs into the variables its cache tool reads and
-  decides where that tool writes. The calling job needs `id-token: write`.
+  outputs. The broker decides from the token's claims which grant
+  applies. The caller maps the outputs into the variables its tool
+  reads. The calling job needs `id-token: write`.
 
 inputs:
   broker-url:
     description: >-
-      URL of the broker's credential endpoint, e.g.
-      https://<broker-host>/r2-credentials (https, no query string, no
-      trailing slash). The MATHLIB_CACHE_BROKER_URL repository variable
-      carries it.
+      URL of the broker's credential endpoint (https, no query string,
+      no trailing slash).
     required: true
   audience:
     description: OIDC audience the broker expects.
-    required: false
-    default: mathlib-cache-broker
+    required: true
   on-failure:
     description: >-
       Posture when the mint fails. "warn-and-skip" warns and sets no
-      outputs, so the caller's other upload path carries the run; "fail"
-      fails the step. Use "fail" once the broker-backed upload is the
-      only upload path.
+      outputs, so the caller's fallback path carries the run; "fail"
+      fails the step. Use "fail" when the caller has no fallback.
     required: false
     default: warn-and-skip
 
@@ -44,14 +39,14 @@ outputs:
   minted:
     description: >-
       "true" when the credential outputs are set; unset when the mint
-      failed in the warn-and-skip posture. Gate the broker-backed upload
-      on it.
+      failed in the warn-and-skip posture. Gate the steps that use the
+      credential on it.
     value: ${{ steps.mint.outputs.minted }}
 
 runs:
   using: composite
   steps:
-    - name: Mint credentials from the cache broker
+    - name: Mint credentials from the broker
       id: mint
       shell: bash
       # Inputs flow through `env:`, never `${{ … }}` inside `run:`:
