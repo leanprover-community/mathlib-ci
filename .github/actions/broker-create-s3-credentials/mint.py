@@ -10,13 +10,14 @@ installs nothing.
 from __future__ import annotations
 
 import argparse
+import http.client
 import json
 import os
 import sys
 import time
 import urllib.error
 import urllib.request
-from typing import Callable, Mapping
+from typing import Callable, Mapping, TextIO
 from urllib.parse import urlencode, urlsplit
 
 ATTEMPTS = 3
@@ -27,21 +28,33 @@ TIMEOUT_SECONDS = 30
 # agent passes and identifies the caller in the broker's logs.
 USER_AGENT = "mathlib-ci/broker-create-s3-credentials"
 
-# The credential fields, in order. `sessionToken` is required: the
-# broker always mints one, and its absence marks a malformed or foreign
-# answer.
-CREDENTIAL_FIELDS = ("accessKeyId", "secretAccessKey", "sessionToken")
+# Each credential as (broker field, step output), in output order.
+# `sessionToken` is required: the broker always mints one, and its
+# absence marks a malformed or foreign answer.
+CREDENTIAL_OUTPUTS = (
+    ("accessKeyId", "access-key-id"),
+    ("secretAccessKey", "secret-access-key"),
+    ("sessionToken", "session-token"),
+)
+CREDENTIAL_FIELDS = tuple(field for field, _ in CREDENTIAL_OUTPUTS)
+
+# What one HTTP request can raise. `urllib.error.URLError` and its
+# subclass `HTTPError` are `OSError`s. `http.client.HTTPException` (for
+# example `IncompleteRead` on a truncated body) is not, so it is listed.
+TRANSPORT_ERRORS = (OSError, http.client.HTTPException)
 
 
 class MintError(Exception):
     """A mint failure, with a one-line operator-facing message."""
 
 
-Fetch = Callable[..., str]
+# (url, bearer, method) -> response body. Raises one of TRANSPORT_ERRORS
+# on failure; an `HTTPError` carries the status.
+Fetch = Callable[[str, str, str], str]
 
 
-def is_token(value: object) -> bool:
-    """Whether the value is one printable token: non-empty, no whitespace,
+def is_printable_word(value: object) -> bool:
+    """Whether the value is one printable word: non-empty, no whitespace,
     no control characters.
 
     `::add-mask::` masks one line, and a `name=value` line in
@@ -51,14 +64,14 @@ def is_token(value: object) -> bool:
     return isinstance(value, str) and value != "" and value.isprintable() and not any(c.isspace() for c in value)
 
 
-def check_endpoint(url: str) -> None:
+def check_broker_url(url: str) -> None:
     """Reject a broker URL that is not one https URL with a host.
 
     The OIDC token travels as a bearer to this URL, so the scheme must be
     https. `urlsplit` drops tab and newline characters, so the token
     check runs first.
     """
-    if not is_token(url):
+    if not is_printable_word(url):
         raise MintError("broker-url is not one https URL")
     parts = urlsplit(url)
     try:
@@ -69,44 +82,68 @@ def check_endpoint(url: str) -> None:
         raise MintError("broker-url is not one https URL")
 
 
-def fetch_text(url: str, bearer: str, method: str = "GET", sleep: Callable[[float], None] = time.sleep) -> str:
-    """Fetch the URL with a bearer token and return the response body.
+def fetch_once(url: str, bearer: str, method: str) -> str:
+    """One HTTP request with a bearer token; return the response body."""
+    request = urllib.request.Request(
+        url,
+        method=method,
+        headers={"Authorization": f"Bearer {bearer}", "User-Agent": USER_AGENT},
+    )
+    with urllib.request.urlopen(request, timeout=TIMEOUT_SECONDS) as response:
+        return response.read().decode("utf-8", errors="replace")
 
-    Transport failures and 5xx statuses retry with backoff: both
-    requests this module makes are idempotent, so a retry is safe. A 4xx
-    is a verdict on the request, so it raises at once.
+
+def with_retries(call: Callable[[], str], sleep: Callable[[float], None] | None = None) -> str:
+    """Call up to ATTEMPTS times and return the first answer.
+
+    Transport faults and 5xx statuses retry with backoff: both requests
+    this module makes are idempotent, so a retry is safe. A 4xx is a
+    verdict on the request, so it raises at once. Any other exception is
+    a bug, not a transport fault, and propagates untouched.
     """
+    sleep = time.sleep if sleep is None else sleep
     for attempt in range(ATTEMPTS):
+        last = attempt + 1 == ATTEMPTS
         try:
-            request = urllib.request.Request(
-                url,
-                method=method,
-                headers={"Authorization": f"Bearer {bearer}", "User-Agent": USER_AGENT},
-            )
-            with urllib.request.urlopen(request, timeout=TIMEOUT_SECONDS) as response:
-                return response.read().decode("utf-8", errors="replace")
+            return call()
         except urllib.error.HTTPError as error:
-            if 400 <= error.code < 500 or attempt + 1 == ATTEMPTS:
+            if 400 <= error.code < 500 or last:
                 raise
-            sleep(2**attempt)
-        except (urllib.error.URLError, OSError):
-            if attempt + 1 == ATTEMPTS:
+        except TRANSPORT_ERRORS:
+            if last:
                 raise
-            sleep(2**attempt)
+        sleep(2**attempt)
     raise AssertionError("unreachable: the loop returns or raises")
 
 
-def audience_url(request_url: str, audience: str) -> str:
+def fetch_text(url: str, bearer: str, method: str) -> str:
+    """The default transport: `fetch_once` under `with_retries`."""
+    return with_retries(lambda: fetch_once(url, bearer, method))
+
+
+def oidc_token_url(request_url: str, audience: str) -> str:
     """The OIDC token endpoint with the audience selector appended, URL-encoded."""
     separator = "&" if "?" in request_url else "?"
     return f"{request_url}{separator}{urlencode({'audience': audience})}"
+
+
+def parse_oidc_token(body: str) -> str:
+    """The `value` of the GitHub OIDC token endpoint's answer."""
+    try:
+        answer = json.loads(body)
+    except ValueError:
+        answer = None
+    token = answer.get("value") if isinstance(answer, dict) else None
+    if not isinstance(token, str) or not token:
+        raise MintError("the OIDC token response carried no value")
+    return token
 
 
 def parse_credentials(body: str) -> dict[str, str]:
     """Validate the broker's answer field by field.
 
     A 200 with a malformed body takes the same failure path as a
-    transport error. Every field is one printable token before it
+    transport error. Every field is one printable word before it
     reaches the caller.
     """
     try:
@@ -118,13 +155,13 @@ def parse_credentials(body: str) -> dict[str, str]:
     credentials: dict[str, str] = {}
     for field in CREDENTIAL_FIELDS:
         value = answer.get(field)
-        if not is_token(value):
+        if not is_printable_word(value):
             raise MintError("the broker answer carried no well-formed credential")
         credentials[field] = value
     # The grant name is display-only. A missing or malformed grant prints
     # as `?` and the mint succeeds.
     grant = answer.get("grant")
-    credentials["grant"] = grant if is_token(grant) else "?"
+    credentials["grant"] = grant if is_printable_word(grant) else "?"
     return credentials
 
 
@@ -136,46 +173,47 @@ def output_block(credentials: Mapping[str, str]) -> str:
     test in the `if:` of later steps. It is the last line, so a truncated
     write leaves no flag over a partial credential.
     """
-    return (
-        f"access-key-id={credentials['accessKeyId']}\n"
-        f"secret-access-key={credentials['secretAccessKey']}\n"
-        f"session-token={credentials['sessionToken']}\n"
-        f"grant={credentials['grant']}\n"
-        "minted=true\n"
-    )
+    lines = [f"{output}={credentials[field]}" for field, output in CREDENTIAL_OUTPUTS]
+    lines.append(f"grant={credentials['grant']}")
+    lines.append("minted=true")
+    return "".join(f"{line}\n" for line in lines)
 
 
-def obtain(args: argparse.Namespace, env: Mapping[str, str], fetch: Fetch) -> dict[str, str]:
-    """Run the two-request mint and return validated credentials."""
-    check_endpoint(args.broker_url)
-    if not args.audience:
+def mint_credentials(broker_url: str, audience: str, env: Mapping[str, str], fetch: Fetch) -> dict[str, str]:
+    """Run the two-request mint and return validated credentials.
+
+    Every mint failure raises `MintError`. A transport fault is a mint
+    failure. Any other exception from `fetch` is a bug and propagates.
+    """
+    check_broker_url(broker_url)
+    if not audience:
         raise MintError("audience is empty")
     request_token = env.get("ACTIONS_ID_TOKEN_REQUEST_TOKEN", "")
     request_url = env.get("ACTIONS_ID_TOKEN_REQUEST_URL", "")
     if not request_token or not request_url:
         raise MintError("the job has no OIDC token endpoint (id-token: write missing?)")
     try:
-        token_body = fetch(audience_url(request_url, args.audience), request_token)
+        token_body = fetch(oidc_token_url(request_url, audience), request_token, "GET")
     except urllib.error.HTTPError as error:
         raise MintError(f"the GitHub OIDC token endpoint answered HTTP {error.code}") from None
-    except Exception:
+    except TRANSPORT_ERRORS:
         raise MintError("could not obtain the GitHub OIDC token") from None
+    oidc_token = parse_oidc_token(token_body)
     try:
-        oidc_token = json.loads(token_body).get("value")
-    except (ValueError, AttributeError):
-        oidc_token = None
-    if not isinstance(oidc_token, str) or not oidc_token:
-        raise MintError("the OIDC token response carried no value")
-    try:
-        credentials_body = fetch(args.broker_url, oidc_token, method="POST")
+        credentials_body = fetch(broker_url, oidc_token, "POST")
     except urllib.error.HTTPError as error:
         raise MintError(f"the broker answered HTTP {error.code}") from None
-    except Exception:
+    except TRANSPORT_ERRORS:
         raise MintError("the broker did not answer with credentials") from None
     return parse_credentials(credentials_body)
 
 
-def run(argv: list[str] | None = None, env: Mapping[str, str] | None = None, fetch: Fetch = fetch_text, out=None) -> int:
+def run(
+    argv: list[str] | None = None,
+    env: Mapping[str, str] | None = None,
+    fetch: Fetch = fetch_text,
+    out: TextIO | None = None,
+) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--broker-url", required=True)
     parser.add_argument("--audience", required=True)
@@ -185,7 +223,7 @@ def run(argv: list[str] | None = None, env: Mapping[str, str] | None = None, fet
     out = sys.stdout if out is None else out
 
     try:
-        credentials = obtain(args, env, fetch)
+        credentials = mint_credentials(args.broker_url, args.audience, env, fetch)
     except MintError as error:
         print(f"::error::{error}", file=out)
         return 1
