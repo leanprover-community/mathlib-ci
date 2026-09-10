@@ -11,27 +11,12 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import re
 import sys
 import time
 import urllib.error
 import urllib.request
 from typing import Callable, Mapping
-
-# A credential must be one line from a strict charset before it reaches
-# `::add-mask::`, which masks one line, or GITHUB_OUTPUT, where an
-# embedded newline could define arbitrary outputs. The broker mints
-# base64- and URL-safe material only.
-CREDENTIAL_RE = re.compile(r"[A-Za-z0-9+/=._-]+")
-
-# The broker URL is the credential endpoint the transport POSTs to, so
-# it must be one plain https URL: no whitespace, no control characters,
-# no query string, no trailing slash.
-URL_RE = re.compile(r"https://[A-Za-z0-9.-]+(?::[0-9]+)?(?:/[A-Za-z0-9._~%-]+)*")
-
-# The audience joins the OIDC token endpoint's query string, so it stays
-# inside a URL-safe charset.
-AUDIENCE_RE = re.compile(r"[A-Za-z0-9._:/-]+")
+from urllib.parse import urlencode, urlsplit
 
 ATTEMPTS = 3
 TIMEOUT_SECONDS = 30
@@ -55,6 +40,35 @@ class MintError(Exception):
 
 
 Fetch = Callable[..., str]
+
+
+def is_token(value: object) -> bool:
+    """Whether the value is one printable token: non-empty, no whitespace,
+    no control characters.
+
+    `::add-mask::` masks one line, and a `name=value` line in
+    GITHUB_OUTPUT carries one value, so a credential must be a token
+    before it reaches either.
+    """
+    return isinstance(value, str) and value != "" and value.isprintable() and not any(c.isspace() for c in value)
+
+
+def check_endpoint(url: str) -> None:
+    """Reject a broker URL that is not one https URL with a host.
+
+    The OIDC token travels as a bearer to this URL, so the scheme must be
+    https. `urlsplit` drops tab and newline characters, so the token
+    check runs first.
+    """
+    if not is_token(url):
+        raise MintError("broker-url is not one https URL")
+    parts = urlsplit(url)
+    try:
+        port = parts.port
+    except ValueError:
+        port = -1
+    if parts.scheme != "https" or not parts.hostname or port == -1:
+        raise MintError("broker-url is not one https URL")
 
 
 def fetch_text(url: str, bearer: str, method: str = "GET", sleep: Callable[[float], None] = time.sleep) -> str:
@@ -85,16 +99,16 @@ def fetch_text(url: str, bearer: str, method: str = "GET", sleep: Callable[[floa
 
 
 def audience_url(request_url: str, audience: str) -> str:
-    """The OIDC token endpoint with the audience selector appended."""
+    """The OIDC token endpoint with the audience selector appended, URL-encoded."""
     separator = "&" if "?" in request_url else "?"
-    return f"{request_url}{separator}audience={audience}"
+    return f"{request_url}{separator}{urlencode({'audience': audience})}"
 
 
 def parse_credentials(body: str) -> dict[str, str]:
     """Validate the broker's answer field by field.
 
     A 200 with a malformed body takes the same failure path as a
-    transport error. Every field passes the credential charset before it
+    transport error. Every field is one printable token before it
     reaches the caller.
     """
     try:
@@ -106,15 +120,13 @@ def parse_credentials(body: str) -> dict[str, str]:
     credentials: dict[str, str] = {}
     for field in CREDENTIAL_FIELDS:
         value = answer.get(field)
-        if not isinstance(value, str) or not CREDENTIAL_RE.fullmatch(value):
+        if not is_token(value):
             raise MintError("the broker answer carried no well-formed credential")
         credentials[field] = value
     # The grant name is display-only. A missing or malformed grant prints
     # as `?` and the mint succeeds.
     grant = answer.get("grant")
-    if not isinstance(grant, str) or not CREDENTIAL_RE.fullmatch(grant):
-        grant = "?"
-    credentials["grant"] = grant
+    credentials["grant"] = grant if is_token(grant) else "?"
     return credentials
 
 
@@ -137,10 +149,9 @@ def output_block(credentials: Mapping[str, str]) -> str:
 
 def obtain(args: argparse.Namespace, env: Mapping[str, str], fetch: Fetch) -> dict[str, str]:
     """Run the two-request mint and return validated credentials."""
-    if not URL_RE.fullmatch(args.broker_url):
-        raise MintError("broker-url is not one plain https URL")
-    if not AUDIENCE_RE.fullmatch(args.audience):
-        raise MintError("audience carries characters outside its charset")
+    check_endpoint(args.broker_url)
+    if not args.audience:
+        raise MintError("audience is empty")
     request_token = env.get("ACTIONS_ID_TOKEN_REQUEST_TOKEN", "")
     request_url = env.get("ACTIONS_ID_TOKEN_REQUEST_URL", "")
     if not request_token or not request_url:

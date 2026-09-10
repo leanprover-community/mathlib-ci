@@ -8,9 +8,7 @@ description: >-
 
 inputs:
   broker-url:
-    description: >-
-      URL of the broker's credential endpoint (https, no query string,
-      no trailing slash).
+    description: URL of the broker's credential endpoint (https).
     required: true
   audience:
     description: OIDC audience the broker expects.

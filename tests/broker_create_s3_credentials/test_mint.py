@@ -71,12 +71,44 @@ def http_error(code):
     return urllib.error.HTTPError("https://x.example", code, "status", {}, None)
 
 
+class TestIsToken:
+    @pytest.mark.parametrize("value", ["AKIAMOCK", "secret/mock+1=", "sess.token_a-b", "tökén"])
+    def test_accepts_a_printable_token(self, value):
+        assert mint.is_token(value)
+
+    @pytest.mark.parametrize(
+        "value",
+        ["", "two words", "tab\there", "line\nbreak", "cr\rhere", "\x1b[31mred", "sep\u2028line", None, 7],
+        ids=["empty", "space", "tab", "newline", "cr", "escape", "line-separator", "none", "int"],
+    )
+    def test_rejects_everything_else(self, value):
+        assert not mint.is_token(value)
+
+
+class TestCheckEndpoint:
+    @pytest.mark.parametrize("url", ["https://x.example/r2-credentials", "https://x.example:8443/a/b", "https://x.example"])
+    def test_accepts_an_https_url_with_a_host(self, url):
+        mint.check_endpoint(url)
+
+    @pytest.mark.parametrize(
+        "url",
+        ["https://x.example\nEVIL=1", "http://x.example", "https://x.example/path ", "https:///path", "https://x.example:99999/p", "x.example/p"],
+        ids=["newline", "not-https", "trailing-space", "no-host", "bad-port", "no-scheme"],
+    )
+    def test_rejects_the_rest(self, url):
+        with pytest.raises(mint.MintError, match="broker-url is not one https URL"):
+            mint.check_endpoint(url)
+
+
 class TestAudienceUrl:
     def test_appends_to_an_existing_query_string(self):
         assert mint.audience_url("https://x/token?v=2", "aud") == "https://x/token?v=2&audience=aud"
 
     def test_starts_the_query_string_when_none_exists(self):
         assert mint.audience_url("https://x/token", "aud") == "https://x/token?audience=aud"
+
+    def test_url_encodes_the_audience(self):
+        assert mint.audience_url("https://x/token", "a b&c=1/d") == "https://x/token?audience=a+b%26c%3D1%2Fd"
 
 
 class TestParseCredentials:
@@ -91,10 +123,12 @@ class TestParseCredentials:
             "<html>oops</html>",
             json.dumps(["not", "an", "object"]),
             json.dumps({**GOOD_ANSWER, "accessKeyId": "AKIA\nEVIL=1"}),
+            json.dumps({**GOOD_ANSWER, "accessKeyId": "AKIA MOCK"}),
             json.dumps({**GOOD_ANSWER, "secretAccessKey": ""}),
+            json.dumps({**GOOD_ANSWER, "sessionToken": 12345}),
             json.dumps({k: v for k, v in GOOD_ANSWER.items() if k != "sessionToken"}),
         ],
-        ids=["not-json", "not-object", "newline-injection", "empty-field", "missing-session-token"],
+        ids=["not-json", "not-object", "newline-injection", "embedded-space", "empty-field", "not-a-string", "missing-session-token"],
     )
     def test_rejects_a_malformed_answer(self, body):
         with pytest.raises(mint.MintError):
@@ -200,16 +234,15 @@ class TestRun:
 
         code, outputs, _ = run_mint(tmp_path, fetch=fetch, audience="other.broker/aud")
         assert code == 0 and outputs.endswith("minted=true\n")
-        assert seen == [f"{OIDC_ENV['ACTIONS_ID_TOKEN_REQUEST_URL']}&audience=other.broker/aud", BROKER]
+        assert seen == [f"{OIDC_ENV['ACTIONS_ID_TOKEN_REQUEST_URL']}&audience=other.broker%2Faud", BROKER]
 
-    @pytest.mark.parametrize("audience", ["two words", "aud&extra=1", "aud\nEVIL"], ids=["space", "ampersand", "newline"])
-    def test_an_audience_outside_the_charset_never_reaches_the_transport(self, tmp_path, audience):
+    def test_an_empty_audience_takes_the_failure_path(self, tmp_path):
         def fetch(*a, **k):
-            raise AssertionError("the transport must not see a rejected audience")
+            raise AssertionError("the transport must not run without an audience")
 
-        code, outputs, output = run_mint(tmp_path, fetch=fetch, audience=audience)
+        code, outputs, output = run_mint(tmp_path, fetch=fetch, audience="")
         assert (code, outputs) == (0, "")
-        assert "audience carries characters outside its charset" in output
+        assert "audience is empty" in output
 
     def test_an_unwritable_github_output_follows_the_posture(self, tmp_path):
         missing = tmp_path / "no-such-dir" / "github_output"
@@ -222,23 +255,14 @@ class TestRun:
         assert (code, outputs) == (1, "")
         assert "::error::could not write the step outputs" in output
 
-    @pytest.mark.parametrize(
-        "url",
-        [
-            "https://x.example\nEVIL=1",
-            "http://x.example",
-            "https://x.example/path?query=1",
-            "https://x.example/path ",
-        ],
-        ids=["newline-injection", "not-https", "query-string", "trailing-space"],
-    )
-    def test_a_broker_url_outside_the_charset_never_reaches_the_transport(self, tmp_path, url):
+    @pytest.mark.parametrize("url", ["https://x.example\nEVIL=1", "http://x.example"], ids=["newline", "not-https"])
+    def test_a_rejected_broker_url_never_reaches_the_transport(self, tmp_path, url):
         def fetch(*a, **k):
             raise AssertionError("the transport must not see a rejected URL")
 
         code, outputs, output = run_mint(tmp_path, broker=url, fetch=fetch)
         assert (code, outputs) == (0, "")
-        assert "broker-url is not one plain https URL" in output
+        assert "broker-url is not one https URL" in output
 
 
 class TestFetchRetries:
