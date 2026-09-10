@@ -40,7 +40,7 @@ class FakeTransport:
 
     `oidc` answers the GET to the OIDC token endpoint and `broker`
     answers the POST to the broker. Either may be an exception instance,
-    which the fake raises instead.
+    which the fake raises.
     """
 
     def __init__(self, oidc=OIDC_ANSWER, broker=json.dumps(GOOD_ANSWER)):

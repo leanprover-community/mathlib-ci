@@ -2,9 +2,8 @@
 short-lived S3-compatible credentials, and expose them as step outputs.
 
 The step fails when the mint fails. The transport is injectable
-(`fetch`), so the test suite drives every failure path without a
-network. Stdlib only: the action runs with the runner's `python3` and
-installs nothing.
+(`fetch`), so the test suite drives every failure path offline. Stdlib
+only, so the action runs on the runner's `python3`.
 """
 
 from __future__ import annotations
@@ -38,9 +37,9 @@ CREDENTIAL_OUTPUTS = (
 )
 CREDENTIAL_FIELDS = tuple(field for field, _ in CREDENTIAL_OUTPUTS)
 
-# What one HTTP request can raise. `urllib.error.URLError` and its
-# subclass `HTTPError` are `OSError`s. `http.client.HTTPException` (for
-# example `IncompleteRead` on a truncated body) is not, so it is listed.
+# What one HTTP request can raise. `OSError` covers `urllib.error.URLError`
+# and its subclass `HTTPError`; `http.client.HTTPException` covers
+# `IncompleteRead` on a truncated body.
 TRANSPORT_ERRORS = (OSError, http.client.HTTPException)
 
 
@@ -58,7 +57,7 @@ def is_printable_word(value: object) -> bool:
     no control characters.
 
     `::add-mask::` masks one line, and a `name=value` line in
-    GITHUB_OUTPUT carries one value, so a credential must be a token
+    GITHUB_OUTPUT carries one value, so a credential must be one word
     before it reaches either.
     """
     return isinstance(value, str) and value != "" and value.isprintable() and not any(c.isspace() for c in value)
@@ -68,7 +67,7 @@ def check_broker_url(url: str) -> None:
     """Reject a broker URL that is not one https URL with a host.
 
     The OIDC token travels as a bearer to this URL, so the scheme must be
-    https. `urlsplit` drops tab and newline characters, so the token
+    https. `urlsplit` drops tab and newline characters, so the word
     check runs first.
     """
     if not is_printable_word(url):
@@ -99,7 +98,7 @@ def with_retries(call: Callable[[], str], sleep: Callable[[float], None] | None 
     Transport faults and 5xx statuses retry with backoff: both requests
     this module makes are idempotent, so a retry is safe. A 4xx is a
     verdict on the request, so it raises at once. Any other exception is
-    a bug, not a transport fault, and propagates untouched.
+    a bug and propagates untouched.
     """
     sleep = time.sleep if sleep is None else sleep
     for attempt in range(ATTEMPTS):
@@ -170,8 +169,8 @@ def output_block(credentials: Mapping[str, str]) -> str:
 
     `run` masks the credential values before it writes this block. The
     grant is display-only. `minted` is the non-secret flag that callers
-    test in the `if:` of later steps. It is the last line, so a truncated
-    write leaves no flag over a partial credential.
+    test in the `if:` of later steps. It is the last line, so it appears
+    only after every credential line is complete.
     """
     lines = [f"{output}={credentials[field]}" for field, output in CREDENTIAL_OUTPUTS]
     lines.append(f"grant={credentials['grant']}")
@@ -236,7 +235,7 @@ def run(
         with open(args.github_output, "a", encoding="utf-8") as github_output:
             github_output.write(output_block(credentials))
     except OSError as error:
-        # `minted` is the last line, so a partial write set no flag.
+        # A partial write stops before the `minted` line.
         print(f"::error::could not write the step outputs ({error.strerror or error})", file=out)
         return 1
     print(f"credentials minted (grant: {credentials['grant']})", file=out)

@@ -41,8 +41,8 @@ runs:
     - name: Mint credentials from the broker
       id: mint
       shell: bash
-      # Inputs flow through `env:`, never `${{ … }}` inside `run:`:
-      # GitHub expands `${{ … }}` into the script before bash sees it.
+      # GitHub expands `${{ … }}` into the command text, so the inputs
+      # reach the script through `env:`.
       # On success the script masks the credentials, then writes the
       # outputs to GITHUB_OUTPUT in one block.
       env:
