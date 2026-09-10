@@ -166,7 +166,7 @@ class TestRun:
         assert output.splitlines()[-1] == "credentials minted (grant: example-grant)"
         assert output.index("::add-mask::") < output.index("minted")
 
-    def test_no_oidc_endpoint_warns_and_skips(self, tmp_path):
+    def test_no_oidc_endpoint_warns_and_sets_no_outputs(self, tmp_path):
         code, outputs, output = run_mint(tmp_path, env={})
         assert code == 0
         assert outputs == ""
