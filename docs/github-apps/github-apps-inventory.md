@@ -14,7 +14,6 @@ For associated Entra Apps for Azure authentication, see [entra-apps.md](entra-ap
 | `mathlib-nightly-testing` | Bot identity with cross-repo write access for nightly branch and release maintenance. | `nightly_bump_and_merge.yml`, `nightly_detect_failure.yml`, `nightly_merge_master.yml` |
 | `mathlib-triage` | Bot identity with PR/issue write access for maintainer command label/state mutations. | `maintainer_bors.yml`, `maintainer_bors_wf_run.yml`, `maintainer_merge.yml`, `maintainer_merge_wf_run.yml` |
 | `mathlib-auto-merge` | Bot identity with PR/issue write access for merge-queue triggering comments. | `build_template.yml` |
-| `mathlib-lean-pr-testing` | Bot identity (in `leanprover` org) for Lean-upstream PR feedback and branch updates. | `build_template.yml`, `nightly_detect_failure.yml` |
 | `mathlib-splicebot` | Primary bot identity for splice-bot API operations in mathlib workflows. | `splice_bot_wf_run.yaml` |
 | `mathlib-copy-splicebot` | Dedicated bot identity for splice-bot branch pushes to fork/copy targets. | `splice_bot_wf_run.yaml` |
 | `lpc-team-check` | Dedicated bot identity for authorization checks (team/repo-permission gating). | `splice_bot_wf_run.yaml` |

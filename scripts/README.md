@@ -65,8 +65,8 @@ Layout:
 - `maintainer_merge_message.sh` contains a shell script that produces the Zulip message for a
   `maintainer merge`/`maintainer delegate` comment.
 - `lean-pr-testing-comments.sh`
-  Generate comments and labels on a Lean or Batteries PR after CI has finished on a
-  `*-pr-testing-NNNN` branch.
+  Generate comments and labels on a Batteries PR after CI has finished on a
+  `batteries-pr-testing-NNNN` branch.
 
 ## `nightly/`
 - `create-adaptation-pr.sh` implements some of the steps in the workflow described at
@@ -80,10 +80,6 @@ Layout:
   - finally, merge the new branch back into `nightly-testing`, if conflict resolution was required.
 
   If there are merge conflicts, it pauses and asks for help from the human driver.
-- `merge-lean-testing-pr.sh` takes a PR number `NNNN` as argument,
-  and attempts to merge the branch `lean-pr-testing-NNNN` into `master`.
-  It will resolve conflicts in `lean-toolchain`, `lakefile.lean`, and `lake-manifest.json`.
-  If there are more conflicts, it will bail.
 
 ## `zulip/`
 - `parse_lake_manifest_changes.py` compares two versions of `lake-manifest.json` to report
