@@ -1,4 +1,4 @@
-## Create comments and labels on a Lean 4 or Batteries PR after CI has finished on a `*-pr-testing-NNNN` branch.
+## Create comments and labels on a Batteries PR after CI has finished on a `batteries-pr-testing-NNNN` branch.
 ##
 ## See https://leanprover-community.github.io/contribute/tags_and_branches.html
 
@@ -7,13 +7,15 @@
 set -euo pipefail
 IFS=$'\n\t'
 
-# Ensure the first argument is either 'lean' or 'batteries'.
-if [ -z "$1" ]; then
-  echo "The first argument must be either 'lean' or 'batteries'"
+# Ensure the first argument is 'batteries'.
+# This argument (as well as the script name) is left over from when this script
+# used to handle lean PR testing as well.
+if [ "${1:-}" != "batteries" ]; then
+  echo "The first argument must be 'batteries'"
   exit 1
 fi
 
-# Set NIGHTLY_TESTING_REPO for comparison URLs (where the branches and tags actually live)
+# Set NIGHTLY_TESTING_REPO for comparison URLs (where the branches actually live)
 if [ -z "${NIGHTLY_TESTING_REPO:-}" ]; then
   NIGHTLY_TESTING_REPO="leanprover-community/mathlib4-nightly-testing"
 fi
@@ -33,19 +35,9 @@ fi
 #   LINT_OUTCOME: ${{ steps.lint.outcome }}
 #   TEST_OUTCOME: ${{ steps.test.outcome }}
 
-# Adjust the branch pattern and URLs based on the repository.
-if [ "$1" == "lean" ]; then
-  branch_prefix="lean-pr-testing"
-  repo_url="https://api.github.com/repos/leanprover/lean4"
-  base_branch="nightly-testing" # This really should be the relevant `nightly-testing-YYYY-MM-DD` tag.
-elif [ "$1" == "batteries" ]; then
-  branch_prefix="batteries-pr-testing"
-  repo_url="https://api.github.com/repos/leanprover-community/batteries"
-  base_branch="master"
-else
-  echo "Unknown repository: $1. Must be either 'lean' or 'batteries'."
-  exit 1
-fi
+branch_prefix="batteries-pr-testing"
+repo_url="https://api.github.com/repos/leanprover-community/batteries"
+base_branch="master"
 
 # Extract branch name and check if it matches the pattern.
 branch_name=$(echo "$GITHUB_CONTEXT" | jq -r .ref | cut -d'/' -f3)
