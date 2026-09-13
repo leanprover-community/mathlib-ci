@@ -96,6 +96,12 @@ When optional inputs are omitted:
 - Installation resolution: current repository (`GITHUB_REPOSITORY`)
 - Installation token scope: full installation permissions (no repository filter)
 
+## Transient failures
+
+Every request in the flow is retried with exponential backoff on a 5xx or a dropped
+connection (4 attempts, 2s/4s/8s), so a sporadic failure at any hop does not fail the
+job. The retries are bounded well inside the app JWT's lifetime.
+
 ## Security notes
 - Workflow must grant `permissions: id-token: write` to allow this action to request a GitHub OIDC token for Entra token exchange.
 - Remember keeping Entra federated credential scope tight (repo/workflow/ref constraints).

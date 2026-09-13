@@ -39,6 +39,8 @@ import urllib.request
 GITHUB_API_URL = "https://api.github.com"
 OIDC_AUDIENCE = "api://AzureADTokenExchange"
 JWT_EXPIRATION_SECONDS = 540
+MAX_ATTEMPTS = 4
+RETRY_INITIAL_DELAY_SECONDS = 2
 
 
 class GithubHttpError(Exception):
@@ -101,6 +103,41 @@ def parse_expiration_seconds(raw: str) -> int:
     return expiration_seconds
 
 
+def urlopen_retrying(req: urllib.request.Request) -> bytes:
+    """Send a request, retrying transient failures, and return the response body.
+
+    Each hop in the token flow (GitHub OIDC, Entra, Key Vault, the GitHub API)
+    occasionally returns a sporadic 5xx or drops the connection, and a single one
+    of those used to fail the whole workflow. A 4xx is not retried: it means the
+    request itself is wrong. The error body is deliberately left unread so callers
+    can still include it in their own error message.
+
+    Retries are bounded well inside the app JWT's lifetime (`JWT_EXPIRATION_SECONDS`).
+    """
+
+    delay = RETRY_INITIAL_DELAY_SECONDS
+    for attempt in range(1, MAX_ATTEMPTS + 1):
+        try:
+            with urllib.request.urlopen(req) as resp:
+                return resp.read()
+        except urllib.error.HTTPError as err:
+            if err.code < 500 or attempt == MAX_ATTEMPTS:
+                raise
+            reason = f"HTTP {err.code}"
+        except urllib.error.URLError as err:
+            if attempt == MAX_ATTEMPTS:
+                raise
+            reason = str(err.reason)
+        print(
+            f"{req.full_url} failed ({reason}); "
+            f"retrying in {delay}s (attempt {attempt} of {MAX_ATTEMPTS}).",
+            file=sys.stderr,
+        )
+        time.sleep(delay)
+        delay *= 2
+    raise AssertionError("unreachable: the final attempt either returns or raises")
+
+
 def get_actions_oidc_token(audience: str) -> str:
     """Fetch a GitHub Actions OIDC token for the configured audience."""
 
@@ -123,8 +160,7 @@ def get_actions_oidc_token(audience: str) -> str:
     req = urllib.request.Request(url=url_with_audience, method="GET")
     req.add_header("Authorization", f"Bearer {request_token}")
     try:
-        with urllib.request.urlopen(req) as resp:
-            oidc_response = json.loads(resp.read().decode("utf-8"))
+        oidc_response = json.loads(urlopen_retrying(req).decode("utf-8"))
     except urllib.error.HTTPError as err:
         detail = err.read().decode("utf-8", errors="replace")
         fail(f"Failed to fetch GitHub OIDC token: HTTP {err.code}\n{detail}")
@@ -158,8 +194,7 @@ def exchange_oidc_for_keyvault_token(tenant_id: str, client_id: str, oidc_token:
     req = urllib.request.Request(url=token_url, data=body, method="POST")
     req.add_header("Content-Type", "application/x-www-form-urlencoded")
     try:
-        with urllib.request.urlopen(req) as resp:
-            token_response = json.loads(resp.read().decode("utf-8"))
+        token_response = json.loads(urlopen_retrying(req).decode("utf-8"))
     except urllib.error.HTTPError as err:
         detail = err.read().decode("utf-8", errors="replace")
         fail(f"Failed to exchange OIDC token for Key Vault token: HTTP {err.code}\n{detail}")
@@ -193,8 +228,7 @@ def run_keyvault_sign(
     req.add_header("Authorization", f"Bearer {access_token}")
     req.add_header("Content-Type", "application/json")
     try:
-        with urllib.request.urlopen(req) as resp:
-            sign_result = json.loads(resp.read().decode("utf-8"))
+        sign_result = json.loads(urlopen_retrying(req).decode("utf-8"))
     except urllib.error.HTTPError as err:
         detail = err.read().decode("utf-8", errors="replace")
         fail(f"Azure Key Vault signing failed: HTTP {err.code}\n{detail}")
@@ -227,8 +261,7 @@ def github_request(api_url: str, method: str, path: str, jwt: str, body: dict | 
     if data is not None:
         req.add_header("Content-Type", "application/json")
     try:
-        with urllib.request.urlopen(req) as resp:
-            return json.loads(resp.read().decode("utf-8"))
+        return json.loads(urlopen_retrying(req).decode("utf-8"))
     except urllib.error.HTTPError as err:
         detail = err.read().decode("utf-8", errors="replace")
         raise GithubHttpError(method, url, err.code, detail) from err
