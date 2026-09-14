@@ -1,0 +1,33 @@
+name: Test azure-create-github-app-token action
+
+# Runs the unit-test suite for the `azure-create-github-app-token` composite
+# action on every push / PR that touches its source or its tests.
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - .github/actions/azure-create-github-app-token/**
+      - tests/mint_token/**
+      - .github/workflows/test_mint_token.yml
+      - pytest.ini
+  pull_request:
+    paths:
+      - .github/actions/azure-create-github-app-token/**
+      - tests/mint_token/**
+      - .github/workflows/test_mint_token.yml
+      - pytest.ini
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6.2.0
+        with:
+          python-version: '3.x'
+      - run: python3 -m pip install --upgrade pip pytest
+      - run: python3 -m pytest tests/mint_token -v

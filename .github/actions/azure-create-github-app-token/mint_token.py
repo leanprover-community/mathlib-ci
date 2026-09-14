@@ -28,6 +28,7 @@ References:
 
 import base64
 import hashlib
+import http.client
 import json
 import os
 import sys
@@ -35,12 +36,13 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+from collections.abc import Callable
 
 GITHUB_API_URL = "https://api.github.com"
 OIDC_AUDIENCE = "api://AzureADTokenExchange"
 JWT_EXPIRATION_SECONDS = 540
-MAX_ATTEMPTS = 4
-RETRY_INITIAL_DELAY_SECONDS = 2
+REQUEST_TIMEOUT_SECONDS = 30
+RETRY_BACKOFF_SECONDS = (2, 4, 8)
 
 
 class GithubHttpError(Exception):
@@ -103,39 +105,49 @@ def parse_expiration_seconds(raw: str) -> int:
     return expiration_seconds
 
 
-def urlopen_retrying(req: urllib.request.Request) -> bytes:
-    """Send a request, retrying transient failures, and return the response body.
+def _urlopen_once(req: urllib.request.Request) -> bytes:
+    """Send a request once and return the response body."""
 
-    Each hop in the token flow (GitHub OIDC, Entra, Key Vault, the GitHub API)
-    occasionally returns a sporadic 5xx or drops the connection, and a single one
-    of those used to fail the whole workflow. A 4xx is not retried: it means the
-    request itself is wrong. The error body is deliberately left unread so callers
-    can still include it in their own error message.
+    with urllib.request.urlopen(req, timeout=REQUEST_TIMEOUT_SECONDS) as resp:
+        return resp.read()
 
-    Retries are bounded well inside the app JWT's lifetime (`JWT_EXPIRATION_SECONDS`).
+
+def urlopen_retrying(
+    req: urllib.request.Request,
+    *,
+    send: Callable[[urllib.request.Request], bytes] = _urlopen_once,
+    sleep: Callable[[float], None] = time.sleep,
+) -> bytes:
+    """Send a request, retry transient failures, and return the response body.
+
+    The function treats a 5xx response, a dropped connection, and a timeout as
+    transient. After one of these it waits for the next entry of `RETRY_BACKOFF_SECONDS`
+    and sends the request again. After the last entry it makes one final attempt. A 4xx
+    response means the request itself is wrong, so it is raised at once. The last error
+    is raised with its body unread, so callers can include the body in their own message.
+
+    The worst case for one request is `REQUEST_TIMEOUT_SECONDS` per attempt plus the
+    sum of `RETRY_BACKOFF_SECONDS`. Keep it inside the app JWT's lifetime
+    (`JWT_EXPIRATION_SECONDS`). `send` sends the request once and `sleep` waits
+    between attempts; tests pass fakes for both.
     """
 
-    delay = RETRY_INITIAL_DELAY_SECONDS
-    for attempt in range(1, MAX_ATTEMPTS + 1):
+    for delay in RETRY_BACKOFF_SECONDS:
         try:
-            with urllib.request.urlopen(req) as resp:
-                return resp.read()
+            return send(req)
         except urllib.error.HTTPError as err:
-            if err.code < 500 or attempt == MAX_ATTEMPTS:
+            if err.code < 500:
                 raise
+            err.close()
             reason = f"HTTP {err.code}"
-        except urllib.error.URLError as err:
-            if attempt == MAX_ATTEMPTS:
-                raise
-            reason = str(err.reason)
-        print(
-            f"{req.full_url} failed ({reason}); "
-            f"retrying in {delay}s (attempt {attempt} of {MAX_ATTEMPTS}).",
-            file=sys.stderr,
-        )
-        time.sleep(delay)
-        delay *= 2
-    raise AssertionError("unreachable: the final attempt either returns or raises")
+        except (OSError, http.client.HTTPException) as err:
+            # urllib wraps a failure in URLError only while it sends the request. A dropped
+            # connection, a truncated body, or a timeout on the response arrives as a bare
+            # OSError or HTTPException.
+            reason = str(err)
+        print(f"{req.full_url} failed ({reason}); retrying in {delay}s.", file=sys.stderr)
+        sleep(delay)
+    return send(req)
 
 
 def get_actions_oidc_token(audience: str) -> str:

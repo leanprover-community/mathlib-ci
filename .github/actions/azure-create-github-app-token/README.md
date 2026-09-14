@@ -98,9 +98,9 @@ When optional inputs are omitted:
 
 ## Transient failures
 
-Every request in the flow is retried with exponential backoff on a 5xx or a dropped
-connection (4 attempts, 2s/4s/8s), so a sporadic failure at any hop does not fail the
-job. The retries are bounded well inside the app JWT's lifetime.
+The action retries every request in the flow on a 5xx response, a dropped connection,
+or a 30s timeout. It makes up to 4 attempts and waits 2s, 4s and 8s between them. A 4xx
+response is raised at once. The retries fit inside the app JWT's lifetime.
 
 ## Security notes
 - Workflow must grant `permissions: id-token: write` to allow this action to request a GitHub OIDC token for Entra token exchange.
