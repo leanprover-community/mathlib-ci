@@ -126,6 +126,11 @@ def urlopen_retrying(
     response means the request itself is wrong, so it is raised at once. The last error
     is raised with its body unread, so callers can include the body in their own message.
 
+    A failure that survives the last attempt is raised as `urllib.error.URLError`, which
+    is what every caller handles, so the flow ends in `fail()` rather than a traceback.
+    An `HTTPError` passes through unchanged, since it is already a `URLError` and callers
+    read its body.
+
     The worst case for one request is `REQUEST_TIMEOUT_SECONDS` per attempt plus the
     sum of `RETRY_BACKOFF_SECONDS`. Keep it inside the app JWT's lifetime
     (`JWT_EXPIRATION_SECONDS`). `send` sends the request once and `sleep` waits
@@ -147,7 +152,15 @@ def urlopen_retrying(
             reason = str(err)
         print(f"{req.full_url} failed ({reason}); retrying in {delay}s.", file=sys.stderr)
         sleep(delay)
-    return send(req)
+    try:
+        return send(req)
+    except urllib.error.URLError:
+        # Covers HTTPError too; both are what callers already expect.
+        raise
+    except (OSError, http.client.HTTPException) as err:
+        # The bare OSError / HTTPException cases from the loop above. Retrying is over, so
+        # convert rather than let an exception no caller catches escape.
+        raise urllib.error.URLError(err) from err
 
 
 def get_actions_oidc_token(audience: str) -> str:
@@ -277,6 +290,10 @@ def github_request(api_url: str, method: str, path: str, jwt: str, body: dict | 
     except urllib.error.HTTPError as err:
         detail = err.read().decode("utf-8", errors="replace")
         raise GithubHttpError(method, url, err.code, detail) from err
+    except urllib.error.URLError as err:
+        # Not a GithubHttpError: there is no status, and callers of this function treat
+        # that type as a routable API answer (`resolve_installation_id` reads 404 off it).
+        fail(f"GitHub API {method} {url} failed: {err.reason}")
 
 
 def resolve_installation_id(api_url: str, jwt: str, owner: str) -> int:

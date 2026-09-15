@@ -14,6 +14,8 @@ import pytest
 
 from mint_token import RETRY_BACKOFF_SECONDS, urlopen_retrying
 
+_TERMINAL = len(RETRY_BACKOFF_SECONDS) + 1  # attempts needed to exhaust the policy
+
 _REQ = urllib.request.Request("https://example.test/hop", method="POST", data=b"{}")
 
 
@@ -50,8 +52,40 @@ def test_transient_failure_is_retried_after_the_first_backoff(failure: BaseExcep
     assert sleeps == [RETRY_BACKOFF_SECONDS[0]]
 
 
+@pytest.mark.parametrize(
+    "failure",
+    [http.client.IncompleteRead(b"hel", 95), TimeoutError("timed out"), ConnectionResetError(104, "reset")],
+    ids=["http-exception", "timeout", "connection-reset"],
+)
+def test_terminal_transient_failure_becomes_a_urlerror(failure: BaseException) -> None:
+    """Callers only handle URLError, so the failure that outlives the retries must be one.
+
+    These three are exactly the types the retry loop treats as transient but that no
+    caller catches; unconverted they escape as an unhandled traceback.
+    """
+    transport = Transport(*[failure] * _TERMINAL)
+
+    with pytest.raises(urllib.error.URLError) as excinfo:
+        urlopen_retrying(_REQ, send=transport, sleep=lambda _: None)
+
+    assert transport.calls == _TERMINAL
+    assert excinfo.value.reason is failure
+    assert excinfo.value.__cause__ is failure
+
+
+def test_terminal_urlerror_is_not_rewrapped() -> None:
+    """A URLError is already what callers expect, so it must arrive unchanged."""
+    failure = urllib.error.URLError("name resolution failed")
+    transport = Transport(*[failure] * _TERMINAL)
+
+    with pytest.raises(urllib.error.URLError) as excinfo:
+        urlopen_retrying(_REQ, send=transport, sleep=lambda _: None)
+
+    assert excinfo.value is failure
+
+
 def test_gives_up_after_the_last_backoff(capsys: pytest.CaptureFixture[str]) -> None:
-    failures = [http_error(503, b"busy") for _ in range(len(RETRY_BACKOFF_SECONDS) + 1)]
+    failures = [http_error(503, b"busy") for _ in range(_TERMINAL)]
     transport = Transport(*failures)
     sleeps: list[float] = []
 
