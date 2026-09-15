@@ -20,6 +20,7 @@ from util import (
     TRANSPORT_ERRORS,
     Fetch,
     MintError,
+    body_excerpt,
     check_broker_url,
     fetch_text,
     oidc_token_url,
@@ -52,7 +53,11 @@ def mint_credentials(broker_url: str, audience: str, env: Mapping[str, str], fet
     try:
         credentials_body = fetch(broker_url, oidc_token, "POST")
     except urllib.error.HTTPError as error:
-        raise MintError(f"the broker answered HTTP {error.code}") from None
+        # The cache broker's error body doesn't contain any secrets,
+        # so it's safe to log for diagnostics (this might not be true for the
+        # other requests above).
+        detail = body_excerpt(error)
+        raise MintError(f"the broker answered HTTP {error.code}" + (f": {detail}" if detail else "")) from None
     except TRANSPORT_ERRORS:
         raise MintError("the broker did not answer with credentials") from None
     return parse_credentials(credentials_body)
@@ -89,7 +94,7 @@ def run(
         # A partial write stops before the `success` line.
         print(f"::error::could not write the step outputs ({error.strerror or error})", file=out)
         return 1
-    print(f"credentials minted (grant: {credentials['grant']})", file=out)
+    print(f"credentials minted (grant: {credentials['grant']}, ttlSeconds: {credentials['ttlSeconds']})", file=out)
     return 0
 
 

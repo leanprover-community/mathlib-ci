@@ -2,7 +2,7 @@
 transport, the input and answer checks, and the GITHUB_OUTPUT block.
 
 Every function here is pure except `fetch_once`, which makes one HTTP
-request.
+request, and `body_excerpt`, which reads the body of an error answer.
 """
 
 from __future__ import annotations
@@ -17,6 +17,13 @@ from urllib.parse import urlencode, urlsplit
 
 ATTEMPTS = 3
 TIMEOUT_SECONDS = 30
+
+# The 4xx statuses that are not a verdict on the request: the server
+# timed out reading it (408) or throttled it (429). They retry like a 5xx.
+RETRYABLE_4XX = frozenset({408, 429})
+
+# How much of an error answer's body reaches the job log.
+BODY_EXCERPT_CHARS = 200
 
 # A Cloudflare browser integrity check in front of the broker answers 403
 # (error 1010) to Python's default `Python-urllib/x.y` agent. A named
@@ -83,13 +90,18 @@ def fetch_once(url: str, bearer: str, method: str) -> str:
         return response.read().decode("utf-8", errors="replace")
 
 
+def is_retryable_status(code: int) -> bool:
+    """Whether an HTTP error status is transient: any 5xx, 408, or 429."""
+    return code >= 500 or code in RETRYABLE_4XX
+
+
 def with_retries(call: Callable[[], str], sleep: Callable[[float], None] | None = None) -> str:
     """Call up to ATTEMPTS times and return the first answer.
 
-    Transport faults and 5xx statuses retry with backoff: both requests
-    the mint makes are idempotent, so a retry is safe. A 4xx is a
-    verdict on the request, so it raises at once. Any other exception is
-    a bug and propagates untouched.
+    Transport faults and transient statuses retry with backoff: both
+    requests the mint makes are idempotent, so a retry is safe. Any
+    other status is a verdict on the request, so it raises at once. Any
+    other exception is a bug and propagates untouched.
     """
     sleep = time.sleep if sleep is None else sleep
     for attempt in range(ATTEMPTS):
@@ -97,7 +109,7 @@ def with_retries(call: Callable[[], str], sleep: Callable[[float], None] | None 
         try:
             return call()
         except urllib.error.HTTPError as error:
-            if 400 <= error.code < 500 or last:
+            if not is_retryable_status(error.code) or last:
                 raise
         except TRANSPORT_ERRORS:
             if last:
@@ -109,6 +121,20 @@ def with_retries(call: Callable[[], str], sleep: Callable[[float], None] | None 
 def fetch_text(url: str, bearer: str, method: str) -> str:
     """The default transport: `fetch_once` under `with_retries`."""
     return with_retries(lambda: fetch_once(url, bearer, method))
+
+
+def body_excerpt(error: urllib.error.HTTPError) -> str:
+    """
+    A fragment of the body of an error answer.
+    """
+    try:
+        body = error.read().decode("utf-8", errors="replace")
+    except TRANSPORT_ERRORS:
+        return ""
+    excerpt = " ".join("".join(c if c.isprintable() else " " for c in body).split())
+    if len(excerpt) > BODY_EXCERPT_CHARS:
+        excerpt = excerpt[:BODY_EXCERPT_CHARS] + "..."
+    return excerpt
 
 
 def oidc_token_url(request_url: str, audience: str) -> str:
@@ -148,10 +174,12 @@ def parse_credentials(body: str) -> dict[str, str]:
         if not is_printable_word(value):
             raise MintError("the broker answer carried no well-formed credential")
         credentials[field] = value
-    # The grant name is display-only. A missing or malformed grant prints
-    # as `?` and the mint succeeds.
+    # The grant name and the TTL are display-only. A missing or malformed
+    # one prints as `?` and the mint succeeds.
     grant = answer.get("grant")
     credentials["grant"] = grant if is_printable_word(grant) else "?"
+    ttl = answer.get("ttlSeconds")
+    credentials["ttlSeconds"] = str(ttl) if type(ttl) is int else "?"
     return credentials
 
 

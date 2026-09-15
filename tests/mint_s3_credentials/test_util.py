@@ -1,8 +1,8 @@
 """The building blocks in `util.py`, each on its own.
 
 Layout: the word and broker URL checks, the OIDC token URL, the two
-answer parsers, the output block, then the retry policy and the one
-urllib-facing request.
+answer parsers, the output block, then the retry policy, the error body
+excerpt, and the one urllib-facing request.
 """
 
 from __future__ import annotations
@@ -22,11 +22,14 @@ GOOD_ANSWER = {
     "secretAccessKey": "secret/mock+1=",
     "sessionToken": "sess.token_a-b",
     "grant": "example-grant",
+    "ttlSeconds": 3600,
 }
+# `parse_credentials` carries the TTL as text, like every other field.
+PARSED = {**GOOD_ANSWER, "ttlSeconds": "3600"}
 
 
-def http_error(code):
-    return urllib.error.HTTPError("https://x.example", code, "status", {}, None)
+def http_error(code, body=None):
+    return urllib.error.HTTPError("https://x.example", code, "status", {}, body)
 
 
 def no_sleep(_seconds):
@@ -89,7 +92,7 @@ class TestParseOidcToken:
 
 class TestParseCredentials:
     def test_accepts_the_broker_answer(self):
-        assert util.parse_credentials(json.dumps(GOOD_ANSWER)) == GOOD_ANSWER
+        assert util.parse_credentials(json.dumps(GOOD_ANSWER)) == PARSED
 
     @pytest.mark.parametrize(
         "body",
@@ -114,6 +117,13 @@ class TestParseCredentials:
         if grant is not None:
             answer["grant"] = grant
         assert util.parse_credentials(json.dumps(answer))["grant"] == "?"
+
+    @pytest.mark.parametrize("ttl", [None, "3600"], ids=["absent", "not-an-int"])
+    def test_a_display_only_ttl_never_fails_the_mint(self, ttl):
+        answer = {k: v for k, v in GOOD_ANSWER.items() if k != "ttlSeconds"}
+        if ttl is not None:
+            answer["ttlSeconds"] = ttl
+        assert util.parse_credentials(json.dumps(answer))["ttlSeconds"] == "?"
 
 
 class TestOutputBlock:
@@ -160,6 +170,11 @@ class TestWithRetries:
         assert util.with_retries(call, sleep=no_sleep) == "body"
         assert call.calls == 3
 
+    def test_retries_a_timeout_or_throttle_then_answers(self):
+        call = Flaky(http_error(408), http_error(429))
+        assert util.with_retries(call, sleep=no_sleep) == "body"
+        assert call.calls == 3
+
     def test_raises_the_last_5xx(self):
         call = Flaky(*[http_error(503)] * util.ATTEMPTS)
         with pytest.raises(urllib.error.HTTPError) as raised:
@@ -167,7 +182,7 @@ class TestWithRetries:
         assert raised.value.code == 503
         assert call.calls == util.ATTEMPTS
 
-    def test_a_4xx_raises_at_once(self):
+    def test_any_other_4xx_raises_at_once(self):
         slept = []
         call = Flaky(http_error(403))
         with pytest.raises(urllib.error.HTTPError) as raised:
@@ -180,6 +195,26 @@ class TestWithRetries:
         with pytest.raises(RuntimeError):
             util.with_retries(call, sleep=no_sleep)
         assert call.calls == 1
+
+
+class TestBodyExcerpt:
+    def test_a_line_break_cannot_start_a_workflow_command(self):
+        body = io.BytesIO(b"denied\n::error::injected\r\n\ttail")
+        assert util.body_excerpt(http_error(403, body)) == "denied ::error::injected tail"
+
+    def test_bounds_a_long_body(self):
+        body = io.BytesIO(b"<html>" + b"x" * 1000)
+        excerpt = util.body_excerpt(http_error(502, body))
+        assert len(excerpt) == util.BODY_EXCERPT_CHARS + 3
+        assert excerpt.endswith("...")
+
+    def test_an_empty_or_unreadable_body_is_empty(self):
+        class Unreadable(io.BytesIO):
+            def read(self, *args):
+                raise http.client.IncompleteRead(b"")
+
+        assert util.body_excerpt(http_error(500)) == ""
+        assert util.body_excerpt(http_error(500, Unreadable())) == ""
 
 
 class TestTransport:

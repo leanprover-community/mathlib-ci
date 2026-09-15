@@ -30,7 +30,10 @@ GOOD_ANSWER = {
     "secretAccessKey": "secret/mock+1=",
     "sessionToken": "sess.token_a-b",
     "grant": "example-grant",
+    "ttlSeconds": 3600,
 }
+PARSED = {**GOOD_ANSWER, "ttlSeconds": "3600"}
+SUMMARY = "credentials minted (grant: example-grant, ttlSeconds: 3600)"
 TRANSPORT_FAULTS = [urllib.error.URLError("down"), TimeoutError(), http.client.IncompleteRead(b"")]
 TRANSPORT_FAULT_IDS = ["url-error", "timeout", "incomplete-read"]
 
@@ -74,8 +77,8 @@ def run_mint(tmp_path, transport=None, env=OIDC_ENV, broker=BROKER, audience=AUD
     return code, outputs, out.getvalue()
 
 
-def http_error(code):
-    return urllib.error.HTTPError("https://x.example", code, "status", {}, None)
+def http_error(code, body=None):
+    return urllib.error.HTTPError("https://x.example", code, "status", {}, None if body is None else io.BytesIO(body))
 
 
 def mask_lines():
@@ -85,7 +88,7 @@ def mask_lines():
 class TestMintCredentials:
     def test_returns_the_validated_credentials(self):
         transport = FakeTransport()
-        assert mint_with(transport) == GOOD_ANSWER
+        assert mint_with(transport) == PARSED
         assert transport.calls == [
             (f"{OIDC_URL}&audience={AUDIENCE}", "runtime-token", "GET"),
             (BROKER, "jwt", "POST"),
@@ -115,9 +118,11 @@ class TestMintCredentials:
             mint_with(transport, env={})
         assert transport.calls == []
 
-    def test_an_oidc_endpoint_error_status_names_the_status(self):
-        with pytest.raises(util.MintError, match="the GitHub OIDC token endpoint answered HTTP 500"):
-            mint_with(FakeTransport(oidc=http_error(500)))
+    def test_an_oidc_endpoint_error_names_the_status_only(self):
+        # The request carries the runner's request token, and the body
+        # is GitHub's, so the message stops at the status.
+        with pytest.raises(util.MintError, match="^the GitHub OIDC token endpoint answered HTTP 500$"):
+            mint_with(FakeTransport(oidc=http_error(500, b"a body the message must not carry")))
 
     @pytest.mark.parametrize("fault", TRANSPORT_FAULTS, ids=TRANSPORT_FAULT_IDS)
     def test_an_oidc_transport_fault_is_a_mint_failure(self, fault):
@@ -130,9 +135,14 @@ class TestMintCredentials:
             mint_with(transport)
         assert [method for _, _, method in transport.calls] == ["GET"]
 
-    def test_a_broker_error_status_names_the_status(self):
-        with pytest.raises(util.MintError, match="the broker answered HTTP 403"):
-            mint_with(FakeTransport(broker=http_error(403)))
+    def test_a_broker_error_names_the_status_and_the_body(self):
+        body = b'no grant matches sub "repo:o/r:environment:e" of repository "o/r"\n'
+        with pytest.raises(util.MintError, match='^the broker answered HTTP 403: no grant matches sub "repo:o/r:environment:e" of repository "o/r"$'):
+            mint_with(FakeTransport(broker=http_error(403, body)))
+
+    def test_a_broker_error_without_a_body_names_the_status(self):
+        with pytest.raises(util.MintError, match="^the broker answered HTTP 502$"):
+            mint_with(FakeTransport(broker=http_error(502)))
 
     @pytest.mark.parametrize("fault", TRANSPORT_FAULTS, ids=TRANSPORT_FAULT_IDS)
     def test_a_broker_transport_fault_is_a_mint_failure(self, fault):
@@ -156,7 +166,7 @@ class TestRun:
         assert code == 0
         assert outputs == util.output_block(GOOD_ANSWER)
         # Every credential is masked before the summary line prints.
-        assert log.splitlines() == [*mask_lines(), "credentials minted (grant: example-grant)"]
+        assert log.splitlines() == [*mask_lines(), SUMMARY]
 
     def test_the_cli_inputs_reach_the_mint(self, tmp_path):
         transport = FakeTransport()
