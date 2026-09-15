@@ -41,8 +41,21 @@ from collections.abc import Callable
 GITHUB_API_URL = "https://api.github.com"
 OIDC_AUDIENCE = "api://AzureADTokenExchange"
 JWT_EXPIRATION_SECONDS = 540
-REQUEST_TIMEOUT_SECONDS = 30
+# The JWT is backdated by this much for clock skew, so it is usable for the expiration
+# less this.
+CLOCK_SKEW_BACKDATE_SECONDS = 60
+REQUEST_TIMEOUT_SECONDS = 20
 RETRY_BACKOFF_SECONDS = (2, 4, 8)
+# One attempt per backoff entry plus a final one, each able to burn the whole timeout.
+WORST_CASE_REQUEST_SECONDS = (len(RETRY_BACKOFF_SECONDS) + 1) * REQUEST_TIMEOUT_SECONDS + sum(
+    RETRY_BACKOFF_SECONDS
+)
+# Requests sent after `build_app_jwt` stamps `iat`, and so racing the JWT's expiry: the
+# Key Vault signing call, the org and user installation lookups (the pair only runs when
+# an `owner` is given), and the token mint. `MAX_JWT_CLOCK_REQUESTS` of them at
+# `WORST_CASE_REQUEST_SECONDS` each must fit in the JWT's usable lifetime; the test
+# `test_retry_budget_fits_inside_the_jwt_lifetime` holds the tuning to that.
+MAX_JWT_CLOCK_REQUESTS = 4
 
 
 class GithubHttpError(Exception):
@@ -131,10 +144,9 @@ def urlopen_retrying(
     An `HTTPError` passes through unchanged, since it is already a `URLError` and callers
     read its body.
 
-    The worst case for one request is `REQUEST_TIMEOUT_SECONDS` per attempt plus the
-    sum of `RETRY_BACKOFF_SECONDS`. Keep it inside the app JWT's lifetime
-    (`JWT_EXPIRATION_SECONDS`). `send` sends the request once and `sleep` waits
-    between attempts; tests pass fakes for both.
+    One request takes at most `WORST_CASE_REQUEST_SECONDS`. See `MAX_JWT_CLOCK_REQUESTS`
+    for how that has to fit inside the app JWT's lifetime. `send` sends the request once
+    and `sleep` waits between attempts; tests pass fakes for both.
     """
 
     for delay in RETRY_BACKOFF_SECONDS:
@@ -341,8 +353,14 @@ def build_app_jwt(
 ) -> str:
     """Build and sign a GitHub App JWT using Azure Key Vault."""
 
+    # Authenticate to Key Vault before stamping `iat`. Neither hop needs the JWT payload,
+    # and getting them out of the way first keeps their retry budget off the JWT's clock —
+    # only the signing call below runs against it. See `MAX_JWT_CLOCK_REQUESTS`.
+    oidc_token = get_actions_oidc_token(OIDC_AUDIENCE)
+    keyvault_token = exchange_oidc_for_keyvault_token(azure_tenant_id, azure_client_id, oidc_token)
+
     # Backdate iat slightly to tolerate minor clock skew between systems.
-    iat = int(time.time()) - 60
+    iat = int(time.time()) - CLOCK_SKEW_BACKDATE_SECONDS
     exp = iat + expiration_seconds
     jwt_header = {"alg": "RS256", "typ": "JWT"}
     jwt_payload = {"iat": iat, "exp": exp, "iss": app_id}
@@ -353,8 +371,6 @@ def build_app_jwt(
 
     # For RS256, Key Vault signs the SHA-256 digest of the JWS signing input.
     digest_b64url = b64url_encode(hashlib.sha256(signing_input).digest())
-    oidc_token = get_actions_oidc_token(OIDC_AUDIENCE)
-    keyvault_token = exchange_oidc_for_keyvault_token(azure_tenant_id, azure_client_id, oidc_token)
     signature_from_az = run_keyvault_sign(vault_name, key_name, key_version, digest_b64url, keyvault_token)
     # Normalize the returned signature to canonical base64url for the JWT segment.
     signature_bytes = b64url_decode(signature_from_az)

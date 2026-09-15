@@ -99,10 +99,17 @@ When optional inputs are omitted:
 ## Transient failures
 
 The action retries every request in the flow on a 5xx response, a dropped connection,
-or a 30s timeout. It makes up to 4 attempts and waits 2s, 4s and 8s between them. A 4xx
-response is raised at once. A failure that outlives the retries ends the run with a
-one-line error naming the hop, not a traceback. The retries fit inside the app JWT's
-lifetime.
+or a 20s timeout. It makes up to 4 attempts and waits 2s, 4s and 8s between them, so one
+request takes at most 94s. A 4xx response is raised at once. A failure that outlives the
+retries ends the run with a one-line error naming the hop, not a traceback.
+
+The app JWT is signed with an expiry, so the retries have to fit inside it. The action
+mints the JWT only once the Key Vault credentials are in hand, which leaves four requests
+running against its clock: the signing call, the org and user installation lookups (the
+pair only when `owner` is given), and the token mint. Their worst case is 376s, inside the
+JWT's usable lifetime of 480s — `jwt-expiration-seconds` (540) less the 60s skew backdate.
+`test_retry_budget_fits_inside_the_jwt_lifetime` holds the timeout and backoff to that
+budget. Setting `jwt-expiration-seconds` below 436 gives the guarantee up.
 
 ## Security notes
 - Workflow must grant `permissions: id-token: write` to allow this action to request a GitHub OIDC token for Entra token exchange.
