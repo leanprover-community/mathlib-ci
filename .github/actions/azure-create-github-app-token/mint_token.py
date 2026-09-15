@@ -41,20 +41,18 @@ from collections.abc import Callable
 GITHUB_API_URL = "https://api.github.com"
 OIDC_AUDIENCE = "api://AzureADTokenExchange"
 JWT_EXPIRATION_SECONDS = 540
-# The JWT is backdated by this much for clock skew, so it is usable for the expiration
-# less this.
+# `iat` is backdated by this much to tolerate clock skew. The usable lifetime of the JWT
+# is `JWT_EXPIRATION_SECONDS` minus this.
 CLOCK_SKEW_BACKDATE_SECONDS = 60
 REQUEST_TIMEOUT_SECONDS = 20
 RETRY_BACKOFF_SECONDS = (2, 4, 8)
-# One attempt per backoff entry plus a final one, each able to burn the whole timeout.
+# Duration of one request when every attempt runs to the timeout.
 WORST_CASE_REQUEST_SECONDS = (len(RETRY_BACKOFF_SECONDS) + 1) * REQUEST_TIMEOUT_SECONDS + sum(
     RETRY_BACKOFF_SECONDS
 )
-# Requests sent after `build_app_jwt` stamps `iat`, and so racing the JWT's expiry: the
-# Key Vault signing call, the org and user installation lookups (the pair only runs when
-# an `owner` is given), and the token mint. `MAX_JWT_CLOCK_REQUESTS` of them at
-# `WORST_CASE_REQUEST_SECONDS` each must fit in the JWT's usable lifetime; the test
-# `test_retry_budget_fits_inside_the_jwt_lifetime` holds the tuning to that.
+# Maximum number of requests sent after `iat` is stamped: the Key Vault sign, the org and
+# user installation lookups, and the token mint. Their combined worst case must fit in the
+# usable lifetime of the JWT. The test suite checks this.
 MAX_JWT_CLOCK_REQUESTS = 4
 
 
@@ -133,20 +131,17 @@ def urlopen_retrying(
 ) -> bytes:
     """Send a request, retry transient failures, and return the response body.
 
-    The function treats a 5xx response, a dropped connection, and a timeout as
-    transient. After one of these it waits for the next entry of `RETRY_BACKOFF_SECONDS`
-    and sends the request again. After the last entry it makes one final attempt. A 4xx
-    response means the request itself is wrong, so it is raised at once. The last error
-    is raised with its body unread, so callers can include the body in their own message.
+    A 5xx response, a dropped connection, and a timeout are transient. After one of these
+    the function waits for the next entry of `RETRY_BACKOFF_SECONDS` and sends the request
+    again. After the last entry it makes one final attempt. A 4xx response means the
+    request itself is wrong, so it is raised at once.
 
-    A failure that survives the last attempt is raised as `urllib.error.URLError`, which
-    is what every caller handles, so the flow ends in `fail()` rather than a traceback.
-    An `HTTPError` passes through unchanged, since it is already a `URLError` and callers
-    read its body.
+    The last error is raised as a `urllib.error.URLError`. An `HTTPError` is raised as is,
+    with its body unread, so callers can include the body in their own message. Any other
+    `OSError` or `HTTPException` is wrapped in a `URLError`.
 
-    One request takes at most `WORST_CASE_REQUEST_SECONDS`. See `MAX_JWT_CLOCK_REQUESTS`
-    for how that has to fit inside the app JWT's lifetime. `send` sends the request once
-    and `sleep` waits between attempts; tests pass fakes for both.
+    `send` sends the request once and `sleep` waits between attempts; tests pass fakes for
+    both.
     """
 
     for delay in RETRY_BACKOFF_SECONDS:
@@ -167,11 +162,9 @@ def urlopen_retrying(
     try:
         return send(req)
     except urllib.error.URLError:
-        # Covers HTTPError too; both are what callers already expect.
+        # URLError is an OSError; re-raise it before the wrap below.
         raise
     except (OSError, http.client.HTTPException) as err:
-        # The bare OSError / HTTPException cases from the loop above. Retrying is over, so
-        # convert rather than let an exception no caller catches escape.
         raise urllib.error.URLError(err) from err
 
 
@@ -303,8 +296,7 @@ def github_request(api_url: str, method: str, path: str, jwt: str, body: dict | 
         detail = err.read().decode("utf-8", errors="replace")
         raise GithubHttpError(method, url, err.code, detail) from err
     except urllib.error.URLError as err:
-        # Not a GithubHttpError: there is no status, and callers of this function treat
-        # that type as a routable API answer (`resolve_installation_id` reads 404 off it).
+        # Not a GithubHttpError: there is no status for `resolve_installation_id` to route on.
         fail(f"GitHub API {method} {url} failed: {err.reason}")
 
 
@@ -353,13 +345,11 @@ def build_app_jwt(
 ) -> str:
     """Build and sign a GitHub App JWT using Azure Key Vault."""
 
-    # Authenticate to Key Vault before stamping `iat`. Neither hop needs the JWT payload,
-    # and getting them out of the way first keeps their retry budget off the JWT's clock —
-    # only the signing call below runs against it. See `MAX_JWT_CLOCK_REQUESTS`.
+    # Get the Key Vault credentials before `iat` is stamped, so their retries do not count
+    # against the JWT lifetime. See `MAX_JWT_CLOCK_REQUESTS`.
     oidc_token = get_actions_oidc_token(OIDC_AUDIENCE)
     keyvault_token = exchange_oidc_for_keyvault_token(azure_tenant_id, azure_client_id, oidc_token)
 
-    # Backdate iat slightly to tolerate minor clock skew between systems.
     iat = int(time.time()) - CLOCK_SKEW_BACKDATE_SECONDS
     exp = iat + expiration_seconds
     jwt_header = {"alg": "RS256", "typ": "JWT"}

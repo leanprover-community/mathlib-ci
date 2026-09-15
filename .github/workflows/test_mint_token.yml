@@ -1,8 +1,5 @@
 name: Test azure-create-github-app-token action
 
-# Runs the unit-test suite for the `azure-create-github-app-token` composite
-# action on every push / PR that touches its source or its tests.
-
 on:
   push:
     branches: [master]

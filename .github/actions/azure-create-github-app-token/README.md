@@ -57,9 +57,9 @@ This local composite action mints a GitHub App installation token without storin
 
 - `action.yml`: action interface (inputs/outputs) and execution wiring.
 - `mint_token.py`: end-to-end token flow:
-  - build GitHub App JWT payload/header,
   - fetch GitHub OIDC token,
   - exchange OIDC token for Azure access token,
+  - build GitHub App JWT payload/header,
   - call Key Vault `sign`,
   - exchange signed app JWT for GitHub installation token.
 - Azure Key Vault key: non-exportable RSA key used only for signing.
@@ -98,18 +98,17 @@ When optional inputs are omitted:
 
 ## Transient failures
 
-The action retries every request in the flow on a 5xx response, a dropped connection,
-or a 20s timeout. It makes up to 4 attempts and waits 2s, 4s and 8s between them, so one
-request takes at most 94s. A 4xx response is raised at once. A failure that outlives the
-retries ends the run with a one-line error naming the hop, not a traceback.
+The action retries each request on a 5xx response, a dropped connection, or a 20s
+timeout. It makes up to 4 attempts and waits 2s, 4s and 8s between them. When every
+attempt runs to the timeout, one request takes 94s. A 4xx response fails at once. When the
+retries run out, the action exits with a one-line error that names the request.
 
-The app JWT is signed with an expiry, so the retries have to fit inside it. The action
-mints the JWT only once the Key Vault credentials are in hand, which leaves four requests
-running against its clock: the signing call, the org and user installation lookups (the
-pair only when `owner` is given), and the token mint. Their worst case is 376s, inside the
-JWT's usable lifetime of 480s — `jwt-expiration-seconds` (540) less the 60s skew backdate.
-`test_retry_budget_fits_inside_the_jwt_lifetime` holds the timeout and backoff to that
-budget. Setting `jwt-expiration-seconds` below 436 gives the guarantee up.
+The retries must fit inside the lifetime of the app JWT. The action signs the JWT after it
+has the Key Vault credentials, so at most four requests run against the JWT clock: the Key
+Vault sign, the installation lookups (one for the repository, or up to two for `owner`),
+and the token mint. Their worst case is 376s. The usable lifetime is 480s:
+`jwt-expiration-seconds` (540) minus the 60s backdate for clock skew. A
+`jwt-expiration-seconds` below 436 does not cover the worst case.
 
 ## Security notes
 - Workflow must grant `permissions: id-token: write` to allow this action to request a GitHub OIDC token for Entra token exchange.

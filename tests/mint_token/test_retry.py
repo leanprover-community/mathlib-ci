@@ -58,11 +58,7 @@ def test_transient_failure_is_retried_after_the_first_backoff(failure: BaseExcep
     ids=["http-exception", "timeout", "connection-reset"],
 )
 def test_terminal_transient_failure_becomes_a_urlerror(failure: BaseException) -> None:
-    """Callers only handle URLError, so the failure that outlives the retries must be one.
-
-    These three are exactly the types the retry loop treats as transient but that no
-    caller catches; unconverted they escape as an unhandled traceback.
-    """
+    """The last transient failure is raised as a URLError, which is what callers handle."""
     transport = Transport(*[failure] * _TERMINAL)
 
     with pytest.raises(urllib.error.URLError) as excinfo:
@@ -74,7 +70,7 @@ def test_terminal_transient_failure_becomes_a_urlerror(failure: BaseException) -
 
 
 def test_terminal_urlerror_is_not_rewrapped() -> None:
-    """A URLError is already what callers expect, so it must arrive unchanged."""
+    """A URLError is raised as is."""
     failure = urllib.error.URLError("name resolution failed")
     transport = Transport(*[failure] * _TERMINAL)
 

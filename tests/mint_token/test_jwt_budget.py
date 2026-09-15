@@ -1,9 +1,7 @@
-"""The retry budget has to fit inside the app JWT's lifetime.
+"""The requests sent after `iat` is stamped fit inside the usable lifetime of the JWT.
 
-The retry policy is tuned per request, but the JWT constrains the whole flow: once
-`build_app_jwt` stamps `iat`, every remaining request races its expiry. These tests pin
-both halves of that — how many requests run on the JWT's clock, and how long they may
-take — so raising a timeout or adding a backoff entry cannot quietly overrun it.
+One test checks the arithmetic on the constants. The other checks that `build_app_jwt`
+gets the Key Vault credentials before it stamps `iat`.
 """
 
 from __future__ import annotations
@@ -30,11 +28,7 @@ def test_retry_budget_fits_inside_the_jwt_lifetime() -> None:
 
 
 def test_credentials_are_fetched_before_the_jwt_clock_starts(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Only the signing call may run after `iat`, which is what keeps the budget at four.
-
-    The OIDC fetch and the Entra exchange do not need the JWT payload, so they run first
-    and their retries cost the JWT nothing.
-    """
+    """`build_app_jwt` fetches the OIDC and Key Vault tokens before it stamps `iat`."""
     events: list[str] = []
     entra_finished_at: list[int] = []
 

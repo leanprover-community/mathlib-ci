@@ -1,9 +1,7 @@
-"""Every hop ends in a clean `fail()`, not a traceback, once the retries run out.
+"""Each request function ends in `fail()` when the retries run out.
 
-`urlopen_retrying` treats a wider set of exceptions as transient than the callers used
-to catch, so a terminal dropped connection or read timeout escaped as an unhandled
-exception. These tests drive the real callers through a failing socket layer so the
-retry policy and the error handling around it cannot drift apart again.
+The tests call the real request functions with `urllib.request.urlopen` replaced by a
+function that raises, so they cover the error handling around `urlopen_retrying`.
 """
 
 from __future__ import annotations
@@ -36,8 +34,7 @@ def failing_socket(monkeypatch: pytest.MonkeyPatch) -> Callable[[BaseException],
         def explode(*args: object, **kwargs: object) -> None:
             raise failure
 
-        # An empty backoff leaves a single attempt, which is the terminal path under
-        # test, and keeps these tests from sleeping through the real backoff.
+        # An empty backoff means one attempt and no sleep.
         monkeypatch.setattr(mint_token, "RETRY_BACKOFF_SECONDS", ())
         monkeypatch.setattr(urllib.request, "urlopen", explode)
 
@@ -112,10 +109,10 @@ def test_github_network_failure_is_not_mistaken_for_a_404(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """A dropped org lookup must abort, not fall through to the user lookup.
+    """A network failure on the org lookup ends the run.
 
-    `resolve_installation_id` reads a 404 off `GithubHttpError` to decide that an owner
-    is a user rather than an org, so a network failure must not arrive as that type.
+    `resolve_installation_id` falls through to the user lookup only on a 404
+    `GithubHttpError`.
     """
     monkeypatch.setenv("GITHUB_REPOSITORY", "leanprover-community/mathlib4")
     failing_socket(TimeoutError("timed out"))
