@@ -55,6 +55,8 @@ Layout:
 - `late_importers.sh` is the main script used by the `latest_import.yml` action: it formats
   the `linter.minImports` output, summarizing the data in a table.  See the module docs of
   `late_importers.sh` for further details.
+- `zulip_build_report.py` (entry point for the `build_report/` package) summarises a `lake build`
+  log per linter: counts go to Zulip, per-occurrence details with source links go to the job summary.
 - `zulip_build_report.sh` is used to analyse the output from building the nightly-testing-green
   branch with additional linting enabled, and posts a summary of its findings on zulip.
 

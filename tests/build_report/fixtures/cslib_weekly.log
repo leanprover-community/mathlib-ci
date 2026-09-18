@@ -1,0 +1,16 @@
+ℹ [3081/3187] Built Cslib.Foundations.Semantics.LTS.MapHom (17s)
+info: Cslib/Foundations/Semantics/LTS/MapHom.lean:51:6: 'obtain ⟨_, _, _⟩ := MTr.cons_iff.mp h; grind' can be replaced with 'grind'
+
+Try this:
+  [apply] grind
+ℹ [3089/3187] Built Cslib.Foundations.Semantics.LTS.Execution (36s)
+info: Cslib/Foundations/Semantics/LTS/Execution.lean:108:4: 'have : μs1.length + k - ss1.length + 1 = k := by grind; grind' can be replaced with 'grind'
+
+Try this:
+  [apply] grind
+ℹ [3172/3187] Built Cslib.Logics.HML.LogicalEquivalence (3.7s)
+info: Cslib/Logics/HML/LogicalEquivalence.lean:104:8: 'specialize ih w'; grind' can be replaced with 'grind'
+
+Try this:
+  [apply] grind
+Build completed successfully (3187 jobs).
