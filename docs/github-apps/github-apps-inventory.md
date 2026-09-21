@@ -31,7 +31,7 @@ Inventory as of 2026-09-21. "Write permissions" is the app's write-level permiss
 
 | GitHub App | write permissions | repositories | what it does |
 |---|---|---|---|
-| `mathlib-bors` | checks, contents, issues, pages, pull_requests, statuses, workflows | mathlib4 and other repos using bors | the bors merge queue, run from `bors-ng` |
+| `mathlib-bors` | checks, contents, issues, pull_requests, statuses, workflows | mathlib4 and other repos using bors | the bors merge queue, run from `bors-ng` |
 | `downstream-lean4` | contents, issues, pull_requests, statuses, workflows | batteries, mathlib4-nightly-testing | Lean's [downstream-lean4](https://github.com/leanprover/downstream-lean4) monorepo CI: pushes adaptations to the `nightly-testing` branches; its actions can also open PRs, set labels and commit statuses |
 | `leanprover-community-website` | contents | leanprover-community.github.io | pushes the built site to `master` |
 | `crossref-exports-app` | contents | crossref-exports | pushes the exported `@[stacks]`/`@[kerodon]`/`@[wikidata]` cross-references |
@@ -53,12 +53,14 @@ Inventory as of 2026-09-21. "Write permissions" is the app's write-level permiss
 
 Removed in September 2026: Graphite, Mergify, Always Be Closing, the old `bors` app, Render, Claude Code and Gitpod.
 
-## Permissions worth trimming
+## Permission trims (done 2026-09-21)
 
-Checked against every workflow that mints the app's token:
+Checked against every workflow that mints the app's token, then removed from the app registrations:
 
-- `mathlib-bors`: `pages: write` is not needed; bors-ng's own documentation says "Pages: No access".
-- `mathlib-nightly-testing`: `actions: write` is not used; the token only pushes branches and tags, comments on one PR and reads Lean's nightly releases.
-- `mathlib-update-dependencies`: `issues: write` is unused today; keep it until the dependency-audit comment workflow (mathlib4#43911) has run once, since PR comments may be posted with this token.
+- `mathlib-bors`: `pages: write` (bors-ng's own documentation says "Pages: No access").
+- `mathlib-nightly-testing`: `actions: write` (the token only pushes branches and tags, comments on one PR and reads Lean's nightly releases).
+- `mathlib-update-dependencies`: `issues: write` (nothing creates issues; PR comments, as in the dependency-audit workflow of mathlib4#43911, only need pull-requests write).
+
+If one of these turns out to be needed after all, add it back on the app's registration page and accept the change on the installation.
 
 Adding an app: install it on the specific repositories it needs, never "all repositories", set the minimum permissions, and add a row here in the same change.
