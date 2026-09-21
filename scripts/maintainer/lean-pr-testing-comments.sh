@@ -25,7 +25,8 @@ fi
 # This is not meant to be run from the command line, only from CI.
 # The inputs must be prepared as:
 # env:
-#   TOKEN: ${{ secrets.BATTERIES_PR_TESTING }}
+#   TOKEN: ${{ secrets.batteries-pr-testing-token.outputs.token }}
+#     (minted from the `mathlib-nightly-testing` app, matches `mathlib-nightly-testing[bot]` below)
 #   GITHUB_CONTEXT: ${{ toJson(github) }}
 #   WORKFLOW_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.event.workflow_run.id }}
 #   BUILD_OUTCOME: ${{ steps.build.outcome }}
