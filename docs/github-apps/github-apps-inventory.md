@@ -51,7 +51,7 @@ Inventory as of 2026-09-21. "Write permissions" is the app's write-level permiss
 | `botbaki-review` | issues, pull_requests | mathlib4 | AI review comments |
 | `vercel` | administration, checks, contents, deployments, issues, pull_requests, repository_hooks, statuses, workflows | mathlib-changelog | deploys mathlib-changelog.org |
 
-Removed in September 2026: Graphite, Mergify, Always Be Closing, the old `bors` app, Render, Claude Code and Gitpod.
+Removed in September 2026: Graphite, Mergify, Always Be Closing, the old `bors` app and Render. Claude Code and Gitpod were removed from mathlib4 and their organization-level installations should be uninstalled too (Settings → Third-party access → GitHub Apps → Configure → Uninstall).
 
 ## Permissions worth trimming
 
