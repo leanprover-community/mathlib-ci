@@ -11,7 +11,7 @@ For associated Entra Apps for Azure authentication, see [entra-apps.md](entra-ap
 | `mathlib-dependent-issues` | Bot identity with PR/issue mutation access for dependency-tracking labels. | `dependent-issues.yml` |
 | `mathlib-nolints` | Bot identity with contents/PR write access for repository maintenance PRs. | `nolints.yml`, `remove_deprecated_decls.yml` |
 | `mathlib-update-dependencies` | Bot identity with contents/PR/issue write access for dependency-update automation. | `update_dependencies.yml`, `update_dependencies_zulip.yml` |
-| `mathlib-nightly-testing` | Bot identity with cross-repo write access for nightly branch and release maintenance. | `build_template.yml`, `nightly_detect_failure.yml`, `nightly_merge_master.yml` |
+| `mathlib-nightly-testing` | Bot identity with cross-repo write access for nightly branch and release maintenance. | `build_template.yml`, `nightly-bump-toolchain.yml`, `nightly_detect_failure.yml`, `nightly_merge_master.yml` |
 | `mathlib-triage` | Bot identity with PR/issue write access for maintainer command label/state mutations. | `maintainer_bors.yml`, `maintainer_bors_wf_run.yml`, `maintainer_merge.yml`, `maintainer_merge_wf_run.yml` |
 | `mathlib-auto-merge` | Bot identity with PR/issue write access for merge-queue triggering comments. | `build_template.yml` |
 | `mathlib-splicebot` | Primary bot identity for splice-bot API operations in mathlib workflows. | `splice_bot_wf_run.yaml` |
