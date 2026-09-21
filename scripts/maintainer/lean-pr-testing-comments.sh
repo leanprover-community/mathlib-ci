@@ -1,4 +1,4 @@
-## Create comments and labels on a Lean 4 or Batteries PR after CI has finished on a `*-pr-testing-NNNN` branch.
+## Create comments and labels on a Batteries PR after CI has finished on a `batteries-pr-testing-NNNN` branch.
 ##
 ## See https://leanprover-community.github.io/contribute/tags_and_branches.html
 
@@ -7,13 +7,15 @@
 set -euo pipefail
 IFS=$'\n\t'
 
-# Ensure the first argument is either 'lean' or 'batteries'.
-if [ -z "$1" ]; then
-  echo "The first argument must be either 'lean' or 'batteries'"
+# Ensure the first argument is 'batteries'.
+# This argument (as well as the script name) is left over from when this script
+# used to handle lean PR testing as well.
+if [ "${1:-}" != "batteries" ]; then
+  echo "The first argument must be 'batteries'"
   exit 1
 fi
 
-# Set NIGHTLY_TESTING_REPO for comparison URLs (where the branches and tags actually live)
+# Set NIGHTLY_TESTING_REPO for comparison URLs (where the branches actually live)
 if [ -z "${NIGHTLY_TESTING_REPO:-}" ]; then
   NIGHTLY_TESTING_REPO="leanprover-community/mathlib4-nightly-testing"
 fi
@@ -23,7 +25,8 @@ fi
 # This is not meant to be run from the command line, only from CI.
 # The inputs must be prepared as:
 # env:
-#   TOKEN: ${{ secrets.LEAN_PR_TESTING }}
+#   TOKEN: ${{ secrets.batteries-pr-testing-token.outputs.token }}
+#     (minted from the `mathlib-nightly-testing` app, matches `mathlib-nightly-testing[bot]` below)
 #   GITHUB_CONTEXT: ${{ toJson(github) }}
 #   WORKFLOW_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.event.workflow_run.id }}
 #   BUILD_OUTCOME: ${{ steps.build.outcome }}
@@ -33,19 +36,9 @@ fi
 #   LINT_OUTCOME: ${{ steps.lint.outcome }}
 #   TEST_OUTCOME: ${{ steps.test.outcome }}
 
-# Adjust the branch pattern and URLs based on the repository.
-if [ "$1" == "lean" ]; then
-  branch_prefix="lean-pr-testing"
-  repo_url="https://api.github.com/repos/leanprover/lean4"
-  base_branch="nightly-testing" # This really should be the relevant `nightly-testing-YYYY-MM-DD` tag.
-elif [ "$1" == "batteries" ]; then
-  branch_prefix="batteries-pr-testing"
-  repo_url="https://api.github.com/repos/leanprover-community/batteries"
-  base_branch="master"
-else
-  echo "Unknown repository: $1. Must be either 'lean' or 'batteries'."
-  exit 1
-fi
+branch_prefix="batteries-pr-testing"
+repo_url="https://api.github.com/repos/leanprover-community/batteries"
+base_branch="master"
 
 # Extract branch name and check if it matches the pattern.
 branch_name=$(echo "$GITHUB_CONTEXT" | jq -r .ref | cut -d'/' -f3)
@@ -182,7 +175,7 @@ if [[ "$branch_name" =~ ^$branch_prefix-([0-9]+)$ ]]; then
     existing_comment=$(curl -L -sS --fail-with-body -H "Authorization: token $TOKEN" \
                             -H "Accept: application/vnd.github.v3+json" \
                             "$repo_url/issues/$pr_number/comments" \
-                            | jq 'first(.[] | select(.body | test("^- . Mathlib") or startswith("Mathlib CI status")) | select(.user.login == "mathlib-lean-pr-testing[bot]"))')
+                            | jq 'first(.[] | select(.body | test("^- . Mathlib") or startswith("Mathlib CI status")) | select(.user.login == "mathlib-nightly-testing[bot]"))')
     existing_comment_id=$(echo "$existing_comment" | jq -r .id)
     existing_comment_body=$(echo "$existing_comment" | jq -r .body)
 
