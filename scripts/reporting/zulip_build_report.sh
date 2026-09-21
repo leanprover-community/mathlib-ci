@@ -1,5 +1,4 @@
 #!/bin/bash
-shopt -s extglob
 
 # Summarise the messages in a `lake build` log as a Zulip message.
 #
@@ -61,17 +60,17 @@ if info_lines=$(grep '^info: ' <<<"${filtered_out}" | grep -v 'PANIC at '); then
   echo "$(wc -l <<<"${info_lines}") lines of info" >&2
 fi
 
-# Tabulate message lines of the form `severity: file:line:col: message`, one row per distinct
-# message, most frequent first, as `count<TAB>message<TAB>locations`.
-# Rows for messages occurring at most $2 times (default: all) list their locations as links.
-tabulate() {
-  local lines=$1 loc_max=${2:-1000000000}
+# Print a Markdown table of the message lines in $1 (`severity: file:line:col: message`) under
+# the column heading $2, one row per distinct message, most frequent first.
+# Messages occurring at most $3 times list their locations; $4 caps the rows (0 = no limit).
+table() {
+  local lines=$1 heading=$2 loc_max=$3 max_rows=$4 rows total
   # shellcheck disable=SC2001 # The sed version is (hours!) faster than native Bash string manipulation.
-  sed -E 's/^[a-z]*: //; s/^([^:]*):([0-9]+):[0-9]+: (.*)$/\3\t\1:\2/' <<<"${lines}" |
+  rows=$(sed -E 's/^[a-z]*: ([^:]*):([0-9]+):[0-9]+: (.*)$/\3\t\1:\2/' <<<"${lines}" |
     sort -t $'\t' -k1,1 |
     awk -F '\t' -v loc_max="${loc_max}" -v base="${blob_url}" '
       # The input is sorted by message, so equal messages are contiguous.
-      function flush() { if (n) printf "%d\t%s\t%s\n", n, msg, (n <= loc_max ? locs : "") }
+      function flush() { if (n) printf "%7d\t%s\t%s\n", n, msg, (n <= loc_max ? locs : "") }
       $1 != msg || NR == 1 { flush(); msg = $1; n = 0; locs = "" }
       {
         n++
@@ -81,28 +80,18 @@ tabulate() {
         }
       }
       END { flush() }' |
-    sort -t $'\t' -k1,1nr -k2,2
-}
-
-# Print a Markdown table for the tabulated rows in $1, with column heading $2.
-# If $3 is `true` a locations column is included; $4 (default: 0 = unlimited) caps the rows.
-table() {
-  local rows=$1 heading=$2 with_locations=$3 max=${4:-0}
-  local total
+    sort -t $'\t' -k1,1nr -k2,2r)
   total=$(wc -l <<<"${rows}")
-  if [ "${with_locations}" == "true" ]; then
-    echo "| | ${heading} | Location |"
-    echo "| ---: | --- | --- |"
-    awk -F '\t' '{ printf "| %s | %s | %s |\n", $1, $2, $3 }' <<<"${rows}" |
-      { if (( max > 0 )); then head -n "${max}"; else cat; fi; }
-  else
-    echo "| | ${heading} |"
-    echo "| ---: | --- |"
-    awk -F '\t' '{ printf "| %s | %s |\n", $1, $2 }' <<<"${rows}" |
-      { if (( max > 0 )); then head -n "${max}"; else cat; fi; }
+  if (( max_rows > 0 && total > max_rows )); then
+    rows=$(head -n "${max_rows}" <<<"${rows}")
+    rows+=$'\n\t'"… and $(( total - max_rows )) more distinct messages: see the [full report](${run_url})"
   fi
-  if (( max > 0 && total > max )); then
-    echo "| | … and $(( total - max )) more distinct messages: see the [full report](${run_url}) | |"
+  if (( loc_max > 0 )); then
+    printf '| | %s | Location |\n| ---: | --- | --- |\n' "${heading}"
+    awk -F '\t' '{ printf "| %s | %s | %s |\n", $1, $2, $3 }' <<<"${rows}"
+  else
+    printf '| | %s |\n| ---: | --- |\n' "${heading}"
+    awk -F '\t' '{ printf "| %s | %s |\n", $1, $2 }' <<<"${rows}"
   fi
 }
 
@@ -114,69 +103,44 @@ else
   ended="failed"
 fi
 
-header="${icon} ${workflow_name} run on [${target_repo}](https://github.com/${target_repo}) (commit [${target_sha}](https://github.com/${target_repo}/commit/${target_sha}))"
-
-# Write the Zulip message ($1 = "zulip") or the full report ($1 = "summary").
+# Write the report, with locations for messages occurring at most $1 times and at most $2 rows
+# per table.
 report() {
-  local mode=$1 loc_max with_locations max
-  if [ "${mode}" == "zulip" ]; then
-    loc_max=${locations_max_count}
-    with_locations=$([ "${locations_max_count}" -gt 0 ] && echo true || echo false)
-    max=${max_rows}
-  else
-    loc_max=1000000000
-    with_locations=true
-    max=0
-  fi
-
+  local loc_max=$1 max_rows=$2
+  local header="${icon} ${workflow_name} run on [${target_repo}](https://github.com/${target_repo}) (commit [${target_sha}](https://github.com/${target_repo}/commit/${target_sha}))"
   if (( ${#counts[@]} == 0 )); then
     echo "${header} [${ended} without messages](${run_url})."
-    [ -n "${description}" ] && echo "${description}"
+    [ -z "${description}" ] || printf '%s\n' "${description}"
   else
     echo "${header} [${ended} with messages](${run_url}):"
-    [ -n "${description}" ] && echo "${description}"
+    [ -z "${description}" ] || printf '%s\n' "${description}"
     printf '\n* %s' "${counts[@]}"
     printf '\n\n'
   fi
 
-  if [ -n "${panic_lines}" ]; then
-    echo "\`\`\`spoiler Panic counts"
-    table "$(tabulate "${panic_lines}" "${loc_max}")" "Panic description" "${with_locations}" "${max}"
+  # $1: message lines, $2: spoiler title, $3: column heading
+  section() {
+    [ -n "$1" ] || return 0
+    echo "\`\`\`spoiler $2"
+    table "$1" "$3" "${loc_max}" "${max_rows}"
     echo "\`\`\`"
     echo
-  fi
-
-  if [ -n "${error_lines}" ]; then
-    echo "\`\`\`spoiler Error counts"
-    table "$(tabulate "${error_lines}" "${loc_max}")" "Error description" "${with_locations}" "${max}"
-    echo "\`\`\`"
-    echo
-  fi
-
-  if [ -n "${warning_lines}" ]; then
-    echo "\`\`\`spoiler Warning counts"
-    table "$(tabulate "${warning_lines}" "${loc_max}")" "Warning description" "${with_locations}" "${max}"
-    echo "\`\`\`"
-    echo
-  fi
-
-  if [ -n "${info_lines}" ] && [ "${info}" != "false" ]; then
-    echo "\`\`\`spoiler Info message counts"
-    table "$(tabulate "${info_lines}" "${loc_max}")" "Info message" "${with_locations}" "${max}"
-    echo "\`\`\`"
-    echo
-  fi
+  }
+  section "${panic_lines}" "Panic counts" "Panic description"
+  section "${error_lines}" "Error counts" "Error description"
+  section "${warning_lines}" "Warning counts" "Warning description"
+  [ "${info}" == "false" ] || section "${info_lines}" "Info message counts" "Info message"
 }
 
 delimiter=$(cat /proc/sys/kernel/random/uuid)
 echo "zulip-message<<${delimiter}"
-report zulip
+report "${locations_max_count}" "${max_rows}"
 echo "${delimiter}"
 
 if [ -n "${GITHUB_STEP_SUMMARY}" ]; then
   # The `spoiler` blocks are Zulip syntax; GitHub renders `<details>` instead.
   # shellcheck disable=SC2016 # The backticks are literal Markdown.
-  report summary |
+  report 1000000000 0 |
     sed -E 's/^```spoiler (.*)$/<details><summary>\1<\/summary>\n/; s/^```$/\n<\/details>/' \
     >> "${GITHUB_STEP_SUMMARY}"
 fi
