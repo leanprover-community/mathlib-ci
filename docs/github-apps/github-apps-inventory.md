@@ -49,12 +49,9 @@ Inventory as of 2026-09-21. "Write permissions" is the app's write-level permiss
 | `giscus` | discussions | blog | comments on blog posts |
 | `pre-commit-ci-lite` | contents, statuses, workflows | mathlib4, mathlib4-nightly-testing | pushes pre-commit fixes to PR branches (`pre-commit-ci/lite-action` in `pre-commit.yml`) |
 | `botbaki-review` | issues, pull_requests | mathlib4 | AI review comments |
-| `claude` | contents, discussions, issues, pull_requests, workflows | mathlib4 | Claude Code on GitHub; no workflow uses it |
-| `gitpod-io` | pull_requests, statuses | mathlib4 | Gitpod prebuilds; Gitpod's classic product has been discontinued |
 | `vercel` | administration, checks, contents, deployments, issues, pull_requests, repository_hooks, statuses, workflows | mathlib-changelog | deploys mathlib-changelog.org |
-| `render` | actions, checks, deployments, environments, issues, pull_requests, repository_hooks, statuses | mathlib-changelog | an earlier deployment target of the changelog site; nothing in the repo references it |
 
-Removed in September 2026: Graphite, Mergify, Always Be Closing and the old `bors` app.
+Removed in September 2026: Graphite, Mergify, Always Be Closing, the old `bors` app, Render, Claude Code and Gitpod.
 
 ## Permissions worth trimming
 
@@ -63,6 +60,5 @@ Checked against every workflow that mints the app's token:
 - `mathlib-bors`: `pages: write` is not needed; bors-ng's own documentation says "Pages: No access".
 - `mathlib-nightly-testing`: `actions: write` is not used; the token only pushes branches and tags, comments on one PR and reads Lean's nightly releases.
 - `mathlib-update-dependencies`: `issues: write` is unused today; keep it until the dependency-audit comment workflow (mathlib4#43911) has run once, since PR comments may be posted with this token.
-- `render`, `claude`, `gitpod-io`: candidates for uninstalling.
 
 Adding an app: install it on the specific repositories it needs, never "all repositories", set the minimum permissions, and add a row here in the same change.
