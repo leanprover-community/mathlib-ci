@@ -213,6 +213,21 @@ if __name__ == '__main__':
                 fh.write(msg)
             sys.exit(0)
 
+        if not has_oleans(args.head_lib_dir):
+            msg = _error_comment(
+                'Oleans for the PR head are not available in the cache.',
+                'Possible reasons:\n'
+                '- The CI build for this commit has not finished yet.\n'
+                '  Wait for the build to complete, then post `!olean_report` again.\n'
+                '- The CI build failed or was cancelled.\n'
+                '  Fix any errors and push a new commit.\n'
+                '- The cache upload step was skipped.',
+                args.actions_url,
+            )
+            with open(args.comment_file, 'w') as fh:
+                fh.write(msg)
+            sys.exit(0)
+
         added, removed, interface_changed, nonpublic_changed = classify_modules(
             args.base_lib_dir, args.head_lib_dir)
 
