@@ -205,7 +205,7 @@ def pr_summary_table(level, diffs):
     if not changes:
         return f"No changes to {level} technical debt."
     else:
-        table = markdown_table(["Current number", "Change", f"Type ({level})"], "rcl", ((key, new, diff) for key, (new, diff) in diffs.items()))
+        table = markdown_table(["Current number", "Change", f"Type ({level})"], "rcl", ((new, diff, key) for key, (new, diff) in diffs.items()))
         return f"<details><summary>{change} in {level} tech debt: (relative, absolute) = ({average:4.2f}, {weight:4.2f})</summary>\n\n{table}\n</details>"
 
 def footer(curr_commit, ref_commit):
