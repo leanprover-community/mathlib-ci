@@ -1,0 +1,30 @@
+✔ [1/158] Built Mathlib.Init (0.5s)
+⚠ [87/158] Built Mathlib.Tactic.CrossRefAttribute (2.4s)
+warning: Mathlib/Tactic/CrossRefAttribute.lean:217:0: expected '_' without preceding space
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+warning: Mathlib/Tactic/CrossRefAttribute.lean:224:0: expected '_' without preceding space
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+⚠ [623/8570] Built Mathlib.Data.List.Triplewise (10s)
+warning: Mathlib/Data/List/Triplewise.lean:39:2: `grind?` suggestion failed: `grind only` did not close the goal
+ℹ [638/8737] Built Mathlib.Data.List.Defs (3.2s)
+info: Mathlib/Data/List/Defs.lean:173:27: 'simp_wf; grind' can be replaced with 'grind'
+
+Try this:
+  [apply] grind
+⚠ [1055/8843] Built Mathlib.Data.List.Count (3.2s)
+warning: Mathlib/Data/List/Count.lean:42:2: `grind?` suggestion failed: `grind only [=_ erase_filter, = length_erase, usr length_pos_of_mem,
+  = mem_filter]` did not close the goal
+⚠ [1198/8843] Built Mathlib.Data.List.Nodup (28s)
+info: Mathlib/Data/List/Nodup.lean:142:60: 'rw [← count_pos_iff]; grind' can be replaced with 'grind'
+
+Try this:
+  [apply] grind
+warning: Mathlib/Data/List/Nodup.lean:270:2: `grind?` suggestion failed: `grind only [= head_append, usr prefix_append, = head_eq_getElem,
+  usr getElem_mem]` did not close the goal
+⚠ [7571/8843] Built Mathlib.Analysis.Normed.Lp.PiLp (31s)
+warning: Mathlib/Analysis/Normed/Lp/PiLp.lean:13:0: unexpected '|'; expected positional argument, named argument, flag, or '}' (use '\{' for a literal '{')
+
+Note: This linter can be disabled with `set_option linter.style.docStringVerso false`
+Build completed successfully (8843 jobs).
