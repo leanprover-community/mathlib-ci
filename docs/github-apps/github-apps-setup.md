@@ -37,6 +37,11 @@ environment:
 
   Otherwise, you probably want to use "Branch" and input the name of the branch that's allowed (typically `master`).
 
+  The subject must exactly match the `sub` claim in the OIDC token GitHub sends, e.g. `repo:leanprover-community/mathlib4:environment:<environment name>`.
+  - Existing repos like mathlib4 use this name-only subject unless they have opted into [immutable subject claims](https://github.blog/changelog/2026-04-23-immutable-subject-claims-for-github-actions-oidc-tokens/). Repos created, renamed, or transferred on or after July 15, 2026 use the immutable format automatically, which embeds the owner and repo IDs: `repo:leanprover-community@41703605/mathlib4@365697493:environment:<environment name>` (get the IDs with `gh api repos/<owner>/<repo> --jq '.owner.id, .id'`).
+  - New credentials created in the Azure portal have been observed to use the immutable format. If the repo still sends name-only subjects, the token exchange fails with `AADSTS700213: No matching federated identity record found`. Fix this by adding a second credential with the name-only subject (use the "Other issuer" scenario if the GitHub form keeps adding the IDs). Keeping the immutable-format credential alongside it is harmless and prepares for a future opt-in.
+  - Before opting a repo or the org into immutable subjects, add an immutable-format credential to every Entra app it authenticates to (including the cache writer identities in [entra-apps.md](entra-apps.md)); the toggle changes the subject for all OIDC logins from that repo. See [Microsoft's migration guide](https://learn.microsoft.com/en-us/entra/workload-id/workload-identities-github-immutable-subjects).
+
   5. Grant [Key Vault RBAC](https://learn.microsoft.com/en-us/azure/key-vault/general/rbac-guide) to that Entra app.
 
   - Grant the [Key Vault Crypto User](https://learn.microsoft.com/en-us/azure/key-vault/general/rbac-guide) role (this allows signing).
