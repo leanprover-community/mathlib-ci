@@ -9,6 +9,7 @@ Layout:
 - `scripts/nightly/`: nightly branch automation scripts.
 - `scripts/zulip/`: Zulip integration scripts.
 - `scripts/verification/`: commit verification scripts.
+- `scripts/dependencies/`: dependency update scripts.
 
 ## `pr_summary/`
 - `declarations_diff.sh`
@@ -94,6 +95,14 @@ Layout:
   wiring, local runs). Tested by `tests/zulip_emoji/`.
 - `requirements.txt`
   Python requirements for Zulip integration scripts.
+
+## `dependencies/`
+- `dependency_update_summary.py` lists, as Markdown, the commits between the old and the new
+  revision of each dependency in two versions of `lake-manifest.json`. It reads the commits from
+  the local Lake package clones, and takes more repositories with `--extra`. It renders commit
+  subjects inside code spans and links issue references through `redirect.github.com`, so the
+  output creates no mentions and no backlinks. Used by the `update_dependencies.yml` workflow for
+  the body of the dependency update PR. Tested by `tests/dependency_update_summary/`.
 
 ## `verification/`
 - `verify_commits.sh` verifies special commits in a PR:
