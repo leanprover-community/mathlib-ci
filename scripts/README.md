@@ -99,7 +99,8 @@ Layout:
 ## `dependencies/`
 - `dependency_update_summary.py` lists, as Markdown, the commits between the old and the new
   revision of each dependency in two versions of `lake-manifest.json`. It reads the commits from
-  the local Lake package clones, and takes more repositories with `--extra`. It renders commit
+  the local Lake package clones. It gets the commits of each `--extra` repository from the GitHub
+  compare API. It renders commit
   subjects inside code spans and links issue references through `redirect.github.com`, so the
   output creates no mentions and no backlinks. Used by the `update_dependencies.yml` workflow for
   the body of the dependency update PR. Tested by `tests/dependency_update_summary/`.

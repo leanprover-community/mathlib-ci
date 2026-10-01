@@ -6,9 +6,10 @@ the output of this script in the body of the pull request it opens. For each
 dependency whose revision changes, the output lists the commits between the old
 and the new revision, so that a reviewer sees them without leaving the PR.
 
-The commits come from local git clones (the Lake package checkouts under
-`packagesDir`, and any repository given with `--extra`). The script needs no
-network access and no token.
+The commits of the dependencies in the manifest come from the Lake package
+clones under `packagesDir`, which `lake update` makes with the full history.
+The commits of a repository given with `--extra` come from the GitHub compare
+API, through `gh api`.
 
 Commit subjects are untrusted input. The output never interprets them:
 
@@ -80,13 +81,32 @@ def parse_github_url(url: object) -> GitHubRepo | None:
 
 @dataclass(frozen=True)
 class Change:
-    """One dependency whose revision differs between the old and new state."""
+    """One dependency whose revision differs between the old and new state.
+
+    The commits come from the GitHub compare API if `use_api` is set, and from
+    the local clone at `gitdir` otherwise.
+    """
 
     name: str
     github: GitHubRepo | None
     gitdir: Path | None
     old: str | None
     new: str | None
+    use_api: bool = False
+
+
+@dataclass(frozen=True)
+class Comparison:
+    """The commits in `new` that are not in `old`.
+
+    `status` is `ahead`, `behind` or `diverged`, as in the GitHub compare API.
+    `commits` holds `(sha, subject)` pairs, newest first, at most
+    `MAX_COMMITS` of them. It is `None` if the source cannot list the commits.
+    """
+
+    status: str
+    total: int
+    commits: list[tuple[str, str]] | None
 
 
 def is_sha(rev: object) -> bool:
@@ -117,7 +137,7 @@ def manifest_changes(old: dict, new: dict, packages_dir: Path) -> list[Change]:
         if old_rev == new_rev:
             continue
         url = (new_pkg or old_pkg).get("url")
-        gitdir = packages_dir / name if new_pkg and NAME_RE.fullmatch(name) else None
+        gitdir = packages_dir / name if NAME_RE.fullmatch(name) else None
         changes.append(Change(name, parse_github_url(url), gitdir, old_rev, new_rev))
     return changes
 
@@ -170,6 +190,71 @@ def commit_log(gitdir: Path, old: str, new: str, limit: int) -> list[tuple[str, 
         if is_sha(sha):
             out.append((sha, fields[i + 1]))
     return out
+
+
+def compare_local(gitdir: Path, old: str, new: str) -> Comparison | str:
+    """Compare two revisions in a local clone, or return why that fails."""
+    if not gitdir.is_dir():
+        return "the local clone is not available."
+    if not has_commit(gitdir, new) or not has_commit(gitdir, old):
+        return "a revision is missing from the local clone."
+    if is_ancestor(gitdir, new, old):
+        status = "behind"
+    elif is_ancestor(gitdir, old, new):
+        status = "ahead"
+    else:
+        status = "diverged"
+    total = commit_count(gitdir, old, new)
+    return Comparison(status, total, commit_log(gitdir, old, new, MAX_COMMITS))
+
+
+# ---------------------------------------------------------------------------
+# GitHub
+
+
+def gh_api(path: str) -> object | None:
+    """Return the JSON response of `gh api <path>`, or `None` on failure."""
+    proc = subprocess.run(
+        ["gh", "api", path],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+    )
+    if proc.returncode != 0:
+        print(f"gh api {path} failed: {proc.stderr.strip()}", file=sys.stderr)
+        return None
+    try:
+        return json.loads(proc.stdout)
+    except json.JSONDecodeError:
+        return None
+
+
+def compare_github(github: GitHubRepo, old: str, new: str) -> Comparison | str:
+    """Compare two revisions with the GitHub compare API.
+
+    Without pagination, the API returns at most 250 commits, oldest first. If
+    the comparison has more commits, the output links to the comparison only.
+    """
+    data = gh_api(f"repos/{github.owner}/{github.repo}/compare/{old}...{new}")
+    if not isinstance(data, dict):
+        return "GitHub cannot compare the revisions."
+    status = data.get("status")
+    total = data.get("total_commits")
+    raw = data.get("commits")
+    if status not in ("ahead", "behind", "diverged") or not isinstance(total, int):
+        return "GitHub cannot compare the revisions."
+    commits: list[tuple[str, str]] | None = []
+    if not isinstance(raw, list) or len(raw) < total:
+        commits = None
+    else:
+        for c in reversed(raw):
+            sha = c.get("sha") if isinstance(c, dict) else None
+            message = (c.get("commit") or {}).get("message") if is_sha(sha) else None
+            if isinstance(message, str):
+                commits.append((sha, message.split("\n", 1)[0]))
+        commits = commits[:MAX_COMMITS]
+    return Comparison(status, total, commits)
 
 
 # ---------------------------------------------------------------------------
@@ -279,21 +364,28 @@ def render_change(change: Change, with_commits: bool) -> list[str]:
             f"[`{short(old)}...{short(new)}`]({github.url}/compare/{old}...{new})"
         )
 
-    if gitdir is None or not gitdir.is_dir():
-        lines.append(f"{range_ref}: the local clone is not available.")
-        return lines
-    if not has_commit(gitdir, new) or not has_commit(gitdir, old):
-        lines.append(f"{range_ref}: a revision is missing from the local clone.")
+    if not change.use_api:
+        comparison = (
+            compare_local(gitdir, old, new)
+            if gitdir is not None
+            else "the local clone is not available."
+        )
+    elif github is not None:
+        comparison = compare_github(github, old, new)
+    else:
+        comparison = "the repository is not on GitHub."
+    if isinstance(comparison, str):
+        lines.append(f"{range_ref}: {comparison}")
         return lines
 
-    count = commit_count(gitdir, old, new)
-    if is_ancestor(gitdir, new, old):
+    count = comparison.total
+    if comparison.status == "behind":
         lines.append(
             f"{range_ref}: **the new revision is older than the old revision.**"
         )
         return lines
     note = ""
-    if not is_ancestor(gitdir, old, new):
+    if comparison.status == "diverged":
         note = (
             " **The old revision is not an ancestor of the new revision.** "
             "The list shows the commits in the new revision that are not in the old one."
@@ -303,7 +395,10 @@ def render_change(change: Change, with_commits: bool) -> list[str]:
         return lines
 
     lines.append("")
-    log = commit_log(gitdir, old, new, MAX_COMMITS)
+    log = comparison.commits
+    if log is None:
+        lines.append("- Too many commits to list, see the comparison.")
+        return lines
     for sha, subject in log:
         line = f"- {commit_ref(github, sha)} {code_span(subject)}"
         links = issue_links(subject, github)
@@ -350,11 +445,11 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument(
         "--extra",
-        nargs=5,
+        nargs=4,
         action="append",
         default=[],
-        metavar=("NAME", "URL", "GITDIR", "OLD", "NEW"),
-        help="an additional repository to compare, with a local clone at GITDIR",
+        metavar=("NAME", "URL", "OLD", "NEW"),
+        help="an additional GitHub repository to compare with the GitHub API",
     )
     args = parser.parse_args(argv)
 
@@ -363,10 +458,10 @@ def main(argv: list[str] | None = None) -> int:
     packages_dir = args.new_manifest.parent / new.get("packagesDir", ".lake/packages")
 
     changes = manifest_changes(old, new, packages_dir)
-    for name, url, gitdir, old_rev, new_rev in args.extra:
+    for name, url, old_rev, new_rev in args.extra:
         if old_rev != new_rev:
             changes.append(
-                Change(name, parse_github_url(url), Path(gitdir), old_rev, new_rev)
+                Change(name, parse_github_url(url), None, old_rev, new_rev, use_api=True)
             )
 
     sys.stdout.write(render(changes))

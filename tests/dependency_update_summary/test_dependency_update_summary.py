@@ -314,26 +314,155 @@ def test_hostile_package_name(capsys, write_manifests):
     assert "the local clone is not available." in out
 
 
-def test_extra_repository(capsys, make_repo, write_manifests, tmp_path):
-    repo = make_repo("mathlib-ci-clone")
-    old = repo.commit("initial")
-    new = repo.commit("fix: thing (#66)")
-    ci_url = "https://github.com/leanprover-community/mathlib-ci"
-    out = run(
-        capsys,
-        *write_manifests({}, {}),
-        extra=[("mathlib-ci", ci_url, str(repo.path), old, new)],
+CI_URL = "https://github.com/leanprover-community/mathlib-ci"
+OLD = "a" * 40
+NEW = "b" * 40
+
+
+def api_commit(n: int, message: str) -> dict:
+    return {"sha": f"{n:x}" * 40, "commit": {"message": message}}
+
+
+@pytest.fixture
+def fake_api(monkeypatch):
+    """Replace `gh_api` with a function that returns `response` and records paths."""
+    calls = []
+
+    def install(response):
+        def gh_api(path):
+            calls.append(path)
+            return response
+
+        monkeypatch.setattr(dus, "gh_api", gh_api)
+        return calls
+
+    return install
+
+
+def run_extra(capsys, write_manifests, url=CI_URL, old=OLD, new=NEW):
+    return run(capsys, *write_manifests({}, {}), extra=[("mathlib-ci", url, old, new)])
+
+
+def test_extra_repository(capsys, write_manifests, fake_api):
+    calls = fake_api(
+        {
+            "status": "ahead",
+            "total_commits": 2,
+            "commits": [
+                api_commit(1, "feat: first (#65)\n\nbody with @someone"),
+                api_commit(2, "fix: thing (#66)"),
+            ],
+        }
     )
+    out = run_extra(capsys, write_manifests)
+    assert calls == [f"repos/leanprover-community/mathlib-ci/compare/{OLD}...{NEW}"]
     assert out.startswith("### mathlib-ci\n")
-    assert f"({ci_url}/compare/{old}...{new}): 1 commit." in out
-    assert "redirect.github.com/leanprover-community/mathlib-ci/issues/66" in out
+    assert f"({CI_URL}/compare/{OLD}...{NEW}): 2 commits." in out
+    lines = [l for l in out.splitlines() if l.startswith("- ")]
+    assert lines == [
+        f"- [`2222222`]({CI_URL}/commit/{'2' * 40}) ` fix: thing (#66) ` "
+        "([#66](https://redirect.github.com/leanprover-community/mathlib-ci/issues/66))",
+        f"- [`1111111`]({CI_URL}/commit/{'1' * 40}) ` feat: first (#65) ` "
+        "([#65](https://redirect.github.com/leanprover-community/mathlib-ci/issues/65))",
+    ]
+    assert "@someone" not in out
 
 
-def test_extra_repository_unchanged(capsys, write_manifests):
-    rev = "a" * 40
-    out = run(
-        capsys,
-        *write_manifests({}, {}),
-        extra=[("mathlib-ci", URL, "/nonexistent", rev, rev)],
+def test_extra_repository_capped(capsys, write_manifests, fake_api, monkeypatch):
+    monkeypatch.setattr(dus, "MAX_COMMITS", 2)
+    fake_api(
+        {
+            "status": "ahead",
+            "total_commits": 3,
+            "commits": [api_commit(i, f"commit {i}") for i in (1, 2, 3)],
+        }
     )
+    out = run_extra(capsys, write_manifests)
+    assert "` commit 3 `" in out and "` commit 2 `" in out
+    assert "` commit 1 `" not in out
+    assert "- 1 older commit not shown, see the comparison." in out
+
+
+def test_extra_repository_truncated_by_api(capsys, write_manifests, fake_api):
+    fake_api(
+        {
+            "status": "ahead",
+            "total_commits": 300,
+            "commits": [api_commit(i % 16, f"commit {i}") for i in range(250)],
+        }
+    )
+    out = run_extra(capsys, write_manifests)
+    assert ": 300 commits." in out
+    assert "- Too many commits to list, see the comparison." in out
+    assert "` commit" not in out
+
+
+def test_extra_repository_behind(capsys, write_manifests, fake_api):
+    fake_api({"status": "behind", "total_commits": 0, "commits": []})
+    out = run_extra(capsys, write_manifests)
+    assert "**the new revision is older than the old revision.**" in out
+
+
+def test_extra_repository_diverged(capsys, write_manifests, fake_api):
+    fake_api(
+        {"status": "diverged", "total_commits": 1, "commits": [api_commit(1, "x")]}
+    )
+    out = run_extra(capsys, write_manifests)
+    assert ": 1 commit. **The old revision is not an ancestor" in out
+    assert "` x `" in out
+
+
+@pytest.mark.parametrize(
+    "response",
+    [
+        None,
+        [],
+        {},
+        {"status": "identical", "total_commits": 0, "commits": []},
+        {"status": "ahead", "total_commits": "2", "commits": []},
+    ],
+)
+def test_extra_repository_api_failure(capsys, write_manifests, fake_api, response):
+    fake_api(response)
+    out = run_extra(capsys, write_manifests)
+    assert "GitHub cannot compare the revisions." in out
+
+
+def test_extra_repository_skips_malformed_commits(capsys, write_manifests, fake_api):
+    fake_api(
+        {
+            "status": "ahead",
+            "total_commits": 4,
+            "commits": [
+                {"sha": "not-a-sha", "commit": {"message": "bad sha"}},
+                {"sha": "c" * 40},
+                "not an object",
+                api_commit(1, "good"),
+            ],
+        }
+    )
+    out = run_extra(capsys, write_manifests)
+    lines = [l for l in out.splitlines() if l.startswith("- ")]
+    assert lines[0].endswith("` good `")
+    assert "bad sha" not in out
+
+
+def test_extra_repository_not_on_github(capsys, write_manifests, fake_api):
+    calls = fake_api(None)
+    out = run_extra(capsys, write_manifests, url="https://example.com/a/b")
+    assert calls == []
+    assert "the repository is not on GitHub." in out
+
+
+def test_extra_repository_revision_not_a_hash(capsys, write_manifests, fake_api):
+    calls = fake_api(None)
+    out = run_extra(capsys, write_manifests, new="master")
+    assert calls == []
+    assert "The new revision is not a commit hash." in out
+
+
+def test_extra_repository_unchanged(capsys, write_manifests, fake_api):
+    calls = fake_api(None)
+    out = run_extra(capsys, write_manifests, new=OLD)
+    assert calls == []
     assert out == "No dependency revision changes.\n"
