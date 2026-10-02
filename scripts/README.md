@@ -57,6 +57,10 @@ Layout:
   `late_importers.sh` for further details.
 - `zulip_build_report.sh` is used to analyse the output from building the nightly-testing-green
   branch with additional linting enabled, and posts a summary of its findings on zulip.
+  It is also used by Mathlib's weekly linting report.  The summary counts each distinct message;
+  messages that occur only a few times can also link to their locations, and a full report with
+  every location is written to the GitHub job summary.  See the header of the script for the
+  environment variables that configure it.
 
 ## `maintainer/`
 - `get_tlabel.sh` extracts the `t-`label that a PR has (assuming that there is exactly one).
