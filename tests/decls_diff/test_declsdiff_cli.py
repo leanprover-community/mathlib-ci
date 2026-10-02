@@ -84,3 +84,61 @@ class TestCLI:
         err = capsys.readouterr().err
         assert "is empty" in err
         assert "merging master" in err
+
+
+class TestMeta:
+    def _run(self, tmp_path: Path, extra: list[str]) -> str:
+        ref = _write(tmp_path / "ref.txt", ["A", "B", "C"])
+        new = _write(tmp_path / "new.txt", ["A", "B", "D"])
+        out = tmp_path / "out.md"
+        rc = declsDiff.main([
+            "--ref-decls", str(ref),
+            "--new-decls", str(new),
+            "--decls-override", str(out),
+            *extra,
+        ])
+        assert rc == 0
+        return out.read_text()
+
+    def test_reports_moves_into_and_out_of_meta(self, tmp_path: Path) -> None:
+        """Only declarations present on both sides are reported as meta moves."""
+        ref_meta = _write(tmp_path / "ref_meta.txt", ["B", "C"])
+        new_meta = _write(tmp_path / "new_meta.txt", ["A", "D"])
+        meta_diff = tmp_path / "meta_diff.txt"
+        body = self._run(tmp_path, [
+            "--ref-meta", str(ref_meta),
+            "--new-meta", str(new_meta),
+            "--meta-diff-out", str(meta_diff),
+        ])
+        # A became meta, B stopped being meta; C (removed) and D (added) are not moves.
+        assert meta_diff.read_text() == "+meta A\n-meta B\n"
+        assert "**1** moved into `meta`, **1** moved out of `meta`" in body
+        assert "+meta A\n-meta B" in body
+
+    def test_empty_meta_dumps_are_valid(self, tmp_path: Path) -> None:
+        """Empty meta dumps mean no meta declarations, not missing data."""
+        ref_meta = tmp_path / "ref_meta.txt"
+        ref_meta.write_text("")
+        new_meta = tmp_path / "new_meta.txt"
+        new_meta.write_text("")
+        body = self._run(tmp_path, [
+            "--ref-meta", str(ref_meta),
+            "--new-meta", str(new_meta),
+        ])
+        assert "**0** moved into `meta`, **0** moved out of `meta`" in body
+        assert "marking changed" not in body
+
+    def test_missing_ref_meta_notes_unavailable(self, tmp_path: Path) -> None:
+        """A reference build without a meta dump is noted, not treated as an error."""
+        new_meta = _write(tmp_path / "new_meta.txt", ["A"])
+        body = self._run(tmp_path, [
+            "--ref-meta", str(tmp_path / "missing.txt"),
+            "--new-meta", str(new_meta),
+        ])
+        assert "`meta` changes unavailable" in body
+        assert "moved into `meta`" not in body
+
+    def test_no_meta_args_leaves_body_unchanged(self, tmp_path: Path) -> None:
+        """Without meta dumps the body has no meta lines at all."""
+        body = self._run(tmp_path, [])
+        assert "meta" not in body
