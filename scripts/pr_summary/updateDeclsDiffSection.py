@@ -13,7 +13,9 @@ matching, no first-patch special case.
 Inputs (environment variables):
     GH_TOKEN        passed through to the `gh` CLI
     REPO            `owner/repo`
-    PR_HEAD_SHA     head SHA of the PR (used to resolve PR_NUMBER when unset)
+    PR_HEAD_SHA     head SHA the diff was computed for (used to resolve PR_NUMBER when
+                      unset). Required by the patch modes, which only patch a PR
+                      whose current head it is
     PR_NUMBER       PR number (optional; resolved from PR_HEAD_SHA when empty)
     MODE            `success` (default) or `warning`
     OVERRIDE_FILE   success mode: path to the rendered section produced by
@@ -35,7 +37,8 @@ heading, so a once-shown diff survives repeated relabels (stale → cache miss �
 without ever reverting to the pending placeholder.
 
 Exit codes:
-    0 — patched / emitted, or nothing to do (no summary comment / no markers / unchanged)
+    0 — patched / emitted, or nothing to do (no summary comment / no markers / unchanged /
+        PR head is not PR_HEAD_SHA)
     1 — non-recoverable error (gh CLI failure, malformed env); `emit` never returns 1
 """
 
@@ -157,8 +160,10 @@ def gh_json(*args: str) -> object:
 
 
 def resolve_pr(repo: str, head_sha: str) -> int | None:
-    """Return the PR number from PR_NUMBER, else look it up from the head SHA.
-    The SHA lookup misses fork PRs, so the workflow passes PR_NUMBER for those."""
+    """Return the PR number from PR_NUMBER, else look up the PR whose head is the
+    head SHA. The SHA lookup misses fork PRs, so the workflow passes PR_NUMBER for
+    those. It also lists every other open PR whose branch contains the commit, so
+    the first entry is not necessarily the right one."""
     pr_env = os.environ.get("PR_NUMBER", "").strip()
     if pr_env:
         try:
@@ -167,7 +172,7 @@ def resolve_pr(repo: str, head_sha: str) -> int | None:
             print(f"updateDeclsDiffSection: invalid PR_NUMBER={pr_env!r}", file=sys.stderr)
             return None
     pulls = gh_json(f"repos/{repo}/commits/{head_sha}/pulls")
-    return pulls[0]["number"] if pulls else None
+    return next((p["number"] for p in pulls if p["head"]["sha"] == head_sha), None)
 
 
 def _patch_comment(repo: str, comment_id: int, new_body: str) -> int:
@@ -192,13 +197,23 @@ def main() -> int:
     if mode == "emit":
         return emit_placeholder(repo, head_sha)
 
+    if not head_sha:
+        print("updateDeclsDiffSection: PR_HEAD_SHA is required to patch.", file=sys.stderr)
+        return 1
+
     try:
         pr = resolve_pr(repo, head_sha)
+        if pr is None:
+            print(f"updateDeclsDiffSection: no PR for {head_sha} (set PR_NUMBER); nothing to patch.")
+            return 0
+        # PR_NUMBER can come from an artifact written by PR code, so it may name any
+        # PR: only patch one whose current head is the commit the diff is for.
+        pr_head = gh_json(f"repos/{repo}/pulls/{pr}")["head"]["sha"]
     except subprocess.CalledProcessError as e:
         print(f"updateDeclsDiffSection: gh api failed: {e.stderr}", file=sys.stderr)
         return 1
-    if pr is None:
-        print(f"updateDeclsDiffSection: no PR for {head_sha} (set PR_NUMBER); nothing to patch.")
+    if pr_head != head_sha:
+        print(f"updateDeclsDiffSection: PR #{pr} head is {pr_head}, not {head_sha}; nothing to patch.")
         return 0
 
     try:
