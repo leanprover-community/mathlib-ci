@@ -22,3 +22,9 @@ Each is RBAC-scoped to write one Blob Storage container, which is the enforced t
 | Mathlib CI Cache Writer - Non-Master | CACHE_NON_MASTER_WRITER_AZURE_APP_ID | `forks` |
 | Mathlib CI Cache Writer - Nightly Testing | CACHE_NIGHTLY_TESTING_WRITER_AZURE_APP_ID | `nightly-testing` |
 | Mathlib CI Cache Writer - PR Toolchain Tests | CACHE_PR_TOOLCHAIN_TESTS_WRITER_AZURE_APP_ID | `pr-toolchain-tests` |
+
+mathlib4 CI on `master` uploads the cache to R2 only and does not use these identities.
+Keep the `master` writer and `CACHE_MASTER_WRITER_AZURE_APP_ID`, because two writers still upload to the Azure `master` container with it:
+
+- A release tag on an older release line runs `release_cache.yml` from its own tree, and that copy uploads to Azure.
+- The downstream-reports cache warmer uploads to Azure.
