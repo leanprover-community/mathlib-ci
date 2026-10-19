@@ -13,7 +13,7 @@ The optional flag `<opt all>` must either be `all` or not be passed.
 Without `all`, the script only displays the difference if the output does not exceed 200 lines.
 
 If the commits are not provided, then the script uses the current commit as `commit1` and
-current `master` as `commit2`.
+the merge base with the base branch (`PR_BASE_REF`, default `master`) as `commit2`.
 
 The output is of the form
 
@@ -36,7 +36,7 @@ fi
 
 commit1="${1:-"$(git rev-parse HEAD)"}"
 
-commit2="${2:-"$(git merge-base master ${commit1})"}"
+commit2="${2:-"$(git merge-base "${PR_BASE_REF:-master}" "${commit1}")"}"
 
 #printf 'commit1: %s\ncommit2: %s\n' "$commit1" "$commit2"
 
@@ -68,8 +68,8 @@ git switch --detach "${currCommit}"
 printf '\n\n<details><summary>Import changes for all files</summary>\n\n%s\n\n</details>\n' "$(
   printf "|Files|Import difference|\n|-|-|\n"
   (gawk -F, -v all="${all}" -v ghLimit='261752' -v newFiles="$(
-      # we pass the "A"dded files with respect to master, converting them to module names
-      git diff --name-only --diff-filter=A master | tr '\n' , | sed 's=\.lean,=,=g; s=/=.=g'
+      # we pass the files "A"dded between `commit2` and `commit1`, converting them to module names
+      git diff --name-only --diff-filter=A "${commit2}" "${commit1}" | tr '\n' , | sed 's=\.lean,=,=g; s=/=.=g'
     )" '
     BEGIN{
       # `arrayNewModules` maps integers to module names
