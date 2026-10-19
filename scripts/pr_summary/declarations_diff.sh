@@ -5,9 +5,10 @@
 # The `declarations_diff` script
 
 The `declarations_diff` script is a text-based script that attempts to find which declarations
-have been removed and which declarations have been added in the current PR with respect to `master`.
+have been removed and which declarations have been added in the current PR with respect to the
+base branch (`PR_BASE_REF`, default `master`).
 
-In essence, it looks at the output of `git diff origin/master...HEAD`, extracts the lines that
+In essence, it looks at the output of `git diff origin/${PR_BASE_REF:-master}...HEAD`, extracts the lines that
 contain one of the keywords
 
 `theorem` `lemma` `inductive` `structure` `def` `class` `instance` `alias`
@@ -59,7 +60,7 @@ fi
 full_output=$(if [ -n "${2:-}" ]; then
   git diff --unified=0 "${2:-}"
 else
-  git diff origin/master...HEAD
+  git diff "origin/${PR_BASE_REF:-master}...HEAD"
 fi |
   ## purge `@[...]`, to attempt to catch declaration names
   sed 's=@\[[^]]*\] ==; s=noncomputable ==; s=nonrec ==; s=protected ==; s=private ==; s=public ==' |
