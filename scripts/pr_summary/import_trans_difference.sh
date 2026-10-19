@@ -68,8 +68,8 @@ git switch --detach "${currCommit}"
 printf '\n\n<details><summary>Import changes for all files</summary>\n\n%s\n\n</details>\n' "$(
   printf "|Files|Import difference|\n|-|-|\n"
   (gawk -F, -v all="${all}" -v ghLimit='261752' -v newFiles="$(
-      # we pass the "A"dded files with respect to the base branch, converting them to module names
-      git diff --name-only --diff-filter=A "${PR_BASE_REF:-master}" | tr '\n' , | sed 's=\.lean,=,=g; s=/=.=g'
+      # we pass the files "A"dded between `commit2` and `commit1`, converting them to module names
+      git diff --name-only --diff-filter=A "${commit2}" "${commit1}" | tr '\n' , | sed 's=\.lean,=,=g; s=/=.=g'
     )" '
     BEGIN{
       # `arrayNewModules` maps integers to module names
