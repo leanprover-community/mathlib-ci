@@ -85,6 +85,12 @@ Layout:
 - `parse_lake_manifest_changes.py` compares two versions of `lake-manifest.json` to report
   dependency changes in Zulip notifications. Used by the `update_dependencies_zulip.yml` workflow
   to show which dependencies were updated, added, or removed, with links to GitHub diffs.
+- `related_dependency_prs.py` finds open PRs that may already adapt Mathlib to the dependency
+  changes in the update-dependencies bot's PR: PRs that make the same bump (or part of it), or
+  that name an upstream PR the bump includes (likely adaptations), and recently pushed PRs that
+  change the same packages or say they bump or adapt to them. Used hourly by
+  `update_dependencies.yml`, which keeps a comment listing them on the bot's PR and posts each new
+  likely adaptation to Zulip once. Tested by `tests/related_dependency_prs/`.
 - `reconcile_emojis.py` (CLI entry point) and the `emoji_reconcile/` package keep the emoji
   reactions on Zulip messages about a PR in sync with the PR's actual state
   (open/closed/merged, labels, CI result). Repo-agnostic: everything repo-specific is a JSON
