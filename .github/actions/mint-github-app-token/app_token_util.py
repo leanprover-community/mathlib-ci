@@ -19,8 +19,14 @@ ATTEMPTS = 3
 TIMEOUT_SECONDS = 30
 
 # The 4xx statuses that are not a verdict on the request: the server
-# timed out reading it (408) or throttled it (429). They retry like a 5xx.
+# timed out reading it (408) or throttled it (429). They retry like a
+# transient 5xx.
 RETRYABLE_4XX = frozenset({408, 429})
+
+# The broker answers 500 for a fault only an operator can clear, so a 500
+# is a verdict on the request. Every other 5xx, including the Cloudflare
+# edge statuses from 520 up, is transient.
+VERDICT_5XX = frozenset({500, 501})
 
 # How much of an error answer's body reaches the job log.
 BODY_EXCERPT_CHARS = 200
@@ -76,6 +82,22 @@ def check_broker_url(url: str) -> None:
         raise MintError("broker-url is not one https URL")
 
 
+class NoRedirect(urllib.request.HTTPRedirectHandler):
+    """Refuse every redirect.
+
+    urllib would follow a redirect of the POST as a GET and send the bearer
+    token to the new location, which may be another host or plain http.
+    A redirect is answered as an `HTTPError` with its 3xx status instead,
+    which the mint reports as a verdict.
+    """
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+OPENER = urllib.request.build_opener(NoRedirect)
+
+
 def fetch_once(url: str, bearer: str, method: str, body: str | None) -> str:
     """One HTTP request with a bearer token; return the response body."""
     headers = {"Authorization": f"Bearer {bearer}", "User-Agent": USER_AGENT}
@@ -84,22 +106,25 @@ def fetch_once(url: str, bearer: str, method: str, body: str | None) -> str:
         headers["Content-Type"] = "application/json"
         data = body.encode("utf-8")
     request = urllib.request.Request(url, data=data, method=method, headers=headers)
-    with urllib.request.urlopen(request, timeout=TIMEOUT_SECONDS) as response:
+    with OPENER.open(request, timeout=TIMEOUT_SECONDS) as response:
         return response.read().decode("utf-8", errors="replace")
 
 
 def is_retryable_status(code: int) -> bool:
-    """Whether an HTTP error status is transient: any 5xx, 408, or 429."""
-    return code >= 500 or code in RETRYABLE_4XX
+    """Whether an HTTP error status is transient: a 5xx other than a
+    verdict, 408, or 429."""
+    return (code >= 500 and code not in VERDICT_5XX) or code in RETRYABLE_4XX
 
 
 def with_retries(call: Callable[[], str], sleep: Callable[[float], None] | None = None) -> str:
     """Call up to ATTEMPTS times and return the first answer.
 
-    Transport faults and transient statuses retry with backoff: both
-    requests the mint makes are idempotent, so a retry is safe. Any
-    other status is a verdict on the request, so it raises at once. Any
-    other exception is a bug and propagates untouched.
+    Transport faults and transient statuses retry with backoff. The
+    OIDC request is idempotent. A retried broker request mints a second
+    token after a lost answer; the first token expires unused, so the
+    retry is safe. Any other status is a verdict on the request, so it
+    raises at once. Any other exception is a bug and propagates
+    untouched.
     """
     sleep = time.sleep if sleep is None else sleep
     for attempt in range(ATTEMPTS):

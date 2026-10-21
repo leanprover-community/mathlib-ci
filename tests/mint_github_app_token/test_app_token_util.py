@@ -165,10 +165,24 @@ class TestWithRetries:
             util.with_retries(call, sleep=no_sleep)
         assert call.calls == util.ATTEMPTS
 
-    def test_retries_a_5xx_then_answers(self):
+    def test_retries_a_transient_5xx_then_answers(self):
         call = Flaky(http_error(503), http_error(502))
         assert util.with_retries(call, sleep=no_sleep) == "body"
         assert call.calls == 3
+
+    def test_retries_a_cloudflare_edge_status_then_answers(self):
+        call = Flaky(http_error(520), http_error(524))
+        assert util.with_retries(call, sleep=no_sleep) == "body"
+        assert call.calls == 3
+
+    def test_a_500_is_a_verdict_and_raises_at_once(self):
+        # The broker answers 500 for a fault only an operator can clear.
+        slept = []
+        call = Flaky(http_error(500))
+        with pytest.raises(urllib.error.HTTPError) as raised:
+            util.with_retries(call, sleep=slept.append)
+        assert raised.value.code == 500
+        assert (call.calls, slept) == (1, [])
 
     def test_retries_a_timeout_or_throttle_then_answers(self):
         call = Flaky(http_error(408), http_error(429))
@@ -217,7 +231,21 @@ class TestBodyExcerpt:
         assert util.body_excerpt(http_error(500, Unreadable())) == ""
 
 
+class FakeOpener:
+    """Stands in for `util.OPENER`; `open` records the request."""
+
+    def __init__(self, open):
+        self.open = open
+
+
 class TestTransport:
+    def test_refuses_a_redirect(self):
+        # A followed redirect would send the bearer to the new location.
+        handler = util.NoRedirect()
+        request = util.urllib.request.Request("https://x.example/p", method="POST")
+        assert handler.redirect_request(request, None, 302, "Found", {}, "http://evil.example/") is None
+        assert any(isinstance(h, util.NoRedirect) for h in util.OPENER.handlers)
+
     def test_a_post_sends_the_bearer_the_named_user_agent_and_the_json_body(self, monkeypatch):
         seen = {}
 
@@ -231,7 +259,7 @@ class TestTransport:
             seen["timeout"] = timeout
             return io.BytesIO(b"body")
 
-        monkeypatch.setattr(util.urllib.request, "urlopen", urlopen)
+        monkeypatch.setattr(util, "OPENER", FakeOpener(urlopen))
         assert util.fetch_once("https://x.example/p", "b", "POST", '{"app": "x"}') == "body"
         assert seen == {
             "method": "POST",
@@ -254,7 +282,7 @@ class TestTransport:
             seen["data"] = request.data
             return io.BytesIO(b"body")
 
-        monkeypatch.setattr(util.urllib.request, "urlopen", urlopen)
+        monkeypatch.setattr(util, "OPENER", FakeOpener(urlopen))
         assert util.fetch_once("https://x.example/p", "b", "GET", None) == "body"
         assert seen == {"method": "GET", "content_type": None, "data": None}
 
@@ -267,7 +295,7 @@ class TestTransport:
                 raise urllib.error.URLError("flaky")
             return io.BytesIO(b"body")
 
-        monkeypatch.setattr(util.urllib.request, "urlopen", urlopen)
+        monkeypatch.setattr(util, "OPENER", FakeOpener(urlopen))
         monkeypatch.setattr(util.time, "sleep", no_sleep)
         assert util.fetch_text("https://x.example/p", "b", "GET", None) == "body"
         assert attempts == ["https://x.example/p"] * 2

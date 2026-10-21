@@ -16,7 +16,7 @@ a runner.
   - Generate one [private key PEM](https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/managing-private-keys-for-github-apps) from the app settings. The broker operator uploads it once; delete the local copy afterwards.
 
   2. Register the app in the broker.
-  - Open a PR in `cache-infrastructure` that adds an `APPS` entry (the app name, the App ID, and a key binding name) and one `GRANTS` row per workflow that uses the app. A row pins the repository and the workflow file on its default branch, and names the repositories and permissions the token may reach. The broker README documents the row fields.
+  - Open a PR in `cache-infrastructure` that adds an `APPS` entry (the app name, the App ID, and a key binding name) and one `GRANTS` row per workflow that uses the app. A row pins the repository and the workflow file on its default branch, and names the repositories and permissions the token may reach. The job must therefore run from the default branch: a schedule, a `workflow_run`, an issue event, or a dispatch of the default branch. A job in a reusable workflow or a `pull_request` job needs a row that pins other claims; the broker README documents the row fields and that case.
   - The operator deploys the policy and uploads the key (`keys.md` in the broker).
 
   3. Add the mint step to the workflow.
@@ -36,7 +36,7 @@ a runner.
         app: my-new-app
 ```
 
-  - `MATHLIB_GITHUB_APP_BROKER_URL` is an [organization-wide variable](https://github.com/organizations/leanprover-community/settings/variables/actions).
+  - `MATHLIB_GITHUB_APP_BROKER_URL` is an [organization-wide variable](https://github.com/organizations/leanprover-community/settings/variables/actions) that holds the broker's token endpoint, `https://<broker host>/github-app-token`.
   - The action masks the token and sets it as the `token` output. Later steps read `${{ steps.app-token.outputs.token }}`.
   - The step fails when the mint fails. A caller with a fallback sets `continue-on-error: true` on the step and tests the `success` output in later steps.
 

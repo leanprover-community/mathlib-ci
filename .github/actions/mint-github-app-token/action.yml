@@ -43,7 +43,8 @@ runs:
       id: mint
       shell: bash
       # GitHub expands `${{ … }}` into the command text, so the inputs
-      # reach the script through `env:`.
+      # reach the script through `env:`. The `--flag=value` form keeps a
+      # value that starts with `-` from reading as another flag.
       # On success the script masks the token, then writes the outputs
       # to GITHUB_OUTPUT in one block.
       env:
@@ -52,7 +53,7 @@ runs:
         APP: ${{ inputs.app }}
       run: |
         python3 "${{ github.action_path }}/mint_app_token.py" \
-          --broker-url "$BROKER_URL" \
-          --audience "$AUDIENCE" \
-          --app "$APP" \
-          --github-output "$GITHUB_OUTPUT"
+          --broker-url="$BROKER_URL" \
+          --audience="$AUDIENCE" \
+          --app="$APP" \
+          --github-output="$GITHUB_OUTPUT"
