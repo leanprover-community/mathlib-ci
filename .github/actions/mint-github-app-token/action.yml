@@ -1,0 +1,59 @@
+name: Mint GitHub App token
+description: >-
+  Exchange the job's GitHub OIDC token at the GitHub App broker for a
+  short-lived installation token of one GitHub App, and expose it as a
+  masked step output. The broker decides from the token's claims and
+  the app name which grant applies, and it restricts the token to the
+  repositories and permissions that grant names. The step fails when
+  the mint fails; a caller with a fallback sets `continue-on-error:
+  true` on the step and tests the `success` output in later steps. The
+  calling job needs `id-token: write`.
+
+inputs:
+  broker-url:
+    description: URL of the broker's token endpoint (https).
+    required: true
+  audience:
+    description: OIDC audience the broker expects.
+    required: true
+  app:
+    description: The name of the GitHub App, as the broker knows it.
+    required: true
+
+outputs:
+  token:
+    description: The GitHub App installation token. Masked.
+    value: ${{ steps.mint.outputs.token }}
+  installation-id:
+    description: The id of the installation the token belongs to. Display-only.
+    value: ${{ steps.mint.outputs.installation-id }}
+  grant:
+    description: The name of the broker grant that matched the token. Display-only.
+    value: ${{ steps.mint.outputs.grant }}
+  success:
+    description: >-
+      "true" when the token output is set, unset when the mint failed.
+      Test it in the `if:` of the steps that use the token.
+    value: ${{ steps.mint.outputs.success }}
+
+runs:
+  using: composite
+  steps:
+    - name: Mint the token from the broker
+      id: mint
+      shell: bash
+      # GitHub expands `${{ … }}` into the command text, so the inputs
+      # reach the script through `env:`. The `--flag=value` form keeps a
+      # value that starts with `-` from reading as another flag.
+      # On success the script masks the token, then writes the outputs
+      # to GITHUB_OUTPUT in one block.
+      env:
+        BROKER_URL: ${{ inputs.broker-url }}
+        AUDIENCE: ${{ inputs.audience }}
+        APP: ${{ inputs.app }}
+      run: |
+        python3 "${{ github.action_path }}/mint_app_token.py" \
+          --broker-url="$BROKER_URL" \
+          --audience="$AUDIENCE" \
+          --app="$APP" \
+          --github-output="$GITHUB_OUTPUT"
