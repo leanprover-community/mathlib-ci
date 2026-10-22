@@ -80,7 +80,8 @@ runs:
         # github.action_path points at this action inside the auto-checked-out
         # mathlib-ci; the repo root is three levels up (.github/actions/<name>).
         root="$(cd "${ACTION_PATH}/../../.." && pwd)"
-        pip install -r "${root}/scripts/zulip/requirements.txt"
+        bash "${root}/.github/actions/secure-pip/bootstrap.sh"
+        python3 -I -m pip install -r "${root}/scripts/zulip/requirements.txt"
 
     - name: Reconcile
       shell: bash

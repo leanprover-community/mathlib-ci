@@ -1,0 +1,10 @@
+name: Secure pip bootstrap
+description: Update Ubuntu and Python certificate stores before package downloads.
+runs:
+  using: composite
+  steps:
+    - name: Update certificate stores and pip
+      shell: bash
+      env:
+        ACTION_PATH: ${{ github.action_path }}
+      run: bash "$ACTION_PATH/bootstrap.sh"

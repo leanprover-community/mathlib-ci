@@ -8,6 +8,7 @@ on:
   push:
     branches: [master]
     paths:
+      - .github/actions/secure-pip/**
       - scripts/zulip/emoji_reconcile/**
       - scripts/zulip/reconcile_emojis.py
       - scripts/zulip/examples/**
@@ -16,6 +17,7 @@ on:
       - pytest.ini
   pull_request:
     paths:
+      - .github/actions/secure-pip/**
       - scripts/zulip/emoji_reconcile/**
       - scripts/zulip/reconcile_emojis.py
       - scripts/zulip/examples/**
@@ -34,5 +36,6 @@ jobs:
       - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
           python-version: '3.x'
-      - run: python3 -m pip install --upgrade pip pytest
+      - uses: ./.github/actions/secure-pip
+      - run: python3 -m pip install pytest
       - run: python3 -m pytest tests/zulip_emoji -v
