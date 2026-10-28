@@ -9,6 +9,7 @@ Layout:
 - `scripts/nightly/`: nightly branch automation scripts.
 - `scripts/zulip/`: Zulip integration scripts.
 - `scripts/verification/`: commit verification scripts.
+- `scripts/route/`: runner pool routing of mathlib4 build jobs.
 
 ## `pr_summary/`
 - `declarations_diff.sh`
@@ -42,6 +43,17 @@ Layout:
   or declaration ranges differ), added, or removed. Takes four arguments:
   `<base_lib_dir> <head_lib_dir> <comment_file> <full_file>`, where `base_lib_dir` and
   `head_lib_dir` are paths to `.lake/build/lib/lean` for the base and PR builds respectively.
+
+## `route/`
+- `predict_cascade.py` prints the number of Mathlib modules that a change rebuilds: the changed
+  modules and every module that imports one of them. It reads the `import_graph.dot` file of a
+  master build's `import-graph` artifact and a list of files changed since that build.
+  Usage: `predict_cascade.py <import_graph.dot> <changed_files.txt>`
+- `route_build.py` picks the runner label of the `build` job of mathlib4's `build_template.yml`
+  from that count: the `route` job runs it. It reads the changed files and the import graph through
+  the GitHub API (`gh api`) and writes `pool=`, `large=` and `modules=` to `$GITHUB_OUTPUT`. The
+  environment variables `REPO`, `HEAD_SHA`, `POOL`, `LARGE_POOL` and `GH_TOKEN` are its inputs.
+  Any error picks `POOL`. Tests: `tests/route/`.
 
 ## `reporting/`
 - `technical-debt-metrics.py`, `technical-debt-metrics.sh`

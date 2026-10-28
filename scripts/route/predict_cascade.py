@@ -1,0 +1,82 @@
+#!/usr/bin/env python3
+"""
+Usage: predict_cascade.py <import_graph.dot> <changed_files.txt>
+
+Prints the number of Mathlib modules that a change to the listed files
+rebuilds: the changed modules and every module that imports one of them,
+directly or transitively.
+
+`import_graph.dot` is the output of `lake exe graph` of a master build: an
+edge `"A" -> "B"` means that module `B` imports module `A`. The changed files
+are the files that differ between that build's commit and the change, as
+paths relative to the repository root, one per line. A file that is not a
+Mathlib module counts as no module, and a new module that is not in the
+graph counts as one module.
+
+The count is an upper bound of the modules the build compiles when the cache
+holds every module of that master build: an import that the change removes
+still counts the importers of the removed module.
+
+A change to `lakefile.lean`, `lake-manifest.json` or `lean-toolchain`
+rebuilds every module, so the count is then the number of modules in the
+graph.
+
+`route_build.py` imports `read_graph` and `cascade`.
+"""
+
+import re
+import sys
+from collections import defaultdict
+
+EDGE = re.compile(r'^\s*"([^"]+)"\s*->\s*"([^"]+)"')
+NODE = re.compile(r'^\s*"([^"]+)"\s*\[')
+REBUILD_ALL = {"lakefile.lean", "lake-manifest.json", "lean-toolchain"}
+
+
+def read_graph(lines):
+    """The modules of a `lake exe graph` file and the direct importers of each."""
+    dependents = defaultdict(set)
+    modules = set()
+    for line in lines:
+        m = EDGE.match(line)
+        if m:
+            dependents[m.group(1)].add(m.group(2))
+            modules.update(m.groups())
+            continue
+        m = NODE.match(line)
+        if m:
+            modules.add(m.group(1))
+    return dependents, modules
+
+
+def module_name(path):
+    if not (path.startswith("Mathlib/") and path.endswith(".lean")):
+        return None
+    return path[: -len(".lean")].replace("/", ".")
+
+
+def cascade(dependents, modules, changed):
+    """The number of modules that a change to the files `changed` rebuilds."""
+    if any(path in REBUILD_ALL for path in changed):
+        return len(modules)
+    seen = set()
+    stack = [m for m in map(module_name, changed) if m is not None]
+    while stack:
+        mod = stack.pop()
+        if mod in seen:
+            continue
+        seen.add(mod)
+        stack.extend(dependents.get(mod, ()))
+    return len(seen)
+
+
+def main():
+    with open(sys.argv[1], encoding="utf-8") as f:
+        dependents, modules = read_graph(f)
+    with open(sys.argv[2], encoding="utf-8") as f:
+        changed = [line.strip() for line in f if line.strip()]
+    print(cascade(dependents, modules, changed))
+
+
+if __name__ == "__main__":
+    main()
