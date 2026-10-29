@@ -3,23 +3,16 @@
 Usage: route_build.py
 
 Picks the runner pool of the `build` job of mathlib4's `build_template.yml`
-from the number of Mathlib modules that the change rebuilds, and appends
-`pool=`, `large=true|false` and `modules=<count>` to `$GITHUB_OUTPUT`. It
-also prints the verdict as a notice annotation and appends it to
-`$GITHUB_STEP_SUMMARY`.
+from the number of Mathlib modules that the change rebuilds. README.md in
+this directory describes the heuristic.
 
 Environment: `REPO` (owner/name), `HEAD_SHA` (the commit to build), `POOL`
 (the label of ordinary builds), `LARGE_POOL` (the label of builds that
 rebuild `LARGE_MODULES` modules or more) and `GH_TOKEN` (for `gh api`).
 
-The changed files come from the compare API, which lists at most 300 files;
-a longer list picks the large pool. The import graph comes from the
-`import-graph` artifact of the master build of the merge-base. That build
-uploads the graph minutes after its build step, and a failed build uploads
-none; then the graph comes from the newest earlier master build that has
-one. The cache holds the merge-base once its build step has succeeded.
-Before that, the diff starts at the earlier build's commit, so it also
-counts the master changes after it. Any error picks `POOL`.
+Appends `pool=`, `large=true|false` and `modules=<count>` to
+`$GITHUB_OUTPUT`, prints the verdict as a notice annotation, and appends it
+to `$GITHUB_STEP_SUMMARY`. Any error picks `POOL`.
 """
 
 import io
@@ -70,12 +63,12 @@ def build_succeeded(run):
 
 
 def ancestors(sha):
-    """The commits before `sha` on its branch, newest first."""
+    """The nine commits before `sha` in its history, newest first."""
     return [c["sha"] for c in api_json(f"repos/{REPO}/commits?sha={sha}&per_page=10")[1:]]
 
 
 def compare(base):
-    """The compare of `base` with the head: its merge-base, file count and changed paths."""
+    """The merge-base, the number of changed files and the changed paths between `base` and the head."""
     data = api_json(f"repos/{REPO}/compare/{base}...{HEAD_SHA}")
     files = data.get("files", [])
     paths = [f["filename"] for f in files] + [f["previous_filename"] for f in files if "previous_filename" in f]
@@ -92,10 +85,11 @@ def predict():
     url = graph_url(run) if run else None
     if url is None:
         cached = run is not None and build_succeeded(run)
-        for base in ancestors(merge_base):
-            run = master_run(base)
+        for candidate in ancestors(merge_base):
+            run = master_run(candidate)
             url = graph_url(run) if run else None
             if url:
+                base = candidate
                 break
         else:
             return False, None, f"no master build with an import graph at or before the merge-base {merge_base}"
@@ -124,7 +118,7 @@ def append(env, text):
 def main():
     try:
         large, modules, why = predict()
-    except Exception:  # any error picks the caller's pool
+    except Exception:  # any error picks POOL
         traceback.print_exc()
         large, modules, why = False, None, "no prediction"
     pool = os.environ["LARGE_POOL"] if large else os.environ["POOL"]

@@ -45,15 +45,10 @@ Layout:
   `head_lib_dir` are paths to `.lake/build/lib/lean` for the base and PR builds respectively.
 
 ## `route/`
-- `predict_cascade.py` prints the number of Mathlib modules that a change rebuilds: the changed
-  modules and every module that imports one of them. It reads the `import_graph.dot` file of a
-  master build's `import-graph` artifact and a list of files changed since that build.
-  Usage: `predict_cascade.py <import_graph.dot> <changed_files.txt>`
 - `route_build.py` picks the runner label of the `build` job of mathlib4's `build_template.yml`
-  from that count: the `route` job runs it. It reads the changed files and the import graph through
-  the GitHub API (`gh api`) and writes `pool=`, `large=` and `modules=` to `$GITHUB_OUTPUT`. The
-  environment variables `REPO`, `HEAD_SHA`, `POOL`, `LARGE_POOL` and `GH_TOKEN` are its inputs.
-  Any error picks `POOL`. Tests: `tests/route/`.
+  from the number of Mathlib modules that the change rebuilds. `predict_cascade.py` counts them
+  from the `import_graph.dot` file of a master build. `route/README.md` states the motivation and
+  the heuristic. Tests: `tests/route/`.
 
 ## `reporting/`
 - `technical-debt-metrics.py`, `technical-debt-metrics.sh`
