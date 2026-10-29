@@ -11,7 +11,7 @@ A build of a branch compiles the modules that the branch changes and every modul
 The script counts the modules that the change rebuilds, and calls the build large at 2,000 modules or more.
 
 1. The changed files come from the compare API between `master` and the commit to build. The API lists at most 300 files. A longer list marks the build large without a count.
-2. A changed file `Mathlib/A/B.lean` is the module `Mathlib.A.B`. A file outside `Mathlib/` counts no module. The files `lakefile.lean`, `lake-manifest.json` and `lean-toolchain` count every module.
+2. A change to `lakefile.lean`, `lake-manifest.json` or `lean-toolchain` rebuilds every module and marks the build large without a count. Otherwise a changed file `Mathlib/A/B.lean` is the module `Mathlib.A.B`, and a file outside `Mathlib/` counts no module.
 3. The import graph is the `import_graph.dot` file in the `import-graph-dot` artifact of a master build, which `lake exe graph` writes. The count is the number of changed modules plus every module that imports one of them, directly or transitively. A new module that the graph does not have counts one.
 4. The graph comes from the master build of the merge-base. That build uploads the graph right after its build step, a few minutes after the push, and a failed build uploads none. Until then, the graph comes from the newest earlier master build that has one. The cache holds the merge-base once its build step has succeeded, so the diff keeps its start at the merge-base. While that build step runs, or after it failed, the diff starts at the earlier build's commit, so it also counts the master changes after it.
 

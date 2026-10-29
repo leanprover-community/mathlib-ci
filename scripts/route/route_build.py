@@ -23,7 +23,7 @@ import sys
 import traceback
 import zipfile
 
-from predict_cascade import cascade, read_graph
+from predict_cascade import REBUILD_ALL, cascade, read_graph
 
 LARGE_MODULES = 2000
 COMPARE_FILE_LIMIT = 300
@@ -80,6 +80,9 @@ def predict():
     merge_base, nfiles, paths = compare("master")
     if nfiles >= COMPARE_FILE_LIMIT:
         return True, None, f"{nfiles} or more changed files"
+    for path in paths:
+        if path in REBUILD_ALL:
+            return True, None, f"{path} changed, so every module rebuilds"
     base = since = merge_base
     run = master_run(merge_base)
     url = graph_url(run) if run else None

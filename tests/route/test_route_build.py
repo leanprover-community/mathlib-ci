@@ -131,6 +131,11 @@ def test_a_renamed_file_counts_both_names(responses):
     assert rb.predict()[1] == 5
 
 
+def test_a_build_configuration_change_is_large_without_a_graph(responses):
+    responses[path_compare("master")] = compare_response(MB, ["lean-toolchain", "Mathlib/A.lean"])
+    assert rb.predict() == (True, None, "lean-toolchain changed, so every module rebuilds")
+
+
 def test_300_files_are_large_without_a_graph(responses):
     responses[path_compare("master")] = compare_response(MB, [f"docs/{i}.md" for i in range(300)])
     assert rb.predict() == (True, None, "300 or more changed files")
