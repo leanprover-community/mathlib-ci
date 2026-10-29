@@ -61,7 +61,7 @@ GRAPH_AT_MERGE_BASE = {
 GRAPH_AT_PARENT = {
     **GRAPH_AT_MERGE_BASE,
     f"repos/{REPO}/actions/runs/11/artifacts?name=import-graph-dot": artifacts(),
-    f"repos/{REPO}/commits?sha={MB}&per_page=6": [{"sha": MB}, {"sha": P1}],
+    f"repos/{REPO}/commits?sha={MB}&per_page={rb.ANCESTORS + 1}": [{"sha": MB}, {"sha": P1}],
     f"repos/{REPO}/actions/runs?head_sha={P1}&event=push&branch=master": runs(21),
     f"repos/{REPO}/actions/runs/21/artifacts?name=import-graph-dot": artifacts(GRAPH_URL),
 }

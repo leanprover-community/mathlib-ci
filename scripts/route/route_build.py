@@ -20,14 +20,15 @@ shorter builds.
   So is a change to a file in `REBUILD_ALL`.
 - The import graph is `import_graph.dot` (`lake exe graph`) in the
   `import-graph-dot` artifact of a master build. The script takes the graph
-  of the newest master build at or before the merge-base that has one.
+  of the newest master build at or before the merge-base that has one, among
+  the merge-base and its `ANCESTORS` previous commits (`master` is linear).
 - When that build is older than the merge-base and the merge-base's build
   step has not succeeded, the cache does not hold the merge-base, so the
   diff starts at the older build's commit.
 
 The count is an upper bound when the cache holds the base build. It does not
-see a build that stops at a compile error, or a cache that an earlier build
-of the same branch filled.
+see a build that stops at a compile error, or a cache that an earlier run of
+the same commit filled.
 
 Environment: `REPO` (owner/name), `HEAD_SHA` (the commit to build) and
 `GH_TOKEN` (for `gh api`). Appends `large=true|false` and `modules=<count>`
@@ -46,7 +47,8 @@ from collections import defaultdict
 
 LARGE_MODULES = 2000
 COMPARE_FILE_LIMIT = 300
-ANCESTORS = 5
+# A bors batch lands several commits at once, and only the newest has a master build.
+ANCESTORS = 50
 REBUILD_ALL = {"lakefile.lean", "lake-manifest.json", "lean-toolchain"}
 MASTER_WORKFLOW = "continuous integration"
 EDGE = re.compile(r'^\s*"([^"]+)"\s*->\s*"([^"]+)"')
