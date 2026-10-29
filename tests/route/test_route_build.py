@@ -14,7 +14,6 @@ REPO = "owner/repo"
 HEAD = "h" * 40
 MB = "m" * 40  # the merge-base
 P1 = "p" * 40  # its parent
-P2 = "q" * 40
 GRAPH_URL = "https://api.github.com/repos/owner/repo/actions/artifacts/1/zip"
 
 # `B` imports `A`; `C` and `D` import `B`.
@@ -55,34 +54,25 @@ def commits_response(*shas):
     return [{"sha": sha} for sha in shas]
 
 
-class FakeApi:
-    """`route_build.api` backed by a dict of canned responses, recording the calls."""
+def fake_api(responses):
+    """`route_build.api` backed by canned responses; any other call is an error."""
 
-    def __init__(self, responses):
-        self.responses = responses
-        self.calls = []
-
-    def __call__(self, path, binary=False):
-        self.calls.append(path)
-        if path not in self.responses:
+    def api(path, binary=False):
+        if path not in responses:
             raise AssertionError(f"unexpected API call {path}")
-        response = self.responses[path]
-        if binary:
-            return response
-        return json.dumps(response)
+        return responses[path] if binary else json.dumps(responses[path])
+
+    return api
 
 
 @pytest.fixture
-def fake_api(monkeypatch):
+def responses(monkeypatch):
+    """Installs the canned responses in `route_build`; tests update the dict before calling."""
     monkeypatch.setattr(rb, "REPO", REPO)
     monkeypatch.setattr(rb, "HEAD_SHA", HEAD)
-
-    def install(responses):
-        api = FakeApi(responses)
-        monkeypatch.setattr(rb, "api", api)
-        return api
-
-    return install
+    canned = {}
+    monkeypatch.setattr(rb, "api", fake_api(canned))
+    return canned
 
 
 def path_compare(base):
@@ -105,100 +95,80 @@ def path_commits(sha):
     return f"repos/{REPO}/commits?sha={sha}&per_page=10"
 
 
-COMMON = {
+# The merge-base's master build has uploaded its graph; the change touches `B`.
+GRAPH_AT_MERGE_BASE = {
     path_compare("master"): compare_response(MB, ["Mathlib/B.lean", "docs/x.md"]),
     path_runs(MB): runs_response((11, "continuous integration"), (12, "other workflow")),
     path_artifacts(11): artifacts_response((GRAPH_URL, False)),
     GRAPH_URL: zipped(),
 }
 
+# The merge-base's master build has no graph; its parent's build has one.
+GRAPH_AT_PARENT = {
+    **GRAPH_AT_MERGE_BASE,
+    path_artifacts(11): artifacts_response(),
+    path_commits(MB): commits_response(MB, P1),
+    path_runs(P1): runs_response((21, "continuous integration")),
+    path_artifacts(21): artifacts_response((GRAPH_URL, False)),
+}
 
-def test_merge_base_build_with_graph(fake_api):
-    api = fake_api(COMMON)
+
+def test_graph_of_the_merge_base_build(responses):
+    responses.update(GRAPH_AT_MERGE_BASE)
     assert rb.predict() == (False, 3, f"3 Mathlib modules to rebuild since the master build {MB}")
-    assert api.calls == [path_compare("master"), path_runs(MB), path_artifacts(11), GRAPH_URL]
 
 
-def test_large_cascade(fake_api, monkeypatch):
+def test_large_at_the_threshold(responses, monkeypatch):
     monkeypatch.setattr(rb, "LARGE_MODULES", 3)
-    fake_api(COMMON)
+    responses.update(GRAPH_AT_MERGE_BASE)
     assert rb.predict()[0] is True
 
 
-def test_renamed_file_counts_both_names(fake_api):
-    fake_api({**COMMON, path_compare("master"): compare_response(MB, [], renamed=[("Mathlib/A.lean", "Mathlib/New.lean")])})
+def test_a_renamed_file_counts_both_names(responses):
+    responses.update(GRAPH_AT_MERGE_BASE)
+    responses[path_compare("master")] = compare_response(MB, [], renamed=[("Mathlib/A.lean", "Mathlib/New.lean")])
     # `New` is not in the graph (1 module); the old name `A` rebuilds `B`, `C` and `D`.
     assert rb.predict()[1] == 5
 
 
-def test_many_files_pick_the_large_pool_without_a_graph(fake_api):
-    api = fake_api({path_compare("master"): compare_response(MB, [f"docs/{i}.md" for i in range(300)])})
+def test_300_files_are_large_without_a_graph(responses):
+    responses[path_compare("master")] = compare_response(MB, [f"docs/{i}.md" for i in range(300)])
     assert rb.predict() == (True, None, "300 or more changed files")
-    assert api.calls == [path_compare("master")]
 
 
-def test_graph_pending_and_merge_base_cached(fake_api):
-    """The merge-base's build succeeded but has not uploaded its graph: use the parent's graph, keep the merge-base diff."""
-    api = fake_api({
-        **COMMON,
-        path_artifacts(11): artifacts_response(),
-        path_jobs(11): jobs_response("success"),
-        path_commits(MB): commits_response(MB, P1, P2),
-        path_runs(P1): runs_response((21, "continuous integration")),
-        path_artifacts(21): artifacts_response((GRAPH_URL, False)),
-    })
+def test_graph_pending_and_merge_base_cached(responses):
+    """The merge-base's build step succeeded: its parent's graph with the merge-base diff."""
+    responses.update(GRAPH_AT_PARENT)
+    responses[path_jobs(11)] = jobs_response("success")
     assert rb.predict() == (False, 3, f"3 Mathlib modules to rebuild since the merge-base {MB} (import graph of the master build {P1})")
-    assert path_compare(P1) not in api.calls
 
 
-def test_graph_pending_and_merge_base_building(fake_api):
-    """The merge-base's build step has not succeeded: diff from the parent, so master's own changes count."""
-    api = fake_api({
-        **COMMON,
-        path_artifacts(11): artifacts_response(),
-        path_jobs(11): jobs_response(None),
-        path_commits(MB): commits_response(MB, P1, P2),
-        path_runs(P1): runs_response((21, "continuous integration")),
-        path_artifacts(21): artifacts_response((GRAPH_URL, False)),
-        path_compare(P1): compare_response(P1, ["Mathlib/B.lean", "Mathlib/A.lean"]),
-    })
+def test_graph_pending_and_merge_base_building(responses):
+    """The merge-base's build step has not succeeded: the diff from the parent counts master's own change to `A`."""
+    responses.update(GRAPH_AT_PARENT)
+    responses[path_jobs(11)] = jobs_response(None)
+    responses[path_compare(P1)] = compare_response(P1, ["Mathlib/B.lean", "Mathlib/A.lean"])
     assert rb.predict() == (False, 4, f"4 Mathlib modules to rebuild since the master build {P1}")
-    assert path_compare(P1) in api.calls
 
 
-def test_merge_base_without_a_build(fake_api):
-    """No master build of the merge-base (failed or cancelled run): the parent's graph and diff."""
-    fake_api({
-        **COMMON,
-        path_runs(MB): runs_response(),
-        path_commits(MB): commits_response(MB, P1),
-        path_runs(P1): runs_response((21, "continuous integration")),
-        path_artifacts(21): artifacts_response((GRAPH_URL, False)),
-        path_compare(P1): compare_response(P1, ["Mathlib/C.lean"]),
-    })
+def test_merge_base_without_a_master_build(responses):
+    responses.update(GRAPH_AT_PARENT)
+    responses[path_runs(MB)] = runs_response()
+    responses[path_compare(P1)] = compare_response(P1, ["Mathlib/C.lean"])
     assert rb.predict() == (False, 1, f"1 Mathlib modules to rebuild since the master build {P1}")
 
 
-def test_expired_graph_is_skipped(fake_api):
-    fake_api({
-        **COMMON,
-        path_artifacts(11): artifacts_response((GRAPH_URL, True)),
-        path_jobs(11): jobs_response("success"),
-        path_commits(MB): commits_response(MB, P1),
-        path_runs(P1): runs_response((21, "continuous integration")),
-        path_artifacts(21): artifacts_response((GRAPH_URL, False)),
-    })
-    assert rb.predict()[1] == 3
+def test_an_expired_graph_does_not_count(responses):
+    responses.update(GRAPH_AT_PARENT)
+    responses[path_artifacts(11)] = artifacts_response((GRAPH_URL, True))
+    responses[path_jobs(11)] = jobs_response("success")
+    assert rb.predict()[2].endswith(f"(import graph of the master build {P1})")
 
 
-def test_no_graph_at_all(fake_api):
-    fake_api({
-        **COMMON,
-        path_artifacts(11): artifacts_response(),
-        path_jobs(11): jobs_response("failure"),
-        path_commits(MB): commits_response(MB, P1),
-        path_runs(P1): runs_response(),
-    })
+def test_no_graph_at_all(responses):
+    responses.update(GRAPH_AT_PARENT)
+    responses[path_jobs(11)] = jobs_response("failure")
+    responses[path_runs(P1)] = runs_response()
     assert rb.predict() == (False, None, f"no master build with an import graph at or before the merge-base {MB}")
 
 
@@ -213,18 +183,17 @@ def run_main(monkeypatch, tmp_path, capsys):
     return capsys.readouterr(), output.read_text(), summary.read_text()
 
 
-def test_main_writes_the_verdict(fake_api, monkeypatch, tmp_path, capsys):
+def test_main_writes_the_verdict(responses, monkeypatch, tmp_path, capsys):
     monkeypatch.setattr(rb, "LARGE_MODULES", 3)
-    fake_api(COMMON)
+    responses.update(GRAPH_AT_MERGE_BASE)
     captured, output, summary = run_main(monkeypatch, tmp_path, capsys)
     assert output == "pool=pr-large\nlarge=true\nmodules=3\n"
     assert summary == f"Runner pool: `pr-large` (large: true; 3 Mathlib modules to rebuild since the master build {MB})\n"
-    assert f"::notice title=Runner pool::pr-large (large: true; 3 Mathlib modules" in captured.out
+    assert "::notice title=Runner pool::pr-large (large: true; 3 Mathlib modules" in captured.out
 
 
-def test_main_picks_the_pool_on_an_error(fake_api, monkeypatch, tmp_path, capsys):
-    fake_api({})  # every API call fails
-    captured, output, summary = run_main(monkeypatch, tmp_path, capsys)
+def test_main_picks_the_ordinary_pool_on_an_error(responses, monkeypatch, tmp_path, capsys):
+    captured, output, summary = run_main(monkeypatch, tmp_path, capsys)  # every API call fails
     assert output == "pool=pr\nlarge=false\nmodules=\n"
     assert "no prediction" in captured.out
-    assert "unexpected API call" in captured.err
+    assert "Traceback" in captured.err
