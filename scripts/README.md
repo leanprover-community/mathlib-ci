@@ -46,9 +46,8 @@ Layout:
 
 ## `route/`
 - `route_build.py` predicts whether a build of mathlib4 is large, from the number of Mathlib
-  modules that the change rebuilds; the `build` job of `build_template.yml` picks its runner label
-  from the verdict. `predict_cascade.py` counts the modules from the `import_graph.dot` file of a
-  master build. `route/README.md` states the motivation and the heuristic. Tests: `tests/route/`.
+  modules that the change rebuilds. The `build` job of `build_template.yml` picks its runner
+  label from the verdict. The docstring describes the heuristic.
 
 ## `reporting/`
 - `technical-debt-metrics.py`, `technical-debt-metrics.sh`

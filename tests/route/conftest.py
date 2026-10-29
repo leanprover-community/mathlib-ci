@@ -1,4 +1,4 @@
-"""Put the scripts' source directory on sys.path so tests can import `predict_cascade` and `route_build`."""
+"""Put the scripts' source directory on sys.path so tests can import `route_build`."""
 
 from __future__ import annotations
 

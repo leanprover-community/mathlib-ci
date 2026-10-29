@@ -10,11 +10,13 @@ on:
       - scripts/route/**
       - tests/route/**
       - .github/workflows/test_route.yml
+      - pytest.ini
   pull_request:
     paths:
       - scripts/route/**
       - tests/route/**
       - .github/workflows/test_route.yml
+      - pytest.ini
 
 permissions:
   contents: read
