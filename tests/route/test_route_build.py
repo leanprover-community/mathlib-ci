@@ -175,8 +175,6 @@ def test_no_graph_at_all(responses):
 def run_main(monkeypatch, tmp_path, capsys):
     output = tmp_path / "output"
     summary = tmp_path / "summary"
-    monkeypatch.setenv("POOL", "pr")
-    monkeypatch.setenv("LARGE_POOL", "pr-large")
     monkeypatch.setenv("GITHUB_OUTPUT", str(output))
     monkeypatch.setenv("GITHUB_STEP_SUMMARY", str(summary))
     rb.main()
@@ -187,13 +185,13 @@ def test_main_writes_the_verdict(responses, monkeypatch, tmp_path, capsys):
     monkeypatch.setattr(rb, "LARGE_MODULES", 3)
     responses.update(GRAPH_AT_MERGE_BASE)
     captured, output, summary = run_main(monkeypatch, tmp_path, capsys)
-    assert output == "pool=pr-large\nlarge=true\nmodules=3\n"
-    assert summary == f"Runner pool: `pr-large` (large: true; 3 Mathlib modules to rebuild since the master build {MB})\n"
-    assert "::notice title=Runner pool::pr-large (large: true; 3 Mathlib modules" in captured.out
+    assert output == "large=true\nmodules=3\n"
+    assert summary == f"Large build: true (3 Mathlib modules to rebuild since the master build {MB})\n"
+    assert "::notice title=Large build::true (3 Mathlib modules" in captured.out
 
 
-def test_main_picks_the_ordinary_pool_on_an_error(responses, monkeypatch, tmp_path, capsys):
+def test_main_gives_large_false_on_an_error(responses, monkeypatch, tmp_path, capsys):
     captured, output, summary = run_main(monkeypatch, tmp_path, capsys)  # every API call fails
-    assert output == "pool=pr\nlarge=false\nmodules=\n"
+    assert output == "large=false\nmodules=\n"
     assert "no prediction" in captured.out
     assert "Traceback" in captured.err

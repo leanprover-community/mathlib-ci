@@ -1,6 +1,6 @@
 # Runner pool routing
 
-The `route` job of mathlib4's `build_template.yml` runs `route_build.py` before the `build` job. The script predicts how many Mathlib modules the build compiles and picks the runner label of `build` from the count.
+The `route` job of mathlib4's `build_template.yml` runs `route_build.py` before the `build` job. The script predicts how many Mathlib modules the build compiles and whether the build is large. The `build` job picks its runner label from the verdict.
 
 ## Motivation
 
@@ -21,7 +21,7 @@ The threshold comes from a sample of 127 PR builds: at 2,000 modules the count m
 
 ## Interface
 
-`route_build.py` reads the environment variables `REPO` (owner/name), `HEAD_SHA` (the commit to build), `POOL` (the label of ordinary builds), `LARGE_POOL` (the label of large builds) and `GH_TOKEN` (for `gh api`). It appends `pool=<label>`, `large=true|false` and `modules=<count>` to `$GITHUB_OUTPUT`, prints the verdict as a notice annotation, and appends it to `$GITHUB_STEP_SUMMARY`. On any error it picks `POOL` and prints the traceback. Each API call has a 30 second timeout.
+`route_build.py` reads the environment variables `REPO` (owner/name), `HEAD_SHA` (the commit to build) and `GH_TOKEN` (for `gh api`). It appends `large=true|false` and `modules=<count>` to `$GITHUB_OUTPUT`, prints the verdict as a notice annotation, and appends it to `$GITHUB_STEP_SUMMARY`. On any error it gives `large=false` and prints the traceback. Each API call has a 30 second timeout.
 
 `predict_cascade.py <import_graph.dot> <changed_files.txt>` prints the count for a graph file and a list of changed paths, one per line. `route_build.py` imports it.
 

@@ -2,17 +2,17 @@
 """
 Usage: route_build.py
 
-Picks the runner pool of the `build` job of mathlib4's `build_template.yml`
-from the number of Mathlib modules that the change rebuilds. README.md in
-this directory describes the heuristic.
+Predicts whether a build of mathlib4 is large: whether the change rebuilds
+`LARGE_MODULES` Mathlib modules or more. The `route` job of mathlib4's
+`build_template.yml` runs it, and the `build` job picks its runner label
+from the verdict. README.md in this directory describes the heuristic.
 
-Environment: `REPO` (owner/name), `HEAD_SHA` (the commit to build), `POOL`
-(the label of ordinary builds), `LARGE_POOL` (the label of builds that
-rebuild `LARGE_MODULES` modules or more) and `GH_TOKEN` (for `gh api`).
+Environment: `REPO` (owner/name), `HEAD_SHA` (the commit to build) and
+`GH_TOKEN` (for `gh api`).
 
-Appends `pool=`, `large=true|false` and `modules=<count>` to
-`$GITHUB_OUTPUT`, prints the verdict as a notice annotation, and appends it
-to `$GITHUB_STEP_SUMMARY`. Any error picks `POOL`.
+Appends `large=true|false` and `modules=<count>` to `$GITHUB_OUTPUT`,
+prints the verdict as a notice annotation, and appends it to
+`$GITHUB_STEP_SUMMARY`. Any error gives `large=false`.
 """
 
 import io
@@ -118,15 +118,14 @@ def append(env, text):
 def main():
     try:
         large, modules, why = predict()
-    except Exception:  # any error picks POOL
+    except Exception:  # any error gives large=false
         traceback.print_exc()
         large, modules, why = False, None, "no prediction"
-    pool = os.environ["LARGE_POOL"] if large else os.environ["POOL"]
     large = "true" if large else "false"
-    print(f"Runner pool: {pool} (large: {large}; {why})")
-    print(f"::notice title=Runner pool::{pool} (large: {large}; {why})")
-    append("GITHUB_STEP_SUMMARY", f"Runner pool: `{pool}` (large: {large}; {why})\n")
-    append("GITHUB_OUTPUT", f"pool={pool}\nlarge={large}\nmodules={'' if modules is None else modules}\n")
+    print(f"Large build: {large} ({why})")
+    print(f"::notice title=Large build::{large} ({why})")
+    append("GITHUB_STEP_SUMMARY", f"Large build: {large} ({why})\n")
+    append("GITHUB_OUTPUT", f"large={large}\nmodules={'' if modules is None else modules}\n")
 
 
 if __name__ == "__main__":
