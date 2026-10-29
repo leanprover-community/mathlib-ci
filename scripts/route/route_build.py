@@ -63,8 +63,8 @@ def build_succeeded(run):
 
 
 def ancestors(sha):
-    """The nine commits before `sha` in its history, newest first."""
-    return [c["sha"] for c in api_json(f"repos/{REPO}/commits?sha={sha}&per_page=10")[1:]]
+    """The five commits before `sha` in its history, newest first."""
+    return [c["sha"] for c in api_json(f"repos/{REPO}/commits?sha={sha}&per_page=6")[1:]]
 
 
 def compare(base):

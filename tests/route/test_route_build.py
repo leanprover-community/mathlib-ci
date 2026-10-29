@@ -92,7 +92,7 @@ def path_jobs(run):
 
 
 def path_commits(sha):
-    return f"repos/{REPO}/commits?sha={sha}&per_page=10"
+    return f"repos/{REPO}/commits?sha={sha}&per_page=6"
 
 
 # The merge-base's master build has uploaded its graph; the change touches `B`.
