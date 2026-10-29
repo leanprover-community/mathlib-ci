@@ -53,7 +53,7 @@ def master_run(sha):
 
 def graph_url(run):
     """The download URL of the import graph of run `run`, or None."""
-    artifacts = api_json(f"repos/{REPO}/actions/runs/{run}/artifacts?name=import-graph")
+    artifacts = api_json(f"repos/{REPO}/actions/runs/{run}/artifacts?name=import-graph-dot")
     return next((a["archive_download_url"] for a in artifacts["artifacts"] if not a["expired"]), None)
 
 

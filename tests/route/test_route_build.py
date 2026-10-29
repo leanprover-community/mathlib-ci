@@ -84,7 +84,7 @@ def path_runs(sha):
 
 
 def path_artifacts(run):
-    return f"repos/{REPO}/actions/runs/{run}/artifacts?name=import-graph"
+    return f"repos/{REPO}/actions/runs/{run}/artifacts?name=import-graph-dot"
 
 
 def path_jobs(run):
