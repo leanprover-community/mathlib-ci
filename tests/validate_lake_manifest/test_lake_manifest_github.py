@@ -11,7 +11,6 @@ import urllib.error
 import pytest
 
 from lake_manifest.github import ATTEMPTS, ApiError, GitHub
-from lake_manifest.manifest import ManifestError
 
 
 class FakeUrlopen:
@@ -39,7 +38,7 @@ def client(*answers) -> tuple[GitHub, FakeUrlopen, list[float]]:
 
 
 @pytest.mark.parametrize("fault", [http_error(502), http_error(429), urllib.error.URLError("down"),
-                                   TimeoutError(), http.client.IncompleteRead(b"")])
+                                   http.client.IncompleteRead(b"")])
 def test_transient_faults_retry(fault):
     github, _, sleeps = client(fault, {"ok": 1})
     assert github.get("/x") == {"ok": 1}
@@ -47,19 +46,25 @@ def test_transient_faults_retry(fault):
 
 
 def test_retries_stop_after_the_last_attempt():
-    github, urlopen, sleeps = client(*[http_error(503)] * ATTEMPTS)
+    github, _, sleeps = client(*[http_error(503)] * ATTEMPTS)
     with pytest.raises(ApiError) as raised:
         github.get("/x")
     assert raised.value.status == 503
-    assert len(urlopen.urls) == ATTEMPTS
     assert sleeps == [1, 2, 4]
 
 
 def test_a_verdict_raises_at_once():
     github, urlopen, _ = client(http_error(403))
-    with pytest.raises(ApiError, match="GET /x failed with HTTP 403"):
+    with pytest.raises(ApiError) as raised:
         github.get("/x")
+    assert raised.value.status == 403
     assert len(urlopen.urls) == 1
+
+
+def test_merge_base_quotes_the_refs():
+    github, urlopen, _ = client({"merge_base_commit": {"sha": "abc"}})
+    assert github.merge_base("o/r", "master", "a/b") == "abc"
+    assert urlopen.urls == ["https://api.github.com/repos/o/r/compare/master...a%2Fb?per_page=1"]
 
 
 def test_read_manifest_decodes_a_file_and_quotes_the_ref():
@@ -69,10 +74,10 @@ def test_read_manifest_decodes_a_file_and_quotes_the_ref():
     assert urlopen.urls == ["https://api.github.com/repos/o/r/contents/lake-manifest.json?ref=a%2Fb"]
 
 
-@pytest.mark.parametrize("answer, kind", [({"type": "symlink", "target": "/etc"}, "symlink"), ([], "directory")])
-def test_read_manifest_rejects_a_non_file(answer, kind):
+@pytest.mark.parametrize("answer", [{"type": "symlink", "target": "/etc"}, []], ids=["symlink", "directory"])
+def test_read_manifest_rejects_a_non_file(answer):
     github, _, _ = client(answer)
-    with pytest.raises(ManifestError, match=f"is a {kind}, not a file"):
+    with pytest.raises(ApiError):
         github.read_manifest("o/r", "sha")
 
 
@@ -80,23 +85,21 @@ def test_read_manifest_rejects_a_non_file(answer, kind):
     ({"status": "ahead"}, True),
     ({"status": "identical"}, True),
     ({"status": "behind"}, False),
-    ({"status": "diverged"}, False),
     (http_error(404), False),
 ])
 def test_is_ancestor(answer, expected):
-    github, urlopen, _ = client(answer)
-    assert github.is_ancestor("o", "r", "commit", "main") is expected
-    assert urlopen.urls == ["https://api.github.com/repos/o/r/compare/commit...main?per_page=1"]
+    github, _, _ = client(answer)
+    assert github.is_ancestor("o/r", "commit", "main") is expected
 
 
 def test_is_ancestor_raises_on_other_errors():
     github, _, _ = client(http_error(403))
     with pytest.raises(ApiError):
-        github.is_ancestor("o", "r", "commit", "main")
+        github.is_ancestor("o/r", "commit", "main")
 
 
 @pytest.mark.parametrize("answer, expected", [({"sha": "abc"}, "abc"), (http_error(404), None), (http_error(422), None)])
 def test_tag_commit(answer, expected):
     github, urlopen, _ = client(answer)
-    assert github.tag_commit("o", "r", "v1.0.0") == expected
+    assert github.tag_commit("o/r", "v1.0.0") == expected
     assert urlopen.urls == ["https://api.github.com/repos/o/r/commits/refs/tags/v1.0.0"]

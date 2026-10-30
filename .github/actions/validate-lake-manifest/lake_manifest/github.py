@@ -16,22 +16,19 @@ import urllib.request
 from typing import Any, Callable
 from urllib.parse import quote
 
-from .manifest import ManifestError
-
 ATTEMPTS = 4
 TIMEOUT_SECONDS = 30
 USER_AGENT = "mathlib-ci/validate-lake-manifest"
-# What one HTTP request can raise. `OSError` covers `urllib.error.URLError`
-# and its subclass `HTTPError`; `http.client.HTTPException` covers
-# `IncompleteRead` on a truncated body.
+# `OSError` covers `urllib.error.URLError`; `http.client.HTTPException`
+# covers `IncompleteRead` on a truncated body.
 TRANSPORT_ERRORS = (OSError, http.client.HTTPException)
 
 
 class ApiError(Exception):
-    """A GitHub API request that failed. `status` is `None` for a transport fault."""
+    """A request that failed, or an answer the validation cannot use. `status` is the HTTP status, if any."""
 
-    def __init__(self, path: str, status: int | None):
-        super().__init__(f"GET {path} failed" + (f" with HTTP {status}" if status else ""))
+    def __init__(self, message: str, status: int | None = None):
+        super().__init__(message)
         self.status = status
 
 
@@ -70,38 +67,40 @@ class GitHub:
                     return json.load(response)
             except urllib.error.HTTPError as error:
                 if not is_transient(error.code) or last:
-                    raise ApiError(path, error.code) from None
+                    raise ApiError(f"GET {path} failed with HTTP {error.code}", error.code) from None
             except TRANSPORT_ERRORS:
                 if last:
-                    raise ApiError(path, None) from None
+                    raise ApiError(f"GET {path} failed") from None
             self.sleep(2**attempt)
         raise AssertionError("unreachable: the loop returns or raises")
 
     def compare(self, repository: str, base: str, head: str) -> dict:
-        """The comparison of `base...head`, with at most one commit listed."""
         return self.get(f"/repos/{repository}/compare/{quote(base, safe='')}...{quote(head, safe='')}?per_page=1")
+
+    def merge_base(self, repository: str, base: str, head: str) -> str:
+        return self.compare(repository, base, head)["merge_base_commit"]["sha"]
 
     def read_manifest(self, repository: str, ref: str) -> str:
         """The text of lake-manifest.json at `ref`. Nothing lands on disk."""
         answer = self.get(f"/repos/{repository}/contents/lake-manifest.json?ref={quote(ref, safe='')}")
         if not isinstance(answer, dict) or answer.get("type") != "file":
-            kind = answer.get("type") if isinstance(answer, dict) else "directory"
-            raise ManifestError(f"lake-manifest.json at `{ref}` is a {kind}, not a file.")
+            raise ApiError(f"lake-manifest.json at `{ref}` is not a file.")
         return base64.b64decode(answer["content"]).decode("utf-8")
 
-    def is_ancestor(self, owner: str, repo: str, commit: str, tip: str) -> bool:
+    def is_ancestor(self, repository: str, commit: str, tip: str) -> bool:
+        """Whether `commit` is `tip` or an ancestor of `tip`. False for an unknown commit."""
         try:
-            status = self.compare(f"{owner}/{repo}", commit, tip)["status"]
+            status = self.compare(repository, commit, tip)["status"]
         except ApiError as error:
             if error.status == 404:
                 return False
             raise
         return status in ("ahead", "identical")
 
-    def tag_commit(self, owner: str, repo: str, tag: str) -> str | None:
-        # The commits endpoint peels an annotated tag to its commit.
+    def tag_commit(self, repository: str, tag: str) -> str | None:
+        """The commit of `tag`, or `None` when the tag does not exist. An annotated tag is peeled."""
         try:
-            return self.get(f"/repos/{owner}/{repo}/commits/{quote('refs/tags/' + tag, safe='/')}")["sha"]
+            return self.get(f"/repos/{repository}/commits/refs/tags/{quote(tag, safe='')}")["sha"]
         except ApiError as error:
             if error.status in (404, 422):
                 return None

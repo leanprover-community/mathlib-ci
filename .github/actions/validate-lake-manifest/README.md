@@ -32,10 +32,9 @@ warns, even with `strict: true`.
 The `lake_manifest` package runs as `python3 -m lake_manifest` and uses only the
 standard library.
 
-- `manifest.py` parses the dependencies.
-- `rules.py` turns each broken rule into a finding with its fix.
-- `validate.py` reads the manifests and applies the rules.
-- `report.py` sets the level of each finding and writes the annotations.
 - `github.py` makes the REST calls, with retries for transient failures.
+- `validate.py` parses the manifests and applies the rules. Each broken rule is
+  a finding.
+- `__main__.py` sets the level of each finding and prints the annotations.
 
 `tests/validate_lake_manifest/` holds the tests.

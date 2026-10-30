@@ -1,6 +1,9 @@
 """Validate lake-manifest.json at a commit and report the findings as annotations.
 
-Exits 1 when a finding is an error or the manifest cannot be read.
+A field finding is an error. A pin finding is an error with `--strict`
+and a warning otherwise. With `--allow-older-pins`, an older pin is a
+warning on every run. Exits 1 on an error or when the manifest cannot
+be read.
 """
 
 from __future__ import annotations
@@ -8,44 +11,58 @@ from __future__ import annotations
 import argparse
 import os
 import sys
-from typing import Mapping, TextIO
 
 from .github import ApiError, GitHub
-from .manifest import ManifestError
-from .report import Policy, annotate
-from .validate import Client, validate
+from .validate import FIELD, FILE, OLDER_PIN, Finding, validate
+
+OVERRIDE_VARIABLE = "MATHLIB_ALLOW_OLDER_DEPENDENCY_PINS"
+STRICT_NOTE = "Note: This check fails the Build job on bors runs."
+ADMIN_NOTE = f"Note: For an intentional revert, a repository admin can set the variable `{OVERRIDE_VARIABLE}` to `true`."
+OVERRIDE_NOTE = f"Note: The variable `{OVERRIDE_VARIABLE}` is `true`, so this check only warns."
 
 
-def main(
-    argv: list[str] | None = None,
-    env: Mapping[str, str] | None = None,
-    client: Client | None = None,
-    out: TextIO | None = None,
-) -> int:
+def annotate(finding: Finding, strict: bool, allow_older_pins: bool) -> tuple[str, str]:
+    """The level of a finding and the message of its annotation."""
+    if finding.kind == FIELD:
+        return "error", "\n".join((finding.problem, *finding.advice))
+    if finding.kind == OLDER_PIN and allow_older_pins:
+        return "warning", "\n".join((finding.problem, OVERRIDE_NOTE))
+    notes = (STRICT_NOTE, ADMIN_NOTE) if finding.kind == OLDER_PIN else (STRICT_NOTE,)
+    return "error" if strict else "warning", "\n".join((finding.problem, *notes, *finding.advice))
+
+
+def command(level: str, title: str, message: str) -> str:
+    """The workflow command, with GitHub's escaping for properties and data."""
+    return f"::{level} file={escape(FILE, property=True)},title={escape(title, property=True)}::{escape(message)}"
+
+
+def escape(value: str, property: bool = False) -> str:
+    value = value.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+    return value.replace(":", "%3A").replace(",", "%2C") if property else value
+
+
+def main() -> int:
     parser = argparse.ArgumentParser(prog="python3 -m lake_manifest", description=__doc__)
     parser.add_argument("--repository", required=True, help="The `owner/repo` that holds the commit.")
     parser.add_argument("--ref", required=True, help="The commit to check.")
     parser.add_argument("--strict", action="store_true", help="Pin findings are errors, not warnings.")
     parser.add_argument("--allow-older-pins", action="store_true", help="An older pin is a warning on every run.")
-    args = parser.parse_args(argv)
-    env = os.environ if env is None else env
-    out = sys.stdout if out is None else out
-    if client is None:
-        client = GitHub(env["GITHUB_TOKEN"], env.get("GITHUB_API_URL", "https://api.github.com"))
+    args = parser.parse_args()
+    github = GitHub(os.environ["GITHUB_TOKEN"], os.environ.get("GITHUB_API_URL", "https://api.github.com"))
 
     try:
-        findings = validate(client, args.repository, args.ref)
-    except (ApiError, ManifestError) as error:
-        print(f"::error::CI could not read lake-manifest.json: {error}", file=out)
+        findings = validate(github, args.repository, args.ref)
+    except (ApiError, ValueError) as error:
+        print(f"::error::CI could not read {FILE}: {error}")
         return 1
-    policy = Policy(strict=args.strict, allow_older_pins=args.allow_older_pins)
-    annotations = [annotate(finding, policy) for finding in findings]
-    for annotation in annotations:
-        print(annotation.command(), file=out)
-    if any(annotation.level == "error" for annotation in annotations):
-        print("::error::lake-manifest.json is not valid.", file=out)
-        return 1
-    return 0
+    failed = False
+    for finding in findings:
+        level, message = annotate(finding, args.strict, args.allow_older_pins)
+        print(command(level, finding.title, message))
+        failed |= level == "error"
+    if failed:
+        print(f"::error::{FILE} is not valid.")
+    return int(failed)
 
 
 if __name__ == "__main__":
