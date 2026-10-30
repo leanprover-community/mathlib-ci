@@ -1,0 +1,48 @@
+name: Validate lake-manifest.json
+description: >-
+  Check the dependencies in mathlib4's lake-manifest.json at a commit, and
+  report each problem as an annotation on the file. The step reads the
+  manifests through the GitHub API, so it checks out no code. README.md
+  lists the rules.
+
+inputs:
+  ref:
+    description: The commit to check.
+    required: true
+  strict:
+    description: >-
+      `true` makes the pin findings errors. Otherwise they are warnings.
+      mathlib4 sets it on bors runs.
+    required: false
+    default: 'false'
+  allow-older-pins:
+    description: >-
+      `true` makes an older pin a warning on every run, for an intentional
+      revert. mathlib4 maps the repository variable
+      `MATHLIB_ALLOW_OLDER_DEPENDENCY_PINS` to this input.
+    required: false
+    default: 'false'
+  github-token:
+    description: A token that can read the repository and the dependencies' repositories.
+    required: false
+    default: ${{ github.token }}
+
+runs:
+  using: composite
+  steps:
+    - name: Validate lake-manifest.json
+      shell: bash
+      # GitHub expands `${{ … }}` into the command text, so the inputs
+      # reach the script through `env:`.
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+        REPOSITORY: ${{ github.repository }}
+        REF: ${{ inputs.ref }}
+        STRICT: ${{ inputs.strict }}
+        ALLOW_OLDER_PINS: ${{ inputs.allow-older-pins }}
+        PYTHONPATH: ${{ github.action_path }}
+      run: |
+        args=(--repository "$REPOSITORY" --ref "$REF")
+        if [ "$STRICT" = true ]; then args+=(--strict); fi
+        if [ "$ALLOW_OLDER_PINS" = true ]; then args+=(--allow-older-pins); fi
+        python3 -m lake_manifest "${args[@]}"
