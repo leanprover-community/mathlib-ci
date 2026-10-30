@@ -33,12 +33,12 @@ def annotate(finding: Finding, strict: bool, allow_older_pins: bool) -> tuple[st
 
 def command(level: str, title: str, message: str) -> str:
     """The workflow command, with GitHub's escaping for properties and data."""
-    return f"::{level} file={escape(FILE, property=True)},title={escape(title, property=True)}::{escape(message)}"
+    return f"::{level} file={escape(FILE, in_property=True)},title={escape(title, in_property=True)}::{escape(message)}"
 
 
-def escape(value: str, property: bool = False) -> str:
+def escape(value: str, in_property: bool = False) -> str:
     value = value.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
-    return value.replace(":", "%3A").replace(",", "%2C") if property else value
+    return value.replace(":", "%3A").replace(",", "%2C") if in_property else value
 
 
 def main() -> int:

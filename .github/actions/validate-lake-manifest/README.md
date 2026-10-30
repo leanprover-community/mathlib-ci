@@ -27,14 +27,6 @@ an API error stops the pin checks. Otherwise it only warns, so a PR can test an
 unmerged dependency commit. With `allow-older-pins: true`, the older-pin rule only
 warns, even with `strict: true`.
 
-## Code
-
-The `lake_manifest` package runs as `python3 -m lake_manifest` and uses only the
-standard library.
-
-- `github.py` makes the REST calls, with retries for transient failures.
-- `validate.py` parses the manifests and applies the rules. Each broken rule is
-  a finding.
-- `__main__.py` sets the level of each finding and prints the annotations.
+## Tests
 
 `tests/validate_lake_manifest/` runs the action against a fake GitHub API.

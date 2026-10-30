@@ -23,9 +23,8 @@ FULL_SHA = re.compile(r"[0-9a-f]{40}")
 
 # The kinds of finding.
 FIELD = "field"  # `inputRev`, `url` or the pin is malformed.
-PIN = "pin"  # The pin is not on its branch or is not its tag's commit.
+PIN = "pin"  # The pin is not on its branch, is not its tag's commit, or could not be checked.
 OLDER_PIN = "older-pin"  # The pin is older than the base pin.
-UNCHECKED = "unchecked"  # The pin checks could not run.
 
 
 @dataclass(frozen=True)
@@ -163,7 +162,7 @@ def validate(github, repository: str, ref: str) -> list[Finding]:
 
     The base manifest is `BASE_BRANCH`'s manifest at the merge base. Raises
     `ApiError` or `ValueError` when the manifest at `ref` cannot be read. A
-    failure in the pin checks is an `UNCHECKED` finding.
+    failure in the pin checks is a `PIN` finding.
     """
     findings: list[Finding] = []
     valid: list[Dependency] = []
@@ -178,7 +177,7 @@ def validate(github, repository: str, ref: str) -> list[Finding]:
         findings += [f for dep in valid if (f := check_pin(dep, base.get(dep.name), github))]
     except (ApiError, ValueError) as error:
         findings.append(Finding(
-            UNCHECKED,
+            PIN,
             "Dependency pin check failed",
             f"CI could not check the dependency pins: {error}",
             ("Hint: Re-run the failed job.",),

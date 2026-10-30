@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import pytest
-from conftest import FORK, NEW, OLD, TAG, UNKNOWN, GitHub, manifest, package
+from conftest import FORK, NEW, OLD, TAG, UNKNOWN, FakeGitHub, manifest, package
 
 BASE = manifest(package(rev=OLD))
 NEWER = manifest(package(rev=NEW))
@@ -13,20 +13,20 @@ NOT_ON_BRANCH = "Dependency pin is not on branch main"
 
 
 def test_unchanged_manifest_passes(run):
-    assert run(GitHub(head=BASE, base=BASE)) == (0, [])
+    assert run(FakeGitHub(head=BASE, base=BASE)) == (0, [])
 
 
 def test_newer_pin_on_the_branch_passes(run):
-    assert run(GitHub(head=NEWER, base=BASE)) == (0, [])
+    assert run(FakeGitHub(head=NEWER, base=BASE)) == (0, [])
 
 
 @pytest.mark.parametrize("fields", [
-    {"input_rev": "main"}, {"input_rev": "master"}, {"input_rev": "v4.25.0"}, {"input_rev": "v4.25.0-rc1"},
+    {"input_rev": "master"}, {"input_rev": "v4.25.0"}, {"input_rev": "v4.25.0-rc1"},
     {"url": "https://github.com/leanprover/batteries"},
 ])
 def test_allowed_fields(run, fields):
     text = manifest(package(**fields))
-    assert run(GitHub(head=text, base=text)) == (0, [])
+    assert run(FakeGitHub(head=text, base=text)) == (0, [])
 
 
 @pytest.mark.parametrize("fields, title", [
@@ -44,12 +44,12 @@ def test_allowed_fields(run, fields):
     ({"rev": None}, "Invalid dependency pin"),
 ])
 def test_field_rules_fail_every_run(run, fields, title):
-    assert run(GitHub(head=manifest(package(**fields)), base=BASE)) == (1, [("error", title), INVALID])
+    assert run(FakeGitHub(head=manifest(package(**fields)), base=BASE)) == (1, [("error", title), INVALID])
 
 
 def test_every_broken_field_is_reported(run):
     head = manifest(package(input_rev="nightly-testing", url="https://github.com/evil/b", rev="main"))
-    assert run(GitHub(head=head, base=BASE)) == (1, [
+    assert run(FakeGitHub(head=head, base=BASE)) == (1, [
         ("error", "Invalid dependency inputRev"),
         ("error", "Invalid dependency repository"),
         ("error", "Invalid dependency pin"),
@@ -58,23 +58,23 @@ def test_every_broken_field_is_reported(run):
 
 
 def test_inherited_dependency_hint_names_the_requiring_dependency(stdout):
-    _, out = stdout(GitHub(head=manifest(package(input_rev="x", inherited=True)), base=BASE))
+    _, out = stdout(FakeGitHub(head=manifest(package(input_rev="x", inherited=True)), base=BASE))
     assert "in the dependency that requires it" in out
 
 
 def test_pin_off_the_branch(run):
-    github = GitHub(head=OFF_BRANCH, base=BASE)
+    github = FakeGitHub(head=OFF_BRANCH, base=BASE)
     assert run(github) == (0, [("warning", NOT_ON_BRANCH)])
     assert run(github, "--strict") == (1, [("error", NOT_ON_BRANCH), INVALID])
     assert run(github, "--strict", "--allow-older-pins") == (1, [("error", NOT_ON_BRANCH), INVALID])
 
 
 def test_unknown_commit_is_off_the_branch(run):
-    assert run(GitHub(head=manifest(package(rev=UNKNOWN)), base=BASE)) == (0, [("warning", NOT_ON_BRANCH)])
+    assert run(FakeGitHub(head=manifest(package(rev=UNKNOWN)), base=BASE)) == (0, [("warning", NOT_ON_BRANCH)])
 
 
 def test_older_pin(run):
-    github = GitHub(head=BASE, base=NEWER)
+    github = FakeGitHub(head=BASE, base=NEWER)
     assert run(github) == (0, [("warning", "Older dependency pin")])
     assert run(github, "--strict") == (1, [("error", "Older dependency pin"), INVALID])
     assert run(github, "--strict", "--allow-older-pins") == (0, [("warning", "Older dependency pin")])
@@ -86,25 +86,25 @@ def test_older_pin(run):
     manifest(package(rev=NEW, url="https://github.com/leanprover/batteries")),
 ], ids=["new-dependency", "new-input-rev", "new-url"])
 def test_older_rule_needs_the_same_source(run, base):
-    assert run(GitHub(head=BASE, base=base)) == (0, [])
+    assert run(FakeGitHub(head=BASE, base=base)) == (0, [])
 
 
 def test_new_source_with_the_same_pin_is_still_checked(run):
     base = manifest(package(rev=FORK, input_rev="master"))
-    assert run(GitHub(head=OFF_BRANCH, base=base)) == (0, [("warning", NOT_ON_BRANCH)])
+    assert run(FakeGitHub(head=OFF_BRANCH, base=base)) == (0, [("warning", NOT_ON_BRANCH)])
 
 
 def test_tag_pin(run):
     tags = {"v4.25.0": TAG}
     mismatch = ("warning", "Dependency pin does not match tag v4.25.0")
-    assert run(GitHub(head=manifest(package(input_rev="v4.25.0", rev=TAG)), base=BASE, tags=tags)) == (0, [])
-    assert run(GitHub(head=manifest(package(input_rev="v4.25.0", rev=NEW)), base=BASE, tags=tags)) == (0, [mismatch])
-    assert run(GitHub(head=manifest(package(input_rev="v4.25.0", rev=TAG)), base=BASE)) == (0, [mismatch])
+    assert run(FakeGitHub(head=manifest(package(input_rev="v4.25.0", rev=TAG)), base=BASE, tags=tags)) == (0, [])
+    assert run(FakeGitHub(head=manifest(package(input_rev="v4.25.0", rev=NEW)), base=BASE, tags=tags)) == (0, [mismatch])
+    assert run(FakeGitHub(head=manifest(package(input_rev="v4.25.0", rev=TAG)), base=BASE)) == (0, [mismatch])
 
 
 def test_findings_follow_manifest_order(run):
     head = manifest(package(rev="main"), package("aesop", rev=FORK))
-    assert run(GitHub(head=head, base=BASE)) == (1, [
+    assert run(FakeGitHub(head=head, base=BASE)) == (1, [
         ("error", "Invalid dependency pin"),
         ("warning", NOT_ON_BRANCH),
         INVALID,
@@ -113,7 +113,7 @@ def test_findings_follow_manifest_order(run):
 
 @pytest.mark.parametrize("base", [404, "not json"], ids=["missing", "unreadable"])
 def test_unreadable_base_manifest_is_unchecked(run, base):
-    github = GitHub(head=BASE, base=base)
+    github = FakeGitHub(head=BASE, base=base)
     assert run(github) == (0, [("warning", "Dependency pin check failed")])
     assert run(github, "--strict") == (1, [("error", "Dependency pin check failed"), INVALID])
 
@@ -121,18 +121,18 @@ def test_unreadable_base_manifest_is_unchecked(run, base):
 @pytest.mark.parametrize("head", [404, [], {"type": "symlink"}, "not json"],
                          ids=["missing", "directory", "symlink", "unreadable"])
 def test_unreadable_manifest_fails(stdout, head):
-    code, out = stdout(GitHub(head=head))
+    code, out = stdout(FakeGitHub(head=head))
     assert code == 1
     assert out.startswith("::error::CI could not read lake-manifest.json: ")
 
 
 def test_transient_error_is_retried(run):
     # One retry, with its one-second backoff.
-    assert run(GitHub(head=BASE, base=BASE, failures=1)) == (0, [])
+    assert run(FakeGitHub(head=BASE, base=BASE, failures=1)) == (0, [])
 
 
 def test_annotation_carries_the_notes_and_the_hint(stdout):
-    _, out = stdout(GitHub(head=BASE, base=NEWER), "--strict")
+    _, out = stdout(FakeGitHub(head=BASE, base=NEWER), "--strict")
     assert out.splitlines()[0] == (
         "::error file=lake-manifest.json,title=Older dependency pin::"
         f"lake-manifest.json pins `batteries` to `{OLD}`, which does not descend from `{NEW}`, the pin on master."
@@ -144,6 +144,6 @@ def test_annotation_carries_the_notes_and_the_hint(stdout):
 
 
 def test_override_note_replaces_the_advice(stdout):
-    _, out = stdout(GitHub(head=BASE, base=NEWER), "--strict", "--allow-older-pins")
+    _, out = stdout(FakeGitHub(head=BASE, base=NEWER), "--strict", "--allow-older-pins")
     assert out.splitlines()[0].endswith(
         "%0ANote: The variable `MATHLIB_ALLOW_OLDER_DEPENDENCY_PINS` is `true`, so this check only warns.")

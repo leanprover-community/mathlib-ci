@@ -13,7 +13,7 @@ import json
 import time
 import urllib.error
 import urllib.request
-from typing import Any, Callable
+from typing import Any
 from urllib.parse import quote
 
 ATTEMPTS = 4
@@ -37,17 +37,9 @@ def is_transient(status: int) -> bool:
 
 
 class GitHub:
-    def __init__(
-        self,
-        token: str,
-        api_url: str = "https://api.github.com",
-        urlopen: Callable[..., Any] = urllib.request.urlopen,
-        sleep: Callable[[float], None] = time.sleep,
-    ):
+    def __init__(self, token: str, api_url: str):
         self.token = token
         self.api_url = api_url.rstrip("/")
-        self.urlopen = urlopen
-        self.sleep = sleep
 
     def get(self, path: str) -> Any:
         """The decoded JSON answer to `GET path`."""
@@ -63,7 +55,7 @@ class GitHub:
         for attempt in range(ATTEMPTS):
             last = attempt + 1 == ATTEMPTS
             try:
-                with self.urlopen(request, timeout=TIMEOUT_SECONDS) as response:
+                with urllib.request.urlopen(request, timeout=TIMEOUT_SECONDS) as response:
                     return json.load(response)
             except urllib.error.HTTPError as error:
                 if not is_transient(error.code) or last:
@@ -71,7 +63,7 @@ class GitHub:
             except TRANSPORT_ERRORS:
                 if last:
                     raise ApiError(f"GET {path} failed") from None
-            self.sleep(2**attempt)
+            time.sleep(2**attempt)
         raise AssertionError("unreachable: the loop returns or raises")
 
     def compare(self, repository: str, base: str, head: str) -> dict:
@@ -81,7 +73,7 @@ class GitHub:
         return self.compare(repository, base, head)["merge_base_commit"]["sha"]
 
     def read_manifest(self, repository: str, ref: str) -> str:
-        """The text of lake-manifest.json at `ref`. Nothing lands on disk."""
+        """The text of lake-manifest.json at `ref`."""
         answer = self.get(f"/repos/{repository}/contents/lake-manifest.json?ref={quote(ref, safe='')}")
         if not isinstance(answer, dict) or answer.get("type") != "file":
             raise ApiError(f"lake-manifest.json at `{ref}` is not a file.")

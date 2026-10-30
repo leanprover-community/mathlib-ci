@@ -1,6 +1,6 @@
 """Run the action's CLI against a fake GitHub API, and read its annotations.
 
-The fake serves the three endpoints the action uses from a `GitHub` table:
+The fake serves the three endpoints the action uses from a `FakeGitHub` table:
 the manifests by ref, the commits each branch or commit contains, and the
 tags. `main` holds OLD and NEW; FORK is on no branch; UNKNOWN is no commit.
 """
@@ -43,7 +43,7 @@ def manifest(*packages: dict) -> str:
 
 
 @dataclass
-class GitHub:
+class FakeGitHub:
     """What the fake GitHub serves.
 
     A manifest is its text, or the answer to send instead: an HTTP status, or
@@ -81,7 +81,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         pass
 
     def do_GET(self):
-        github: GitHub = self.server.github
+        github: FakeGitHub = self.server.github
         url = urllib.parse.urlsplit(self.path)
         path = urllib.parse.unquote(url.path)
         if self.headers.get("Authorization") != f"Bearer {TOKEN}":
@@ -122,7 +122,7 @@ def server():
 def stdout(server):
     """Run the action against `github`: the exit code and what it printed."""
 
-    def stdout(github: GitHub, *flags: str) -> tuple[int, str]:
+    def stdout(github: FakeGitHub, *flags: str) -> tuple[int, str]:
         server.github = github
         proc = subprocess.run(
             [sys.executable, "-m", "lake_manifest", "--repository", REPOSITORY, "--ref", HEAD, *flags],
@@ -152,7 +152,7 @@ def annotation(line: str) -> tuple[str, str]:
 def run(stdout):
     """Run the action against `github`: the exit code and the `(level, title)` of each line."""
 
-    def run(github: GitHub, *flags: str) -> tuple[int, list[tuple[str, str]]]:
+    def run(github: FakeGitHub, *flags: str) -> tuple[int, list[tuple[str, str]]]:
         code, out = stdout(github, *flags)
         return code, [annotation(line) for line in out.splitlines()]
 
