@@ -37,4 +37,4 @@ standard library.
   a finding.
 - `__main__.py` sets the level of each finding and prints the annotations.
 
-`tests/validate_lake_manifest/` holds the tests.
+`tests/validate_lake_manifest/` runs the action against a fake GitHub API.
