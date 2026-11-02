@@ -1,4 +1,4 @@
-name: nightly-testing regression report
+name: Mathlib bump regression report
 
 on:
   schedule:
@@ -16,8 +16,8 @@ permissions:
 
 env:
   TOP_MODULE: Mathlib
-  TARGET_REPO: leanprover-community/mathlib4-nightly-testing
-  TARGET_PATH: nightly-testing
+  TARGET_REPO: leanprover-community/mathlib4
+  TARGET_PATH: mathlib
 
 jobs:
   grind-regressions:
@@ -27,17 +27,22 @@ jobs:
     - name: Checkout mathlib-ci
       uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-    - name: Checkout nightly-testing
+    - name: Resolve the current Mathlib bump branch
+      id: bump
+      shell: bash
+      run: |
+        read -r sha _ < <(
+          git ls-remote --heads https://github.com/leanprover-community/mathlib4.git \
+            'refs/heads/bump/v4.*.0' | sort -V -k2 | tail -n 1
+        )
+        echo "sha=$sha" >> "$GITHUB_OUTPUT"
+
+    - name: Checkout Mathlib bump
       uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       with:
-        repository: leanprover-community/mathlib4-nightly-testing
-        ref: nightly-testing-green
-        path: nightly-testing
-
-    - name: Capture target SHA
-      id: target
-      working-directory: ${{ env.TARGET_PATH }}
-      run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+        repository: leanprover-community/mathlib4
+        ref: ${{ steps.bump.outputs.sha }}
+        path: ${{ env.TARGET_PATH }}
 
     - name: Configure Lean
       uses: leanprover/lean-action@f061402b660e0c34644504b324e830f2991d4865 # v1.6.1
@@ -46,7 +51,7 @@ jobs:
         use-github-cache: false
         use-mathlib-cache: false
         reinstall-transient-toolchain: true
-        lake-package-directory: nightly-testing
+        lake-package-directory: ${{ env.TARGET_PATH }}
 
     - name: add nightly regression linter option
       working-directory: ${{ env.TARGET_PATH }}
@@ -96,7 +101,7 @@ jobs:
       id: zulip-report
       run: |
         WORKFLOW="${{ github.workflow }}" \
-        TARGET_SHA="${{ steps.target.outputs.sha }}" \
+        TARGET_SHA="${{ steps.bump.outputs.sha }}" \
         TARGET_REPO="${{ env.TARGET_REPO }}" \
         WORKFLOW_REPO="${{ github.repository }}" \
         WORKFLOW_RUN_ID="${{ github.run_id }}" \

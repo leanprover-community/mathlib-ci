@@ -1,4 +1,4 @@
-name: Docgen test on nightly-testing
+name: Docgen test on the Mathlib bump branch
 
 on:
   schedule:
@@ -16,33 +16,33 @@ permissions:
 
 jobs:
   build:
-    name: build mathlib4-nightly-testing docs
+    name: Build Mathlib bump docs
     runs-on: doc-gen
     env:
-      TARGET_REPO: leanprover-community/mathlib4-nightly-testing
-      TARGET_PATH: nightly-testing
+      TARGET_REPO: leanprover-community/mathlib4
+      TARGET_PATH: mathlib
     steps:
+      - name: Resolve the current Mathlib bump branch
+        id: bump
+        shell: bash
+        run: |
+          read -r sha _ < <(
+            git ls-remote --heads https://github.com/leanprover-community/mathlib4.git \
+              'refs/heads/bump/v4.*.0' | sort -V -k2 | tail -n 1
+          )
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+
       - name: Checkout mathlib
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
-          repository: leanprover-community/mathlib4-nightly-testing
-          ref: nightly-testing-green
+          repository: leanprover-community/mathlib4
+          ref: ${{ steps.bump.outputs.sha }}
           path: ${{ env.TARGET_PATH }}
 
       - name: Checkout mathlib-ci
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           path: ci-tools
-
-      - name: Capture target SHA
-        id: target
-        run: echo "sha=$(git -C '${{ env.TARGET_PATH }}' rev-parse HEAD)" >> "$GITHUB_OUTPUT"
-
-      - name: Add upstream
-        working-directory: ${{ env.TARGET_PATH }}
-        run: |
-          # Add the nightly-testing remote if it does not exist already, otherwise `lake exe cache` gets confused.
-          (git remote | grep -q '^nightly-testing$') || git remote add nightly-testing https://github.com/leanprover-community/mathlib4-nightly-testing.git
 
       - name: Build and lint the project.
         id: build-lean
@@ -84,7 +84,7 @@ jobs:
           # No need to reinstall packages if we can just copy them from Mathlib.
           mkdir -p .lake/packages
           cp -r ../.lake/packages/* .lake/packages
-          cp ../lean-toolchain . # Use Mathlib's (nightly) toolchain.
+          cp ../lean-toolchain . # Use Mathlib's toolchain.
 
           # Disable an error message due to a non-blocking bug. See Zulip
           MATHLIB_NO_CACHE_ON_UPDATE=1 lake update "$NAME"
@@ -125,7 +125,7 @@ jobs:
         run: |
           # Process output for posting to Zulip
           WORKFLOW="${{ github.workflow }}" \
-          TARGET_SHA="${{ steps.target.outputs.sha }}" \
+          TARGET_SHA="${{ steps.bump.outputs.sha }}" \
           TARGET_REPO="${{ env.TARGET_REPO }}" \
           WORKFLOW_REPO="${{ github.repository }}" \
           WORKFLOW_RUN_ID="${{ github.run_id }}" \
