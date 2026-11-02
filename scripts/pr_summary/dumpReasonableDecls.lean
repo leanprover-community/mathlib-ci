@@ -21,16 +21,18 @@ import ImportGraph.Graph.TransitiveClosure
   root-prefixed module to the size of its transitive closure in
   `Lean.Environment.importGraph`.
 
-* `--api-out FILE`: writes the API dump, one JSON object per line: a header, then a row for
-  each reasonable declaration (the names of `--out`, in the same order), then a row for each
-  module under the roots. See *The API dump*.
+* `--api-out FILE`: writes the API dump, one JSON object per line: a
+  header, then a row for each reasonable declaration, then a row for
+  each module. See *The API dump*.
 
-* `--out-dir DIR`: the CI outputs, `DIR/imports.json` and `DIR/api.jsonl`, unless
-  `--imports-out` or `--api-out` gives one a path of its own. `declsDiff.py` reads a
-  directory laid out this way (`--ref-dir`, `--new-dir`), so CI can upload and check it as
-  a whole, and a new output needs no edit to the workflow that runs this script. The API
-  dump lists the names `--out` would, so `--out` is for local use; `declsDiff.py` still
-  reads `decls.txt` from directories written before the API dump.
+* `--out-dir DIR`: the CI outputs are written to `DIR/imports.json`
+  and `DIR/api.jsonl` unless overridden by `--imports-out` or
+  `--api-out` gives one a path of its own. `declsDiff.py` reads a
+  directory laid out this way (`--ref-dir`, `--new-dir`), so CI can
+  upload and check it as a whole. The API dump lists the names
+  `--out` would, so `--out` is for local use; `declsDiff.py` still
+  reads `decls.txt` from directories written before the API dump
+  was added.
 
 The flags can be combined; every file is produced from one env load.
 If no output flag is given, defaults to `--out reasonable_decls.txt`.
@@ -39,16 +41,18 @@ If no output flag is given, defaults to `--out reasonable_decls.txt`.
 
 The first line is a header such as `{"fields":{"k":1,"m":1,"mod":1,"n":1},"schema":1}`.
 
-* `schema` is the line format. Bump it only for a change an old reader would misread.
-* `fields` maps every key the rows use to that field's version. Bump a field's version
-  whenever its values stop being comparable with the old ones, for example after changing
-  a hash function.
+* `schema` is the overall version of the schema.
+* `fields` contains the versions of the fields corresponding to its keys.
+  A field's version is bumped whenever its values stop being
+  comparable with the old ones, for example after changing a hash
+  function.
 
-A reader compares a field only when both sides list it at the same version. The base side of
-a PR's comparison comes from a `master` artifact up to 90 days old, so a field added or
-changed here goes uncompared until both sides have it, and no switch-over in mathlib4 is
-needed. A row may leave out a field the header lists, meaning its empty value (`null`,
-`false`, `[]`), so that rare fields cost nothing on most rows.
+(The current versions are recorded in `apiSchema` and `apiFields` below.)
+
+The base side of a PR's comparison comes from a `master` artifact up to
+90 days old, so a reader compares a field only when both sides are at
+the same version. Rows may omit fields listed in the header; those fields
+will be set to their empty values (`null`, `false`, `[]`).
 
 Declaration rows, sorted by name:
 
@@ -64,8 +68,7 @@ Module rows, sorted by name:
 |-----|---------|---------|
 | `mod` | 1 | module name |
 
-The keys and values are the API-fingerprint prototype's, which adds hashes, attributes,
-deprecations and more under further keys, so its recorded fixtures stay readable.
+TODO: add hashes, attributes, deprecations, etc. under new keys.
 
 ## Roots
 
@@ -121,7 +124,7 @@ Outputs (any combination; all run in one env load):
       --api-out F       write the API dump (JSON Lines: a header, then one
                         row per declaration and one per module)
       --out-dir DIR     write imports.json and api.jsonl into DIR, unless
-                        --imports-out or --api-out gives one its own path
+                        overridden by --imports-out or --api-out
 
 If no output flag is given, defaults to `-o reasonable_decls.txt`.
 
@@ -172,8 +175,8 @@ partial def parseArgs : List String → Config → IO Config
     else
       parseArgs rest { cfg with roots := cfg.roots.push a.toName }
 
-/-- Give each CI output that has no path of its own a file in `--out-dir`, under the name
-`declsDiff.py` looks for there. Not `--out`: the API dump lists the same names. -/
+/-- Set the paths of CI outputs that haven't been assigned paths yet, using `--out-dir` and the names
+that `declsDiff.py` looks for. -/
 def Config.withOutDir (cfg : Config) : Config :=
   match cfg.outDir with
   | none => cfg
@@ -205,16 +208,16 @@ def inAnyRoot (env : Environment) (roots : Array Name) (n : Name) : Bool :=
     | none   => false
     | some m => underAnyRoot roots m
 
-/-- A reasonable declaration under the roots. Its name is rendered once, because the sort
-compares it and every dump prints it. -/
+/-- A reasonable declaration under the roots. This includes a rendering of the name as a string
+for efficiency. -/
 structure ReasonableDecl where
   str  : String
   name : Name
   info : ConstantInfo
 
 /-- Iterate the constants once and collect the reasonable declarations under the roots,
-sorted by name. `--out` and `--api-out` are both written from this one array, so they list
-the same names in the same order. -/
+sorted by name. `--out` and `--api-out` are both written from this, so they list the same names
+in the same order. -/
 def reasonableDecls (env : Environment) (roots : Array Name) : Array ReasonableDecl :=
   let decls := env.constants.fold (init := (#[] : Array ReasonableDecl)) fun acc n ci =>
     if isReasonable n ci && inAnyRoot env roots n then
@@ -234,7 +237,7 @@ def apiSchema : Nat := 1
 /-- Every key the API dump's rows use, with its version; see *The API dump*. -/
 def apiFields : List (String × Nat) := [("n", 1), ("k", 1), ("m", 1), ("mod", 1)]
 
-/-- The `k` field. The same strings as the API-fingerprint prototype. -/
+/-- The names used in the `k` field. -/
 def declKind : ConstantInfo → String
   | .axiomInfo _ => "ax" | .defnInfo _ => "def" | .thmInfo _ => "thm"
   | .opaqueInfo _ => "opaq" | .quotInfo _ => "quot"
