@@ -6,7 +6,6 @@ Layout:
 - `scripts/pr_summary/`: PR summary and import/declaration analysis helpers.
 - `scripts/reporting/`: reporting scripts for debt, file size, import lints, and build reports.
 - `scripts/maintainer/`: maintainer merge/delegate and PR-testing helper scripts.
-- `scripts/nightly/`: nightly branch automation scripts.
 - `scripts/zulip/`: Zulip integration scripts.
 - `scripts/verification/`: commit verification scripts.
 
@@ -55,8 +54,8 @@ Layout:
 - `late_importers.sh` is the main script used by the `latest_import.yml` action: it formats
   the `linter.minImports` output, summarizing the data in a table.  See the module docs of
   `late_importers.sh` for further details.
-- `zulip_build_report.sh` is used to analyse the output from building the nightly-testing-green
-  branch with additional linting enabled, and posts a summary of its findings on zulip.
+- `zulip_build_report.sh` formats Lean build logs for Zulip reports.
+  Weekly lint reports and scheduled tests use it.
 
 ## `maintainer/`
 - `get_tlabel.sh` extracts the `t-`label that a PR has (assuming that there is exactly one).
@@ -67,19 +66,6 @@ Layout:
 - `lean-pr-testing-comments.sh`
   Generate comments and labels on a Batteries PR after CI has finished on a
   `batteries-pr-testing-NNNN` branch.
-
-## `nightly/`
-- `create-adaptation-pr.sh` implements some of the steps in the workflow described at
-  https://leanprover-community.github.io/contribute/tags_and_branches.html#mathlib-nightly-and-bump-branches
-  Specifically, it will:
-  - merge `master` into `bump/v4.x.y`
-  - create a new branch from `bump/v4.x.y`, called `bump/nightly-YYYY-MM-DD`
-  - merge `nightly-testing` into the new branch
-  - open a PR to merge the new branch back into `bump/v4.x.y`
-  - announce the PR on zulip
-  - finally, merge the new branch back into `nightly-testing`, if conflict resolution was required.
-
-  If there are merge conflicts, it pauses and asks for help from the human driver.
 
 ## `zulip/`
 - `parse_lake_manifest_changes.py` compares two versions of `lake-manifest.json` to report
