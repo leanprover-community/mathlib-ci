@@ -10,9 +10,6 @@ example `ci-tools/`) and execute scripts from `ci-tools/scripts/...`.
 
 ## Tests
 
-The scheduled docgen and regression checks test the newest `bump/v4.*.0` branch in `leanprover-community/mathlib4`.
-Each run resolves the commit before checkout and links its Zulip report to that commit.
-
 Python test suites live under `tests/`, one directory per script or composite action.
 Run them all with `pytest`, or a single suite with `pytest tests/<suite>`. Each suite
 also has a `test_*.yml` workflow that runs it whenever its sources or tests change.

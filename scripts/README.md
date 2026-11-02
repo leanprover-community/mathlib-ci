@@ -54,8 +54,8 @@ Layout:
 - `late_importers.sh` is the main script used by the `latest_import.yml` action: it formats
   the `linter.minImports` output, summarizing the data in a table.  See the module docs of
   `late_importers.sh` for further details.
-- `zulip_build_report.sh` formats Lean build logs for Zulip reports.
-  Weekly lint reports and scheduled tests use it.
+- `zulip_build_report.sh` summarizes a Lean build log as a Zulip message. The `nightly-docgen.yml`
+  and `nightly-regression-report.yml` workflows and Mathlib's `weekly-lints.yml` use it.
 
 ## `maintainer/`
 - `get_tlabel.sh` extracts the `t-`label that a PR has (assuming that there is exactly one).
