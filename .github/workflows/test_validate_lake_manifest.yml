@@ -1,0 +1,33 @@
+name: Test validate-lake-manifest action
+
+# Runs the unit-test suite for the `validate-lake-manifest` composite
+# action on every push / PR that touches its source or its tests.
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - .github/actions/validate-lake-manifest/**
+      - tests/validate_lake_manifest/**
+      - .github/workflows/test_validate_lake_manifest.yml
+  pull_request:
+    paths:
+      - .github/actions/validate-lake-manifest/**
+      - tests/validate_lake_manifest/**
+      - .github/workflows/test_validate_lake_manifest.yml
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: '3.x'
+      - run: python3 -m pip install --upgrade pip pytest
+      - run: python3 -m pytest tests/validate_lake_manifest -v
