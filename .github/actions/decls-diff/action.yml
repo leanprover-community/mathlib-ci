@@ -19,6 +19,14 @@ inputs:
   new-imports-file:
     description: 'Path to the `imports.json` file for the new commit.'
     required: true
+  reference-meta-file:
+    description: 'Optional path to the `meta_decls.txt` dump for the reference commit. When both meta files exist, the snippet reports declarations whose `meta` marking changed.'
+    required: false
+    default: ''
+  new-meta-file:
+    description: 'Optional path to the `meta_decls.txt` dump for the new commit.'
+    required: false
+    default: ''
   new-sha:
     description: 'Full SHA of the new commit.'
     required: false
@@ -58,6 +66,8 @@ runs:
         IN_NEW_DECLS:     ${{ inputs.new-decls-file }}
         IN_NEW_SHA:       ${{ inputs.new-sha }}
         IN_WITH_HEADING:  ${{ inputs.with-heading }}
+        IN_REF_META:      ${{ inputs.reference-meta-file }}
+        IN_NEW_META:      ${{ inputs.new-meta-file }}
       run: |
         set -euo pipefail
 
@@ -80,6 +90,13 @@ runs:
         if [ "${IN_WITH_HEADING:-false}" = "true" ]; then
           HEADING_ARG=(--with-heading)
         fi
+        META_ARGS=()
+        if [ -n "${IN_REF_META:-}" ]; then
+          META_ARGS+=(--ref-meta "$IN_REF_META")
+        fi
+        if [ -n "${IN_NEW_META:-}" ]; then
+          META_ARGS+=(--new-meta "$IN_NEW_META")
+        fi
 
         python3 "$DRIVER" \
           --ref-decls      "$IN_REF_DECLS" \
@@ -88,7 +105,8 @@ runs:
           --decls-override "$DECLS_OVERRIDE" \
           --diff-out       "$DIFF_FILE" \
           --counts-file    "$COUNTS" \
-          "${HEADING_ARG[@]}"
+          "${HEADING_ARG[@]}" \
+          "${META_ARGS[@]}"
 
         PLUS=0; MINUS=0
         read -r PLUS MINUS < "$COUNTS" || true

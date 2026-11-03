@@ -21,6 +21,11 @@ import ImportGraph.Graph.TransitiveClosure
   root-prefixed module to the size of its transitive closure in
   `Lean.Environment.importGraph`.
 
+* `--meta-out FILE`: writes, one per line and sorted by name, the subset of
+  the "reasonable" declarations that are marked `meta` (`Lean.isMarkedMeta`).
+  The declarations diff uses this to report declarations moving into or out
+  of the `meta` phase.
+
 The flags can be combined; both files are produced from one env load.
 If neither is given, defaults to `--out reasonable_decls.txt`.
 
@@ -37,6 +42,7 @@ non-empty.
 lake env lean --run scripts/pr_summary/dumpReasonableDecls.lean \
     [-o DECLS_OUT | --out DECLS_OUT] \
     [--imports-out IMPORTS_OUT] \
+    [--meta-out META_OUT] \
     [ROOT ...]
 ```
 
@@ -54,6 +60,8 @@ structure Config where
   declsOut   : Option System.FilePath := none
   /-- Path for the transitive-import counts JSON; `none` means "don't dump imports". -/
   importsOut : Option System.FilePath := none
+  /-- Path for the `meta` declarations dump; `none` means "don't dump them". -/
+  metaOut    : Option System.FilePath := none
   /-- Module roots to import (via `withImportModules`) and use as a
   `Name`-prefix filter on both outputs. Empty disables the filter. -/
   roots      : Array Name := #[]
@@ -69,6 +77,7 @@ Outputs (any combination; both can run in one env load):
   -o, --out FILE        write 'reasonable' declaration names (one per line)
       --imports-out F   write transitive-import counts as JSON
                         (object keyed by module name)
+      --meta-out F      write the 'reasonable' declarations marked `meta`
 
 If no output flag is given, defaults to `-o reasonable_decls.txt`.
 
@@ -79,6 +88,7 @@ dumps to be non-empty.
 Options:
   -o, --out FILE        decls output file
       --imports-out F   transitive-imports JSON file
+      --meta-out F      meta declarations output file
   -h, --help            show this message and exit
 "
 
@@ -97,11 +107,16 @@ partial def parseArgs : List String → Config → IO Config
   | ("--imports-out" :: f :: rest),      cfg => parseArgs rest { cfg with importsOut := some f }
   | ("--imports-out" :: _),              _   =>
       throw <| IO.userError "--imports-out requires a file argument"
+  | ("--meta-out" :: f :: rest),         cfg => parseArgs rest { cfg with metaOut := some f }
+  | ("--meta-out" :: _),                 _   =>
+      throw <| IO.userError "--meta-out requires a file argument"
   | (a :: rest),                         cfg =>
     if let some f := parseOutEq? a then
       parseArgs rest { cfg with declsOut := some f }
     else if a.startsWith "--imports-out=" then
       parseArgs rest { cfg with importsOut := some (a.drop "--imports-out=".length).toString }
+    else if a.startsWith "--meta-out=" then
+      parseArgs rest { cfg with metaOut := some (a.drop "--meta-out=".length).toString }
     else if a.startsWith "-" then
       throw <| IO.userError s!"unknown option: {a}\n\n{helpText}"
     else
@@ -126,12 +141,13 @@ def inAnyRoot (env : Environment) (roots : Array Name) (n : Name) : Bool :=
     | none   => false
     | some m => roots.any fun p => p.isPrefixOf m
 
-/-- Iterate the constants once and write the reasonable-declaration dump. -/
+/-- Iterate the constants once and write the reasonable declarations satisfying
+`keep` to `outFile`, sorted by name. -/
 private def writeDeclsDump (env : Environment) (roots : Array Name)
-    (outFile : System.FilePath) : IO Nat := do
+    (outFile : System.FilePath) (keep : Name → Bool := fun _ => true) : IO Nat := do
   let decls : Array Name :=
     env.constants.fold (init := #[]) fun acc n ci =>
-      if isReasonable n ci && inAnyRoot env roots n then acc.push n
+      if isReasonable n ci && inAnyRoot env roots n && keep n then acc.push n
       else acc
   let sorted := decls.qsort (fun a b => a.toString < b.toString)
   IO.FS.withFile outFile .write fun h => do
@@ -177,10 +193,13 @@ unsafe def runDump (cfg : Config) : IO UInt32 := do
     if let some path := cfg.importsOut then
       let n ← writeImportsDump env cfg.roots path
       IO.println s!"Wrote {n} transitive-import counts from [{rootsStr}] to {path}"
+    if let some path := cfg.metaOut then
+      let n ← writeDeclsDump env cfg.roots path (isMarkedMeta env)
+      IO.println s!"Wrote {n} meta declarations from [{rootsStr}] to {path}"
     return 0
 
 def main (args : List String) : IO UInt32 := do
   let mut cfg ← parseArgs args {}
-  if cfg.declsOut.isNone && cfg.importsOut.isNone then
+  if cfg.declsOut.isNone && cfg.importsOut.isNone && cfg.metaOut.isNone then
     cfg := { cfg with declsOut := some "reasonable_decls.txt" }
   unsafe runDump cfg
