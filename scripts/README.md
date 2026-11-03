@@ -9,6 +9,7 @@ Layout:
 - `scripts/nightly/`: nightly branch automation scripts.
 - `scripts/zulip/`: Zulip integration scripts.
 - `scripts/verification/`: commit verification scripts.
+- `scripts/route/`: size prediction of mathlib4 build jobs, for their runner pool.
 
 ## `pr_summary/`
 - `declarations_diff.sh`
@@ -42,6 +43,11 @@ Layout:
   or declaration ranges differ), added, or removed. Takes four arguments:
   `<base_lib_dir> <head_lib_dir> <comment_file> <full_file>`, where `base_lib_dir` and
   `head_lib_dir` are paths to `.lake/build/lib/lean` for the base and PR builds respectively.
+
+## `route/`
+- `route_build.py` predicts whether a build of mathlib4 is large, from the number of Mathlib
+  modules that the change rebuilds. The `build` job of `build_template.yml` picks its runner
+  label from the verdict. The docstring describes the heuristic.
 
 ## `reporting/`
 - `technical-debt-metrics.py`, `technical-debt-metrics.sh`
