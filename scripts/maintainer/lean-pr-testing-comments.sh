@@ -1,4 +1,4 @@
-## Create comments and labels on a Batteries PR after CI has finished on a `batteries-pr-testing-NNNN` branch.
+## Report Mathlib CI results on the Batteries PR named by `batteries-pr-testing-NNNN`.
 ##
 ## See https://leanprover-community.github.io/contribute/tags_and_branches.html
 
@@ -20,47 +20,57 @@ if [ -z "${NIGHTLY_TESTING_REPO:-}" ]; then
   NIGHTLY_TESTING_REPO="leanprover-community/mathlib4-nightly-testing"
 fi
 
-# TODO: The whole script ought to be rewritten in javascript, to avoid having to use curl for API calls.
-#
 # This is not meant to be run from the command line, only from CI.
 # The inputs must be prepared as:
 # env:
 #   TOKEN: ${{ secrets.batteries-pr-testing-token.outputs.token }}
-#     (minted from the `mathlib-nightly-testing` app, matches `mathlib-nightly-testing[bot]` below)
+#   BOT_LOGIN: Login of the App that supplies TOKEN.
 #   GITHUB_CONTEXT: ${{ toJson(github) }}
-#   WORKFLOW_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.event.workflow_run.id }}
+#   WORKFLOW_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+#   BATTERIES_SHA: Optional tested Batteries revision; skips reports for an outdated pin.
 #   BUILD_OUTCOME: ${{ steps.build.outcome }}
 #   NOISY_OUTCOME: ${{ steps.noisy.outcome }}
 #   ARCHIVE_OUTCOME: ${{ steps.archive.outcome }}
 #   COUNTEREXAMPLES_OUTCOME: ${{ steps.counterexamples.outcome }}
 #   LINT_OUTCOME: ${{ steps.lint.outcome }}
 #   TEST_OUTCOME: ${{ steps.test.outcome }}
+#   WANTED_OUTCOME, MK_ALL_OUTCOME: Optional additional build checks.
+
+BOT_LOGIN="${BOT_LOGIN:-mathlib-nightly-testing[bot]}"
 
 branch_prefix="batteries-pr-testing"
 repo_url="https://api.github.com/repos/leanprover-community/batteries"
 base_branch="master"
 
 # Extract branch name and check if it matches the pattern.
-branch_name=$(echo "$GITHUB_CONTEXT" | jq -r .ref | cut -d'/' -f3)
+branch_name=$(echo "$GITHUB_CONTEXT" | jq -r '.event.pull_request.head.ref // (.ref | sub("^refs/heads/"; ""))')
 if [[ "$branch_name" =~ ^$branch_prefix-([0-9]+)$ ]]; then
   pr_number="${BASH_REMATCH[1]}"
   current_time=$(date "+%Y-%m-%d %H:%M:%S")
 
   echo "This is a '$branch_prefix-$pr_number' branch, so we need to adjust labels and write a comment."
 
-  # Check if the PR has an awaiting-mathlib label
-  has_awaiting_label=$(curl -L -sS --fail-with-body \
+  source_pr=$(curl -L -sS --fail-with-body \
     -H "Accept: application/vnd.github+json" \
     -H "Authorization: Bearer $TOKEN" \
-    -H "X-GitHub-Api-Version: 2022-11-28" \
-    $repo_url/issues/$pr_number/labels | jq 'map(.name) | contains(["awaiting-mathlib"])')
+    "$repo_url/pulls/$pr_number")
+  # A newer Batteries commit can arrive before its adaptation branch updates.
+  if [ -n "${BATTERIES_SHA:-}" ]; then
+    if jq -e --arg sha "$BATTERIES_SHA" '.state == "open" and .head.sha != $sha' <<<"$source_pr" > /dev/null; then
+      echo "The Batteries pin is outdated; skipping this report."
+      exit 0
+    fi
+  fi
+
+  has_awaiting_label=$(jq '.labels | map(.name) | contains(["awaiting-mathlib"])' <<<"$source_pr")
 
   # Classify the run into one aggregate state, so labels and the status
   # comment cannot disagree. `failure` beats `cancelled` so a mixed run is
   # reported as breaking; everything that is neither all-success nor a failure
   # (cancelled, skipped, empty) clears both labels rather than leaving a stale
   # one from an earlier run.
-  outcomes=("$BUILD_OUTCOME" "$NOISY_OUTCOME" "$ARCHIVE_OUTCOME" "$COUNTEREXAMPLES_OUTCOME" "$LINT_OUTCOME" "$TEST_OUTCOME")
+  outcomes=("$BUILD_OUTCOME" "$NOISY_OUTCOME" "$ARCHIVE_OUTCOME" "$COUNTEREXAMPLES_OUTCOME" "$LINT_OUTCOME" "$TEST_OUTCOME"
+            "${WANTED_OUTCOME-success}" "${MK_ALL_OUTCOME-success}")
   any_failure=false
   any_cancelled=false
   all_success=true
@@ -109,31 +119,15 @@ if [[ "$branch_name" =~ ^$branch_prefix-([0-9]+)$ ]]; then
       -d "$(jq --null-input --arg name "$1" '{labels: [$name]}')"
   }
 
-  case "$state" in
-    success)
-      remove_label awaiting-mathlib
-      remove_label breaks-mathlib
-      add_label builds-mathlib
-      ;;
-    failure)
-      remove_label builds-mathlib
-      add_label breaks-mathlib
-      ;;
-    cancelled|other)
-      remove_label builds-mathlib
-      remove_label breaks-mathlib
-      ;;
-  esac
-
-  branch="[$branch_prefix-$pr_number](https://github.com/$NIGHTLY_TESTING_REPO/compare/$base_branch...$branch_prefix-$pr_number)"
+  adaptation_url=$(echo "$GITHUB_CONTEXT" | jq -r '.event.pull_request.html_url // empty')
+  branch="[$branch_prefix-$pr_number](${adaptation_url:-https://github.com/$NIGHTLY_TESTING_REPO/compare/$base_branch...$branch_prefix-$pr_number})"
   case "$state" in
     success)
       message="- ✅ Mathlib branch $branch has successfully built against this PR. ($current_time) [View Log]($WORKFLOW_URL)"
       ;;
     failure)
       # Pick the most informative failure message. Order matches the
-      # historical precedence: build > lint > counterexamples > archive >
-      # noisy > test.
+      # precedence: build > lint > counterexamples > archive > Wanted > imports > noisy > test.
       if [ "$BUILD_OUTCOME" == "failure" ]; then
         message="- 💥 Mathlib branch $branch build failed against this PR. ($current_time) [View Log]($WORKFLOW_URL)"
       elif [ "$LINT_OUTCOME" == "failure" ]; then
@@ -142,6 +136,10 @@ if [[ "$branch_name" =~ ^$branch_prefix-([0-9]+)$ ]]; then
         message="- ❌ Mathlib branch $branch built against this PR, but the counterexamples library failed. ($current_time) [View Log]($WORKFLOW_URL)"
       elif [ "$ARCHIVE_OUTCOME" == "failure" ]; then
         message="- ❌ Mathlib branch $branch built against this PR, but the archive failed. ($current_time) [View Log]($WORKFLOW_URL)"
+      elif [ "${WANTED_OUTCOME:-}" == "failure" ]; then
+        message="- ❌ Mathlib branch $branch built against this PR, but the Wanted library failed. ($current_time) [View Log]($WORKFLOW_URL)"
+      elif [ "${MK_ALL_OUTCOME:-}" == "failure" ]; then
+        message="- ❌ Mathlib branch $branch built against this PR, but the import check failed. ($current_time) [View Log]($WORKFLOW_URL)"
       elif [ "$NOISY_OUTCOME" == "failure" ]; then
         message="- ❌ Mathlib branch $branch built against this PR, but was unexpectedly noisy. ($current_time) [View Log]($WORKFLOW_URL)"
       else
@@ -170,12 +168,9 @@ if [[ "$branch_name" =~ ^$branch_prefix-([0-9]+)$ ]]; then
       -d "$(jq --null-input --arg val "$message" '{"body": $val}')" \
       "$repo_url/issues/$pr_number/comments"
   else
-    # Use existing behavior: append to existing comment or post a new one
-    # Use GitHub API to check if a comment already exists
-    existing_comment=$(curl -L -sS --fail-with-body -H "Authorization: token $TOKEN" \
-                            -H "Accept: application/vnd.github.v3+json" \
-                            "$repo_url/issues/$pr_number/comments" \
-                            | jq 'first(.[] | select(.body | test("^- . Mathlib") or startswith("Mathlib CI status")) | select(.user.login == "mathlib-nightly-testing[bot]"))')
+    # Search all pages so long discussions still use one status comment.
+    existing_comment=$(GH_TOKEN="$TOKEN" gh api --paginate --slurp "$repo_url/issues/$pr_number/comments" \
+      | jq --arg bot "$BOT_LOGIN" 'first(.[][] | select(.body | test("^- . Mathlib") or startswith("Mathlib CI status")) | select(.user.login == $bot))')
     existing_comment_id=$(echo "$existing_comment" | jq -r .id)
     existing_comment_body=$(echo "$existing_comment" | jq -r .body)
 
@@ -201,4 +196,21 @@ if [[ "$branch_name" =~ ^$branch_prefix-([0-9]+)$ ]]; then
         "$repo_url/issues/comments/$existing_comment_id"
     fi
   fi
+
+  # Clear awaiting-mathlib only after its notification succeeds.
+  case "$state" in
+    success)
+      remove_label awaiting-mathlib
+      remove_label breaks-mathlib
+      add_label builds-mathlib
+      ;;
+    failure)
+      remove_label builds-mathlib
+      add_label breaks-mathlib
+      ;;
+    cancelled|other)
+      remove_label builds-mathlib
+      remove_label breaks-mathlib
+      ;;
+  esac
 fi

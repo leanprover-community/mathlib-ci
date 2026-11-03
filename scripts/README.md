@@ -65,8 +65,9 @@ Layout:
 - `maintainer_merge_message.sh` contains a shell script that produces the Zulip message for a
   `maintainer merge`/`maintainer delegate` comment.
 - `lean-pr-testing-comments.sh`
-  Generate comments and labels on a Batteries PR after CI has finished on a
-  `batteries-pr-testing-NNNN` branch.
+  Reports Mathlib CI results on the Batteries PR named by `batteries-pr-testing-NNNN`.
+  Accepts PR or push event context and the reporting App's login.
+  Links PR reports to the Mathlib adaptation PR and skips outdated Batteries pins when the caller supplies the tested revision.
 
 ## `nightly/`
 - `create-adaptation-pr.sh` implements some of the steps in the workflow described at
