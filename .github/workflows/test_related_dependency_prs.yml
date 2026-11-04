@@ -1,0 +1,33 @@
+name: Test related dependency PRs
+
+# Runs the unit-test suite for `scripts/zulip/related_dependency_prs.py` on every push / PR that
+# touches its source or its tests.
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - scripts/zulip/related_dependency_prs.py
+      - tests/related_dependency_prs/**
+      - .github/workflows/test_related_dependency_prs.yml
+      - pytest.ini
+  pull_request:
+    paths:
+      - scripts/zulip/related_dependency_prs.py
+      - tests/related_dependency_prs/**
+      - .github/workflows/test_related_dependency_prs.yml
+      - pytest.ini
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: '3.x'
+      - run: python3 -m pip install --upgrade pip pytest
+      - run: python3 -m pytest tests/related_dependency_prs -v
