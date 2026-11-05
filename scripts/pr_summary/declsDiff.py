@@ -203,9 +203,10 @@ def load_side(flag: str, dump_dir: Path | None, decls: Path | None) -> Side | st
 
 def api_status(ref: Side, new: Side) -> tuple[str, str]:
     """Returns `used` and the fields at the same version in both API dumps, or
-    `absent` and which side is missing the API dump. The message quotes nothing
-    from the dumps (field names are checked identifiers), so it is safe in the
-    step summary."""
+    `absent` and which side is missing the API dump. The only text the message
+    takes from the dumps is field names, and `read_api` accepts only short
+    identifiers as field names (`_FIELD_NAME` in `apiDump.py`), so the message
+    is safe to include in the step summary."""
     if ref.api is not None and new.api is not None:
         fields = ", ".join(comparable_fields(ref.api, new.api)) or "none"
         return "used", f"{API_FILE} on both sides; fields in common: {fields}"
