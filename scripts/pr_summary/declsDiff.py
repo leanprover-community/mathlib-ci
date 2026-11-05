@@ -1,16 +1,31 @@
 #!/usr/bin/env python3
 """declsDiff.py — compute a `+NAME` / `-NAME` diff between two pre-computed
-`decls.txt` dumps (produced by `dumpReasonableDecls.lean`) and render a
-Markdown body for the `#### Declarations diff` section of mathlib4's PR
-summary comment.
+dumps produced by `dumpReasonableDecls.lean` and render a Markdown body for
+the `#### Declarations diff` section of mathlib4's PR summary comment.
+
+Depending on the arguments to `dumpReasonableDecls.lean`, each dump can be
+either a directory (`--ref-dir`, `--new-dir`) or a bare `decls.txt`
+(`--ref-decls`, `--new-decls`). Only names are compared so far. When both
+sides have an API dump, `--api-status` reports which fields they share, but
+the rendered section is the same either way. An API dump that cannot be read
+is an error, as a missing or empty `decls.txt` is.
 """
 
 from __future__ import annotations
 
 import argparse
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 
+from apiDump import (
+    API_FILE,
+    DECLS_FILE,
+    ApiDump,
+    ApiDumpError,
+    comparable_fields,
+    read_api,
+)
 
 # Cap on how many `+NAME` / `-NAME` rows we splice into the rendered Markdown
 # body. When the diff is longer, the body shows the first N rows and a
@@ -154,6 +169,53 @@ def render_override(
     return wrapped + "\n"
 
 
+@dataclass
+class Side:
+    """One side of the comparison: its declaration names, and its API dump if it
+    has one."""
+
+    names: set[str]
+    api: ApiDump | None
+
+
+def load_side(flag: str, dump_dir: Path | None, decls: Path | None) -> Side | str:
+    """Read one side, or return an error message. In a dump directory the names
+    come from `api.jsonl`, or from `decls.txt` if the directory predates the API
+    dump; otherwise from the bare `decls.txt`."""
+    if dump_dir is not None:
+        api_path = dump_dir / API_FILE
+        if api_path.exists():
+            try:
+                api = read_api(api_path)
+            except ApiDumpError as e:
+                return f"declsDiff.py: {flag} '{api_path}' is unusable: {e}."
+            return Side(set(api.decls), api)
+        decls = dump_dir / DECLS_FILE
+        if not decls.exists():
+            return (f"declsDiff.py: {flag} '{dump_dir}' has neither {API_FILE} "
+                    f"nor {DECLS_FILE}. {MERGE_HINT}")
+    assert decls is not None  # parse_args requires one of the two
+    err = validate_input(decls, flag)
+    if err is not None:
+        return err
+    return Side(read_decls(decls), None)
+
+
+def api_status(ref: Side, new: Side) -> tuple[str, str]:
+    """Returns `used` and the fields at the same version in both API dumps, or
+    `absent` and which side is missing the API dump. The only text the message
+    takes from the dumps is field names, and `read_api` accepts only short
+    identifiers as field names (`_FIELD_NAME` in `apiDump.py`), so the message
+    is safe to include in the step summary."""
+    if ref.api is not None and new.api is not None:
+        fields = ", ".join(comparable_fields(ref.api, new.api)) or "none"
+        return "used", f"{API_FILE} on both sides; fields in common: {fields}"
+    if ref.api is None and new.api is None:
+        return "absent", f"names only: neither side has {API_FILE}"
+    side = "reference" if ref.api is None else "new"
+    return "absent", f"names only: the {side} side has no {API_FILE}"
+
+
 def validate_input(path: Path, flag: str) -> str | None:
     """Return an error string if `path` is missing/empty, or `None` if OK."""
     if not path.is_file():
@@ -169,10 +231,15 @@ def parse_args(argv: list[str] | None) -> argparse.Namespace:
         description=__doc__.strip().splitlines()[0],
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    p.add_argument("--ref-decls", type=Path, required=True,
-                   help="declarations dump of the reference commit")
-    p.add_argument("--new-decls", type=Path, required=True,
-                   help="declarations dump of the new commit")
+    p.add_argument("--ref-dir", type=Path,
+                   help=f"dump directory of the reference commit: its {API_FILE}, "
+                        f"or {DECLS_FILE} if it predates the API dump")
+    p.add_argument("--new-dir", type=Path,
+                   help="dump directory of the new commit")
+    p.add_argument("--ref-decls", type=Path,
+                   help=f"{DECLS_FILE} of the reference commit, instead of --ref-dir")
+    p.add_argument("--new-decls", type=Path,
+                   help=f"{DECLS_FILE} of the new commit, instead of --new-dir")
     p.add_argument("--new-sha", default="",
                    help="full SHA of the new commit (for the stamp)")
     p.add_argument("--decls-override", type=Path,
@@ -184,22 +251,35 @@ def parse_args(argv: list[str] | None) -> argparse.Namespace:
     p.add_argument("--with-heading", action="store_true",
                    help="emit the `#### Declarations diff` heading and "
                         "`<details>` wrap in the override snippet")
-    return p.parse_args(argv)
+    p.add_argument("--api-status", type=Path,
+                   help="write `<state> <message>` about the API dumps here; "
+                        "state is `used` (both sides have one) or `absent`")
+    args = p.parse_args(argv)
+    for side in ("ref", "new"):
+        if (getattr(args, f"{side}_dir") is None) == (getattr(args, f"{side}_decls") is None):
+            p.error(f"give exactly one of --{side}-dir and --{side}-decls")
+    return args
 
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
 
-    for path, flag in [(args.ref_decls, "--ref-decls"),
-                       (args.new_decls, "--new-decls")]:
-        err = validate_input(path, flag)
-        if err is not None:
-            print(err, file=sys.stderr)
+    sides: list[Side] = []
+    for name, dump_dir, decls in [("ref", args.ref_dir, args.ref_decls),
+                                  ("new", args.new_dir, args.new_decls)]:
+        flag = f"--{name}-dir" if dump_dir is not None else f"--{name}-decls"
+        side = load_side(flag, dump_dir, decls)
+        if isinstance(side, str):
+            print(side, file=sys.stderr)
             return 1
+        sides.append(side)
+    ref, new = sides
+    diff = compute_diff(ref.names, new.names)
 
-    ref = read_decls(args.ref_decls)
-    new = read_decls(args.new_decls)
-    diff = compute_diff(ref, new)
+    # The API dumps supply the names; their other fields do not change the output yet.
+    state, message = api_status(ref, new)
+    print(f"declsDiff.py: API dump: {state}: {message}", file=sys.stderr)
+
     plus = sum(1 for sign, _ in diff if sign == "+")
     minus = sum(1 for sign, _ in diff if sign == "-")
 
@@ -212,6 +292,8 @@ def main(argv: list[str] | None = None) -> int:
             "".join(f"{sign}{name}\n" for sign, name in diff))
     if args.counts_file is not None:
         args.counts_file.write_text(f"{plus} {minus}\n")
+    if args.api_status is not None:
+        args.api_status.write_text(f"{state} {message}\n")
 
     return 0
 
