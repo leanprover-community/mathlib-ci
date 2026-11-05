@@ -1,14 +1,11 @@
 #!/usr/bin/env python3
 """declsDiff.py — compute a `+NAME` / `-NAME` diff between two pre-computed
-`decls.txt` dumps (produced by `dumpReasonableDecls.lean`) and render a
-Markdown body for the `#### Declarations diff` section of mathlib4's PR
-summary comment.
+dumps produced by `dumpReasonableDecls.lean` and render a Markdown body for
+the `#### Declarations diff` section of mathlib4's PR summary comment.
 
-Each side is a dump directory (`--ref-dir`, `--new-dir`), as written by
-`dumpReasonableDecls.lean --out-dir`, or a bare `decls.txt` (`--ref-decls`,
-`--new-decls`). A directory's names come from its API dump `api.jsonl`, or
-from `decls.txt` in a directory written before the API dump existed: master
-artifacts are kept for 90 days. Only names are compared so far. When both
+Depending on the arguments to `dumpReasonableDecls.lean`, each dump can be
+either a directory (`--ref-dir`, `--new-dir`) or a bare `decls.txt`
+(`--ref-decls`, `--new-decls`). Only names are compared so far. When both
 sides have an API dump, `--api-status` reports which fields they share, but
 the rendered section is the same either way. An API dump that cannot be read
 is an error, as a missing or empty `decls.txt` is.
@@ -21,8 +18,14 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-from apiDump import API_FILE, DECLS_FILE, ApiDump, ApiDumpError, comparable_fields, read_api
-
+from apiDump import (
+    API_FILE,
+    DECLS_FILE,
+    ApiDump,
+    ApiDumpError,
+    comparable_fields,
+    read_api,
+)
 
 # Cap on how many `+NAME` / `-NAME` rows we splice into the rendered Markdown
 # body. When the diff is longer, the body shows the first N rows and a
@@ -199,9 +202,10 @@ def load_side(flag: str, dump_dir: Path | None, decls: Path | None) -> Side | st
 
 
 def api_status(ref: Side, new: Side) -> tuple[str, str]:
-    """`used` and the fields both API dumps list at the same version, or `absent`
-    and which side has none. The message quotes nothing from the dumps (field
-    names are checked identifiers), so it is safe in the step summary."""
+    """Returns `used` and the fields at the same version in both API dumps, or
+    `absent` and which side is missing the API dump. The message quotes nothing
+    from the dumps (field names are checked identifiers), so it is safe in the
+    step summary."""
     if ref.api is not None and new.api is not None:
         fields = ", ".join(comparable_fields(ref.api, new.api)) or "none"
         return "used", f"{API_FILE} on both sides; fields in common: {fields}"
