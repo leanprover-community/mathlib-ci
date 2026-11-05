@@ -4,9 +4,7 @@ and work out which of its fields two dumps can be compared on.
 The format is documented in `dumpReasonableDecls.lean` (*The API dump*). In short: a header
 line `{"schema": 1, "fields": {"n": 1, ...}}`, then one JSON object per declaration (keyed
 by `n`) and one per module (keyed by `mod`). Two dumps are compared only on the fields both
-headers list at the same version (`comparable_fields`), so the dumper can gain or change a
-field while the base side of a comparison is still a `master` artifact written by an older
-dumper.
+headers list at the same version (`comparable_fields`).
 
 The dump comes from the PR's own build, so it is untrusted. Anything malformed raises
 `ApiDumpError`, and no error message quotes the file: the messages go to the workflow log.
@@ -23,7 +21,7 @@ from typing import BinaryIO
 # The line format this reader understands: `apiSchema` in `dumpReasonableDecls.lean`.
 SCHEMA = 1
 
-# The files in a dump directory, as `dumpReasonableDecls.lean --out-dir` names them.
+# The files in a dump directory, as named by `dumpReasonableDecls.lean --out-dir`.
 # Directories written before the API dump hold `decls.txt` instead of `api.jsonl`.
 API_FILE = "api.jsonl"
 IMPORTS_FILE = "imports.json"
@@ -41,7 +39,7 @@ class ApiDumpError(ValueError):
 @dataclass
 class ApiDump:
     """A parsed API dump. Rows are kept as parsed: a row may leave out a field the header
-    lists, which then has its empty value."""
+    lists, which then defaults to an empty value."""
 
     fields: dict[str, int]
     decls: dict[str, dict]
@@ -113,5 +111,5 @@ def _parse(fh: BinaryIO) -> ApiDump:
 
 
 def comparable_fields(a: ApiDump, b: ApiDump) -> list[str]:
-    """The fields both dumps list at the same version, sorted: the only ones to compare."""
+    """The fields that are at the same version in bothdumps, sorted: the only ones to be compared."""
     return sorted(f for f, v in a.fields.items() if b.fields.get(f) == v)
