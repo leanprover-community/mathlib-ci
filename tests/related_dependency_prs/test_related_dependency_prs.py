@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 from datetime import datetime, timedelta, timezone
 
+import related_dependency_prs
 from related_dependency_prs import (
     MARKER,
     Bump,
@@ -17,6 +18,9 @@ from related_dependency_prs import (
     bumps_between,
     classify,
     code_span,
+    included_upstream_prs,
+    links_from_nodes,
+    mentioned_prs,
     package_names,
     plan,
     posted_from_comment,
@@ -78,6 +82,12 @@ def test_adaptation_style_title():
     assert not adaptation_style_title("chore: reduce some Batteries imports", "x", BATT.names)
     # the name has to be a whole word
     assert not adaptation_style_title("chore: update batteriesX", "x", BATT.names)
+    # and not part of a module or file path
+    assert not adaptation_style_title("doc: update docs of Mathlib.Tactic.Aesop", "x", ["aesop"])
+    assert not adaptation_style_title("chore: update Mathlib/Tactic/Aesop.lean", "x", ["aesop"])
+    assert not adaptation_style_title("chore: update uses of Batteries.Data.List", "x", BATT.names)
+    assert adaptation_style_title("chore: bump batteries.", "x", BATT.names)
+    assert adaptation_style_title("chore: update `batteries`", "x", BATT.names)
 
 
 # ── manifest and upstream parsing ────────────────────────────────────────────
@@ -91,6 +101,48 @@ def test_bumps_between():
 def test_upstream_pr_numbers_reads_squash_subjects():
     messages = ["chore: make ProofWidgets.Html protected (#205)\n\nbody (#7)", "Merge branch 'main'", "fix (#12) typo", ""]
     assert upstream_pr_numbers(messages) == {205}
+
+
+def test_included_upstream_prs_reads_every_page(monkeypatch):
+    # `gh api --paginate --jq` prints the subjects of all pages, one per line
+    calls = []
+
+    def fake_gh(*args):
+        calls.append(args)
+        return "\n".join(f"feat: change {n} (#{n})" for n in range(1, 265)) + "\n"
+
+    monkeypatch.setattr(related_dependency_prs, "gh", fake_gh)
+    assert included_upstream_prs(BATT) == set(range(1, 265))
+    assert "--paginate" in calls[0]
+    assert included_upstream_prs(Bump("new", BATT.url, None, "ddd")) == set()
+
+
+MATHLIB = "leanprover-community/mathlib4"
+
+
+def test_mentioned_prs():
+    body = (
+        "Mathlib adaptation: mathlib4#44688. Also leanprover-community/mathlib4#44690 and "
+        "https://github.com/leanprover-community/mathlib4/pull/44700/files; "
+        "not batteries#2017, mathlib4-nightly-testing#12 or #44701."
+    )
+    assert mentioned_prs(body, MATHLIB) == {44688, 44690, 44700}
+    assert mentioned_prs("", MATHLIB) == set()
+
+
+def test_links_from_nodes_reads_both_directions():
+    nodes = {
+        # aesop#358: mathlib4#44688's description mentions it (a cross-reference on aesop#358)
+        358: {"body": "Preparation for batteries#2017.", "timelineItems": {"nodes": [
+            {"source": {"number": 44688, "repository": {"nameWithOwner": MATHLIB}}},
+            {"source": {"number": 7, "repository": {"nameWithOwner": "leanprover-community/batteries"}}},
+            {"source": {}},  # an issue, not a PR
+        ]}},
+        # aesop#360 names its mathlib4 adaptation in its own description
+        360: {"body": "Mathlib adaptation: mathlib4#44700", "timelineItems": {"nodes": []}},
+        361: None,  # not a PR
+    }
+    assert links_from_nodes(nodes, MATHLIB) == {44688: {358}, 44700: {360}}
 
 
 # ── classification ───────────────────────────────────────────────────────────

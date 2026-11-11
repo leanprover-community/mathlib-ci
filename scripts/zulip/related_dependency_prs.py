@@ -3,15 +3,17 @@
 
 Upstream maintainers often open a mathlib4 PR adapting Mathlib to their breaking change, and
 nobody finds it before the update-dependencies bot's PR fails and someone redoes the fixes on
-it. Run hourly by mathlib4's `update_dependencies.yml` while the bot's PR is open, this script
-compares every recently updated open PR with the packages the bot's PR bumps and sorts the
-related ones into two tiers:
+it. Run hourly by mathlib4's `update_dependencies_related_prs.yml` while the bot's PR is open,
+this script compares every recently updated open PR with the packages the bot's PR bumps and
+sorts the related ones into two tiers:
 
 * **likely adaptations** -- the PR makes the same bump as the bot's PR, or part of it (every
   package it changes in `lake-manifest.json` goes to the bot's new revision), or it names an
-  upstream PR that the bump includes (through a `<pkg>-pr-testing-N` branch,
-  `<repo>#N` or `.../<repo>/pull/N` in its title, or a link from that upstream PR when it also
-  changes the package or has an adaptation-style title). Posted to Zulip once per bot PR.
+  upstream PR that the bump includes: through a `<pkg>-pr-testing-N` branch, or `<repo>#N` or
+  `.../<repo>/pull/N` in its title, or a link between the two PRs (the PR mentions the upstream
+  PR in its description or a comment, or the upstream PR's description names it). A link counts
+  only when the PR also changes the package or has an adaptation-style title. Posted to Zulip
+  once per bot PR.
 * **also changing** -- the PR changes the package in `lake-manifest.json`, or its title says it
   bumps or adapts to it, and it was pushed within the last 14 days. Listed in the comment only.
 
@@ -169,11 +171,38 @@ def referenced_upstream_prs(title: str, branch: str, names: list[str]) -> set[in
 def adaptation_style_title(title: str, branch: str, names: list[str]) -> bool:
     """Whether the title or branch says the PR bumps or adapts to the package: a reference to one
     of its PRs, or `bump`/`adapt...`/`update` followed later by its name. A bare mention is not
-    enough ("replace `aesop` proof", "reduce some Batteries imports")."""
+    enough ("replace `aesop` proof", "reduce some Batteries imports"), and neither is the name
+    inside a module or file path ("update docs of Mathlib.Tactic.Aesop")."""
     if referenced_upstream_prs(title, branch, names):
         return True
     alt = _alternation(names)
-    return bool(re.search(rf"\b(?:bump|adapt\w*|update)\b.*(?<![\w-])(?:{alt})(?![\w-])", title.lower()))
+    return bool(re.search(
+        rf"\b(?:bump|adapt\w*|update)\b.*(?<![\w./-])(?:{alt})(?![\w-]|\.\w)", title.lower()))
+
+
+def mentioned_prs(text: str, repo: str) -> set[int]:
+    """PRs of `repo` (`owner/name`) that a text names: `name#N`, `owner/name#N` or a
+    `github.com/owner/name/pull/N` link."""
+    owner, name = (re.escape(part) for part in repo.lower().split("/"))
+    pattern = rf"(?<![\w.-])(?:{owner}/)?{name}\s?#(\d+)|github\.com/{owner}/{name}/pull/(\d+)"
+    return {int(a or b) for a, b in re.findall(pattern, (text or "").lower())}
+
+
+def links_from_nodes(nodes: dict[int, Optional[dict]], repo: str) -> dict[int, set[int]]:
+    """PR of `repo` -> the upstream PRs linked with it, from the upstream PRs' GraphQL `body` and
+    `CROSS_REFERENCED_EVENT` timeline items. A cross-reference on upstream PR `n` records a PR
+    whose description or comment mentions `n`; the body is where `n` names a PR itself."""
+    out: dict[int, set[int]] = {}
+    for n, node in nodes.items():
+        node = node or {}
+        linked = mentioned_prs(node.get("body") or "", repo)
+        for item in (node.get("timelineItems") or {}).get("nodes") or []:
+            source = (item or {}).get("source") or {}
+            if (source.get("repository") or {}).get("nameWithOwner") == repo:
+                linked.add(source["number"])
+        for number in linked:
+            out.setdefault(number, set()).add(n)
+    return out
 
 
 def classify(
@@ -186,7 +215,7 @@ def classify(
     """Sort an open PR into a tier, or None when it is not related.
 
     `upstream_prs[package]` holds the upstream PRs the bump includes; `links[package][n]` the
-    upstream PRs among them that link to mathlib4 PR `n`."""
+    upstream PRs among them that are linked with mathlib4 PR `n` (see `links_from_nodes`)."""
     if "lean-toolchain" in pr.paths:
         return None
     match = Match(pr.number, pr.title, likely=False)
@@ -246,7 +275,7 @@ def render_comment(matches: list[Match], posted: set[int]) -> str:
         "### Related open PRs",
         "",
         "Open PRs that may already adapt Mathlib to the dependency changes in this PR. "
-        "Updated hourly by the update-dependencies workflow.",
+        "Updated every hour while this PR is open.",
         "",
     ]
     if not matches:
@@ -411,17 +440,18 @@ def included_upstream_prs(bump: Bump) -> set[int]:
     if not bump.old or not bump.github:
         return set()
     owner, name = bump.github
+    # One commit subject per line. The compare API returns at most 250 commits per page.
     try:
-        out = gh("api", f"repos/{owner}/{name}/compare/{bump.old}...{bump.new}",
-                 "--jq", "[.commits[].commit.message]")
+        out = gh("api", "--paginate", f"repos/{owner}/{name}/compare/{bump.old}...{bump.new}",
+                 "--jq", '.commits[].commit.message | split("\\n")[0]')
     except RuntimeError as e:
         print(f"::warning::could not list the upstream PRs in the {bump.package} bump: {e}", file=sys.stderr)
         return set()
-    return upstream_pr_numbers(json.loads(out))
+    return upstream_pr_numbers(out.splitlines())
 
 
 def links_from_upstream(bump: Bump, numbers: set[int], repo: str) -> dict[int, set[int]]:
-    """mathlib4 PR -> upstream PRs (among `numbers`) whose timeline shows a link from it."""
+    """mathlib4 PR -> the upstream PRs among `numbers` linked with it (see `links_from_nodes`)."""
     if not numbers or not bump.github:
         return {}
     owner, name = bump.github
@@ -430,7 +460,7 @@ def links_from_upstream(bump: Bump, numbers: set[int], repo: str) -> dict[int, s
     for i in range(0, len(numbers_list), 20):
         chunk = numbers_list[i:i + 20]
         fields = "".join(
-            f"""p{n}: issueOrPullRequest(number: {n}) {{ ... on PullRequest {{
+            f"""p{n}: issueOrPullRequest(number: {n}) {{ ... on PullRequest {{ body
               timelineItems(first: 100, itemTypes: [CROSS_REFERENCED_EVENT]) {{ nodes {{
                 ... on CrossReferencedEvent {{ source {{ ... on PullRequest {{
                   number repository {{ nameWithOwner }} }} }} }} }} }} }} }}"""
@@ -442,11 +472,8 @@ def links_from_upstream(bump: Bump, numbers: set[int], repo: str) -> dict[int, s
         except RuntimeError as e:
             print(f"::warning::could not read links to {owner}/{name} PRs: {e}", file=sys.stderr)
             continue
-        for n in chunk:
-            for item in ((data.get(f"p{n}") or {}).get("timelineItems") or {}).get("nodes", []):
-                source = item.get("source") or {}
-                if (source.get("repository") or {}).get("nameWithOwner") == repo:
-                    out.setdefault(source["number"], set()).add(n)
+        for number, upstream in links_from_nodes({n: data.get(f"p{n}") for n in chunk}, repo).items():
+            out.setdefault(number, set()).update(upstream)
     return out
 
 
