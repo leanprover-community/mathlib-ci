@@ -95,25 +95,26 @@ runs:
           exit 1
         fi
 
-        # Each side: its dump directory, or the files of a caller that predates them.
-        if [ -n "$IN_REF_DIR" ] && [ -z "$IN_REF_DECLS" ]; then
+        # Each side: its dump directory, or the files of a caller that predates them. A
+        # directory replaces both files, so neither may be given with it.
+        if [ -n "$IN_REF_DIR" ] && [ -z "$IN_REF_DECLS$IN_REF_IMPORTS" ]; then
           REF_ARGS=(--ref-dir "$IN_REF_DIR"); REF_LABEL="$IN_REF_DIR/"
           REF_JSON="$IN_REF_DIR/imports.json"
         elif [ -z "$IN_REF_DIR" ] && [ -n "$IN_REF_DECLS" ]; then
           REF_ARGS=(--ref-decls "$IN_REF_DECLS"); REF_LABEL="$IN_REF_DECLS"
           REF_JSON="$IN_REF_IMPORTS"
         else
-          echo "decls-diff action: give exactly one of reference-dir and reference-decls-file." >&2
+          echo "decls-diff action: give either reference-dir, or reference-decls-file and reference-imports-file." >&2
           exit 1
         fi
-        if [ -n "$IN_NEW_DIR" ] && [ -z "$IN_NEW_DECLS" ]; then
+        if [ -n "$IN_NEW_DIR" ] && [ -z "$IN_NEW_DECLS$IN_NEW_IMPORTS" ]; then
           NEW_ARGS=(--new-dir "$IN_NEW_DIR"); NEW_LABEL="$IN_NEW_DIR/"
           NEW_JSON="$IN_NEW_DIR/imports.json"
         elif [ -z "$IN_NEW_DIR" ] && [ -n "$IN_NEW_DECLS" ]; then
           NEW_ARGS=(--new-decls "$IN_NEW_DECLS"); NEW_LABEL="$IN_NEW_DECLS"
           NEW_JSON="$IN_NEW_IMPORTS"
         else
-          echo "decls-diff action: give exactly one of new-dir and new-decls-file." >&2
+          echo "decls-diff action: give either new-dir, or new-decls-file and new-imports-file." >&2
           exit 1
         fi
 
@@ -162,9 +163,9 @@ runs:
         {
           echo "## Declarations diff"
           echo
-          echo "* new:       \`$IN_NEW_SHA\` (\`$SHORT\`)"
-          echo "* ref: \`$REF_LABEL\`"
-          echo "* new: \`$NEW_LABEL\`"
+          echo "* new commit: \`$IN_NEW_SHA\` (\`$SHORT\`)"
+          echo "* ref dump: \`$REF_LABEL\`"
+          echo "* new dump: \`$NEW_LABEL\`"
           echo "* API dump: \`$API_STATE\` $API_MESSAGE"
           echo
           echo "**+$PLUS** new / **−$MINUS** removed"

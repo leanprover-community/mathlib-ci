@@ -18,6 +18,8 @@ _DUMPER = _REPO / "scripts" / "pr_summary" / "dumpReasonableDecls.lean"
 # mathlib4 `079459b1486` (v4.36.0-rc2). Re-record it when the dumper's fields change.
 _REAL = Path(__file__).resolve().parent / "data" / "order-bounds-basic"
 
+# A schema-1 header. Keep it at schema 1 when `SCHEMA` goes up: `master` artifacts written
+# at schema 1 are still compared for 90 days after the bump.
 HEADER = {"schema": 1, "fields": {"n": 1, "k": 1, "m": 1, "mod": 1}}
 
 
@@ -83,6 +85,12 @@ class TestReadApi:
         api = read_api(_write(tmp_path / "a.jsonl", [HEADER, {"n": "a\u2028b"}]))
         assert set(api.decls) == {"a\u2028b"}
 
+    def test_escaped_surrogate_pair(self, tmp_path: Path) -> None:
+        """A pair of `\\u` escapes is one character, and can be written out again."""
+        p = tmp_path / "a.jsonl"
+        p.write_text(json.dumps(HEADER) + '\n{"n": "a\\ud83d\\ude00", "k": "\\u0001"}\n')
+        assert set(read_api(p).decls) == {"a\U0001f600"}
+
     @pytest.mark.parametrize("rows, reason", [
         ([], "it is empty"),
         ([{"n": "foo"}], "not a header"),
@@ -95,7 +103,16 @@ class TestReadApi:
         ([{"schema": 1, "fields": {"n": True, "mod": 1}}], "map from names to versions"),
         ([{"schema": 1, "fields": {"n": 1, "mod": 1, "a\n::b": 1}}],
          "map from names to versions"),
-        ([{"schema": 1, "fields": {"n": 1}}], "does not list `mod`"),
+        ([{"schema": 1, "fields": {"n": 1}}], "does not list `mod` at version 1"),
+        ([{"schema": 1, "fields": {"mod": 1}}], "does not list `n` at version 1"),
+        # Names are compared whatever the field versions, so their key cannot move.
+        ([{"schema": 1, "fields": {"n": 2, "mod": 1}}], "does not list `n` at version 1"),
+        ([{"schema": 1, "fields": {"n": 1, "mod": 2}}], "does not list `mod` at version 1"),
+        # As an empty `decls.txt` is rejected: it would report every name removed.
+        ([HEADER], "it lists no declarations"),
+        ([HEADER, {"mod": "M"}], "it lists no declarations"),
+        ([HEADER, {"n": "\ud800"}], "line 2 escapes an unpaired surrogate"),
+        ([HEADER, {"n": "foo", "k": "\udc00"}], "line 2 escapes an unpaired surrogate"),
         ([HEADER, ["n", "foo"]], "line 2 is not a JSON object"),
         ([HEADER, {"k": "thm"}], "line 2 has neither or both"),
         ([HEADER, {"n": "foo", "mod": "M"}], "line 2 has neither or both"),

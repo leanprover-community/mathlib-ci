@@ -7,8 +7,8 @@ Depending on the arguments to `dumpReasonableDecls.lean`, each dump can be
 either a directory (`--ref-dir`, `--new-dir`) or a bare `decls.txt`
 (`--ref-decls`, `--new-decls`). Only names are compared so far. When both
 sides have an API dump, `--api-status` reports which fields they share, but
-the rendered section is the same either way. An API dump that cannot be read
-is an error, as a missing or empty `decls.txt` is.
+the rendered section is the same either way. An API dump that cannot be read,
+or that lists no declarations, is an error, as a missing or empty `decls.txt` is.
 """
 
 from __future__ import annotations
@@ -274,6 +274,8 @@ def main(argv: list[str] | None = None) -> int:
             return 1
         sides.append(side)
     ref, new = sides
+    # Names need no version check: `read_api` accepts only dumps whose `n` is at the
+    # version `decls.txt` names are (`KEYS` in `apiDump.py`).
     diff = compute_diff(ref.names, new.names)
 
     # The API dumps supply the names; their other fields do not change the output yet.

@@ -4,7 +4,8 @@ and work out which of its fields two dumps can be compared on.
 The format is documented in `dumpReasonableDecls.lean` (*The API dump*). In short: a header
 line `{"schema": 1, "fields": {"n": 1, ...}}`, then one JSON object per declaration (keyed
 by `n`) and one per module (keyed by `mod`). Two dumps are compared only on the fields both
-headers list at the same version (`comparable_fields`).
+headers list at the same version (`comparable_fields`), except for the keys `n` and `mod`,
+which every dump this reader accepts has at version 1 (`KEYS`).
 
 The dump comes from the PR's own build, so it is untrusted. Anything malformed raises
 `ApiDumpError`, and no error message quotes the file: the messages go to the workflow log.
@@ -18,8 +19,14 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import BinaryIO
 
-# The line format this reader understands: `apiSchema` in `dumpReasonableDecls.lean`.
+# The line format this reader understands: `apiSchema` in `dumpReasonableDecls.lean`. When
+# it goes up, the reader must go on reading every older schema too: `master` artifacts
+# written before the bump are compared for up to 90 days (*The API dump*).
 SCHEMA = 1
+
+# The keys that identify a row, at the only versions they have. `declsDiff.py` compares
+# names whatever the other fields are at, so changing what these hold needs a new `SCHEMA`.
+KEYS = {"n": 1, "mod": 1}
 
 # The files in a dump directory, as named by `dumpReasonableDecls.lean --out-dir`.
 # Directories written before the API dump hold `decls.txt` instead of `api.jsonl`.
@@ -38,8 +45,8 @@ class ApiDumpError(ValueError):
 
 @dataclass
 class ApiDump:
-    """A parsed API dump. Rows are kept as parsed: a row may leave out a field the header
-    lists, which then defaults to an empty value."""
+    """A parsed API dump, with at least one declaration. Rows are kept as parsed, so a field
+    that *The API dump* gives an empty value for may be missing from a row."""
 
     fields: dict[str, int]
     decls: dict[str, dict]
@@ -59,9 +66,9 @@ def _read_header(row: dict) -> dict[str, int]:
     for name, version in fields.items():
         if not _FIELD_NAME.fullmatch(name) or type(version) is not int:
             raise ApiDumpError("the header's `fields` is not a map from names to versions")
-    for key in ("n", "mod"):
-        if key not in fields:
-            raise ApiDumpError(f"the header does not list `{key}`")
+    for key, version in KEYS.items():
+        if fields.get(key) != version:
+            raise ApiDumpError(f"the header does not list `{key}` at version {version}")
     return fields
 
 
@@ -91,6 +98,13 @@ def _parse(fh: BinaryIO) -> ApiDump:
             row = json.loads(line)
         except (ValueError, RecursionError):
             raise ApiDumpError(f"line {lineno} is not valid JSON") from None
+        # The line is UTF-8, so only a `\u` escape can give an unpaired surrogate, which
+        # would make writing the string back out fail.
+        if "\\u" in line:
+            try:
+                json.dumps(row, ensure_ascii=False).encode("utf-8")
+            except UnicodeEncodeError:
+                raise ApiDumpError(f"line {lineno} escapes an unpaired surrogate") from None
         if not isinstance(row, dict):
             raise ApiDumpError(f"line {lineno} is not a JSON object")
         if fields is None:
@@ -107,9 +121,13 @@ def _parse(fh: BinaryIO) -> ApiDump:
         table[name] = row
     if fields is None:
         raise ApiDumpError("it is empty")
+    # Like an empty `decls.txt`: read as it is, it would report every declaration removed.
+    if not decls:
+        raise ApiDumpError("it lists no declarations")
     return ApiDump(fields, decls, modules)
 
 
 def comparable_fields(a: ApiDump, b: ApiDump) -> list[str]:
-    """The fields that are at the same version in bothdumps, sorted: the only ones to be compared."""
+    """The fields that are at the same version in both dumps, sorted: the only ones to be
+    compared."""
     return sorted(f for f, v in a.fields.items() if b.fields.get(f) == v)

@@ -185,6 +185,19 @@ class TestDumpDirs:
         assert "--new-dir" in err and "is unusable: its schema is newer than" in err
         assert "forged" not in err
 
+    def test_api_dump_with_no_declarations_fails(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        """A header-only dump would otherwise report every reference name as removed."""
+        ref = _dump_dir(tmp_path / "ref", [], fields=V1)
+        new = _dump_dir(tmp_path / "new", ["A"], fields=V1)
+        rc = declsDiff.main(["--ref-dir", str(ref), "--new-dir", str(new),
+                             "--counts-file", str(tmp_path / "counts.txt")])
+        assert rc == 1
+        assert "--ref-dir" in (err := capsys.readouterr().err)
+        assert "is unusable: it lists no declarations" in err
+        assert not (tmp_path / "counts.txt").exists()
+
     def test_directory_with_neither_file(
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
     ) -> None:

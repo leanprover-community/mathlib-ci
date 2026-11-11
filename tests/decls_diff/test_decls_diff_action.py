@@ -77,6 +77,8 @@ def test_dump_directories(tmp_path: Path) -> None:
     assert outputs["base-json"] == f"{ref}/imports.json"
     assert outputs["head-json"] == f"{new}/imports.json"
     assert Path(outputs["diff-file"]).read_text() == "-B\n+C\n"
+    assert "* new commit: `1234567890abcdef` (`1234567`)" in summary
+    assert f"* ref dump: `{ref}/`" in summary and f"* new dump: `{new}/`" in summary
     assert "* API dump: `used` api.jsonl on both sides; fields in common:" in summary
 
 
@@ -115,12 +117,26 @@ def test_unreadable_api_dump_fails_the_step(tmp_path: Path) -> None:
     assert "decls-override-file" not in outputs
 
 
-@pytest.mark.parametrize("both", [True, False])
-def test_exactly_one_input_per_side(tmp_path: Path, both: bool) -> None:
+@pytest.mark.parametrize("extra", [
+    {},  # neither a directory nor files
+    {"reference_dir": "REF", "reference_decls_file": "REF/decls.txt"},
+    # Would otherwise be ignored in favour of the directory's own `imports.json`.
+    {"reference_dir": "REF", "reference_imports_file": "REF/imports.json"},
+])
+def test_directory_or_files_per_side(tmp_path: Path, extra: dict[str, str]) -> None:
     ref = _dump_dir(tmp_path / "ref", ["A"])
     new = _dump_dir(tmp_path / "new", ["A"])
-    extra = {"reference_decls_file": str(ref / "decls.txt")} if both else {}
-    proc, _, _ = _action(tmp_path, **({"reference_dir": str(ref)} if both else {}),
-                         new_dir=str(new), **extra)
+    inputs = {k: v.replace("REF", str(ref)) for k, v in extra.items()}
+    proc, _, _ = _action(tmp_path, new_dir=str(new), **inputs)
     assert proc.returncode == 1
-    assert "give exactly one of reference-dir and reference-decls-file" in proc.stderr
+    assert ("give either reference-dir, or reference-decls-file and reference-imports-file"
+            in proc.stderr)
+
+
+def test_new_imports_file_with_new_dir_is_rejected(tmp_path: Path) -> None:
+    ref = _dump_dir(tmp_path / "ref", ["A"])
+    new = _dump_dir(tmp_path / "new", ["A"])
+    proc, _, _ = _action(tmp_path, reference_dir=str(ref), new_dir=str(new),
+                         new_imports_file=str(new / "imports.json"))
+    assert proc.returncode == 1
+    assert "give either new-dir, or new-decls-file and new-imports-file" in proc.stderr
