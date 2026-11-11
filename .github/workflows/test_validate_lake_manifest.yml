@@ -1,6 +1,6 @@
 name: Test validate-lake-manifest action
 
-# Runs the unit-test suite for the `validate-lake-manifest` composite
+# Runs the end-to-end tests for the `validate-lake-manifest` composite
 # action on every push / PR that touches its source or its tests.
 
 on:
@@ -10,11 +10,13 @@ on:
       - .github/actions/validate-lake-manifest/**
       - tests/validate_lake_manifest/**
       - .github/workflows/test_validate_lake_manifest.yml
+      - pytest.ini
   pull_request:
     paths:
       - .github/actions/validate-lake-manifest/**
       - tests/validate_lake_manifest/**
       - .github/workflows/test_validate_lake_manifest.yml
+      - pytest.ini
 
 permissions:
   contents: read

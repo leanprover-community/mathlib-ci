@@ -11,14 +11,14 @@ inputs:
     required: true
   strict:
     description: >-
-      `true` makes the pin findings errors. Otherwise they are warnings.
-      mathlib4 sets it on bors runs.
+      `true` makes every finding an error. Otherwise only a malformed pin is
+      an error. mathlib4 sets it on bors runs.
     required: false
     default: 'false'
   allow-older-pins:
     description: >-
-      `true` makes an older pin a warning on every run, for an intentional
-      revert. mathlib4 maps the repository variable
+      `true` makes an older pin a warning, even with `strict`, for an
+      intentional revert. mathlib4 maps the repository variable
       `MATHLIB_ALLOW_OLDER_DEPENDENCY_PINS` to this input.
     required: false
     default: 'false'

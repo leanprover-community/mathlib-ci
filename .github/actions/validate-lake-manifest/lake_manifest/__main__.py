@@ -1,9 +1,7 @@
 """Validate lake-manifest.json at a commit and report the findings as annotations.
 
-A field finding is an error. A pin finding is an error with `--strict`
-and a warning otherwise. With `--allow-older-pins`, an older pin is a
-warning on every run. Exits 1 on an error or when the manifest cannot
-be read.
+The action's README.md lists the rules and their levels. Exits 1 on an error
+or when the manifest cannot be read.
 """
 
 from __future__ import annotations
@@ -13,7 +11,7 @@ import os
 import sys
 
 from .github import ApiError, GitHub
-from .validate import FIELD, FILE, OLDER_PIN, Finding, validate
+from .validate import FILE, MALFORMED, OLDER_PIN, Finding, validate
 
 OVERRIDE_VARIABLE = "MATHLIB_ALLOW_OLDER_DEPENDENCY_PINS"
 STRICT_NOTE = "Note: This check fails the Build job on bors runs."
@@ -23,7 +21,7 @@ OVERRIDE_NOTE = f"Note: The variable `{OVERRIDE_VARIABLE}` is `true`, so this ch
 
 def annotate(finding: Finding, strict: bool, allow_older_pins: bool) -> tuple[str, str]:
     """The level of a finding and the message of its annotation."""
-    if finding.kind == FIELD:
+    if finding.kind == MALFORMED:
         return "error", "\n".join((finding.problem, *finding.advice))
     if finding.kind == OLDER_PIN and allow_older_pins:
         return "warning", "\n".join((finding.problem, OVERRIDE_NOTE))
@@ -45,8 +43,8 @@ def main() -> int:
     parser = argparse.ArgumentParser(prog="python3 -m lake_manifest", description=__doc__)
     parser.add_argument("--repository", required=True, help="The `owner/repo` that holds the commit.")
     parser.add_argument("--ref", required=True, help="The commit to check.")
-    parser.add_argument("--strict", action="store_true", help="Pin findings are errors, not warnings.")
-    parser.add_argument("--allow-older-pins", action="store_true", help="An older pin is a warning on every run.")
+    parser.add_argument("--strict", action="store_true", help="Every finding is an error, not only a malformed pin.")
+    parser.add_argument("--allow-older-pins", action="store_true", help="An older pin is a warning, even with `--strict`.")
     args = parser.parse_args()
     github = GitHub(os.environ["GITHUB_TOKEN"], os.environ.get("GITHUB_API_URL", "https://api.github.com"))
 

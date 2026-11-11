@@ -1,10 +1,5 @@
-"""Read lake-manifest.json at a commit and at the base, and apply the rules.
-
-The field rules need only the manifest. The pin rules compare a pin with
-the base manifest and ask GitHub about the dependency's history. Each
-broken rule is a `Finding`; `__main__` sets its level. The README lists
-the rules.
-"""
+"""Read lake-manifest.json at a commit and at the base, and apply the rules in the
+action's README.md. Each broken rule is a `Finding`; `__main__` sets its level."""
 
 from __future__ import annotations
 
@@ -22,9 +17,9 @@ REPOSITORY_URL = re.compile(r"https://github\.com/((?:leanprover|leanprover-comm
 FULL_SHA = re.compile(r"[0-9a-f]{40}")
 
 # The kinds of finding.
-FIELD = "field"  # `inputRev`, `url` or the pin is malformed.
-PIN = "pin"  # The pin is not on its branch, is not its tag's commit, or could not be checked.
-OLDER_PIN = "older-pin"  # The pin is older than the base pin.
+MALFORMED = "malformed"  # The pin is not a full commit hash. An error on every run.
+UNMERGEABLE = "unmergeable"  # A PR can test this, but bors must not merge it.
+OLDER_PIN = "older-pin"  # The pin is older than the base pin. Also unmergeable.
 
 
 @dataclass(frozen=True)
@@ -46,8 +41,8 @@ class Dependency:
     inherited: bool
 
     @property
-    def repository(self) -> str | None:
-        """The `owner/repo` of an allowed GitHub repository, else `None`."""
+    def allowed_repository(self) -> str | None:
+        """The `owner/repo` of `url` when it is in an allowed organization, else `None`."""
         match = REPOSITORY_URL.fullmatch(self.url) if self.url is not None else None
         return match[1] if match else None
 
@@ -79,15 +74,19 @@ def parse(text: str) -> list[Dependency]:
     ]
 
 
+def lake_update(dep: Dependency) -> str:
+    # An inherited dependency comes from the `require` in another dependency, not in Mathlib,
+    # so only a full `lake update` changes it.
+    return "`lake update`" if dep.inherited else f"`lake update {dep.name}`"
+
+
 def update_hint(dep: Dependency) -> str:
-    return f"Hint: Run `lake update {dep.name}` and commit {FILE}."
+    return f"Hint: Run {lake_update(dep)} and commit {FILE}."
 
 
 def require_hint(dep: Dependency) -> str:
-    # An inherited dependency comes from the `require` in another dependency, not in Mathlib.
-    if dep.inherited:
-        return f"Hint: Fix the `require` for `{dep.name}` in the dependency that requires it, then run `lake update`."
-    return f"Hint: Fix the `require` for `{dep.name}` in lakefile.lean, then run `lake update {dep.name}`."
+    where = "the dependency that requires it" if dep.inherited else "lakefile.lean"
+    return f"Hint: Fix the `require` for `{dep.name}` in {where}, then run {lake_update(dep)}."
 
 
 def check_fields(dep: Dependency) -> list[Finding]:
@@ -95,24 +94,24 @@ def check_fields(dep: Dependency) -> list[Finding]:
     findings = []
     if not (dep.input_rev in BRANCH_REVS or matches(TAG_REV, dep.input_rev)):
         findings.append(Finding(
-            FIELD,
+            UNMERGEABLE,
             "Invalid dependency inputRev",
             f"{FILE} makes `{dep.name}` track `{dep.input_rev}`, which is not an allowed `inputRev`.",
-            ("Note: CI accepts only `main`, `master` or a version tag such as `v4.25.0` or `v4.25.0-rc1`.",
+            ("Note: Mathlib can merge only `main`, `master` or a version tag such as `v4.25.0` or `v4.25.0-rc1`.",
              require_hint(dep)),
         ))
-    if dep.repository is None:
+    if dep.allowed_repository is None:
         findings.append(Finding(
-            FIELD,
+            UNMERGEABLE,
             "Invalid dependency repository",
             f"{FILE} sets the repository of `{dep.name}` to `{dep.url}`, which is not an allowed repository.",
-            ("Note: CI accepts only repositories in https://github.com/leanprover-community "
+            ("Note: Mathlib can merge only repositories in https://github.com/leanprover-community "
              "and https://github.com/leanprover.",
              require_hint(dep)),
         ))
     if not matches(FULL_SHA, dep.rev):
         findings.append(Finding(
-            FIELD,
+            MALFORMED,
             "Invalid dependency pin",
             f"{FILE} pins `{dep.name}` to `{dep.rev}`, which is not a full commit hash.",
             (update_hint(dep),),
@@ -128,25 +127,26 @@ def check_pin(dep: Dependency, old: Dependency | None, github) -> Finding | None
     same_source = old is not None and (old.url, old.input_rev) == (dep.url, dep.input_rev)
     if same_source and old.rev == dep.rev:
         return None
+    repository = dep.allowed_repository
     if dep.input_rev not in BRANCH_REVS:
-        sha = github.tag_commit(dep.repository, dep.input_rev)
+        sha = github.tag_commit(repository, dep.input_rev)
         if sha == dep.rev:
             return None
         return Finding(
-            PIN,
+            UNMERGEABLE,
             f"Dependency pin does not match tag {dep.input_rev}",
             f"{FILE} pins `{dep.name}` to `{dep.rev}`, but tag `{dep.input_rev}` of {dep.url} "
             + (f"points to `{sha}`." if sha else "does not exist."),
             (update_hint(dep),),
         )
-    if not github.is_ancestor(dep.repository, dep.rev, dep.input_rev):
+    if not github.is_ancestor(repository, dep.rev, dep.input_rev):
         return Finding(
-            PIN,
+            UNMERGEABLE,
             f"Dependency pin is not on branch {dep.input_rev}",
             f"{FILE} pins `{dep.name}` to `{dep.rev}`, which is not on the `{dep.input_rev}` branch of {dep.url}.",
             (update_hint(dep),),
         )
-    if same_source and not github.is_ancestor(dep.repository, old.rev, dep.rev):
+    if same_source and not github.is_ancestor(repository, old.rev, dep.rev):
         return Finding(
             OLDER_PIN,
             "Older dependency pin",
@@ -162,7 +162,7 @@ def validate(github, repository: str, ref: str) -> list[Finding]:
 
     The base manifest is `BASE_BRANCH`'s manifest at the merge base. Raises
     `ApiError` or `ValueError` when the manifest at `ref` cannot be read. A
-    failure in the pin checks is a `PIN` finding.
+    failure in the pin checks is an `UNMERGEABLE` finding.
     """
     findings: list[Finding] = []
     valid: list[Dependency] = []
@@ -174,10 +174,12 @@ def validate(github, repository: str, ref: str) -> list[Finding]:
     try:
         base_ref = github.merge_base(repository, BASE_BRANCH, ref)
         base = {dep.name: dep for dep in parse(github.read_manifest(repository, base_ref))}
-        findings += [f for dep in valid if (f := check_pin(dep, base.get(dep.name), github))]
+        for dep in valid:
+            if finding := check_pin(dep, base.get(dep.name), github):
+                findings.append(finding)
     except (ApiError, ValueError) as error:
         findings.append(Finding(
-            PIN,
+            UNMERGEABLE,
             "Dependency pin check failed",
             f"CI could not check the dependency pins: {error}",
             ("Hint: Re-run the failed job.",),

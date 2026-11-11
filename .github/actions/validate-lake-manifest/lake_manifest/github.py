@@ -1,8 +1,7 @@
 """The GitHub REST calls that the validation makes. Stdlib only.
 
-Every request is a GET, so a retry is safe. A transport fault or a
-transient status (any 5xx, 408 or 429) retries with backoff. Any other
-status raises `ApiError` at once.
+Every request is a GET, so a retry is safe. `retry_delay` decides which
+answers retry. A request fails after `len(BACKOFF) + 1` attempts.
 """
 
 from __future__ import annotations
@@ -16,7 +15,8 @@ import urllib.request
 from typing import Any
 from urllib.parse import quote
 
-ATTEMPTS = 4
+BACKOFF = (1, 2, 4)  # Seconds before each retry.
+MAX_RETRY_AFTER = 60  # The longest `Retry-After` that the request waits for.
 TIMEOUT_SECONDS = 30
 USER_AGENT = "mathlib-ci/validate-lake-manifest"
 # `OSError` covers `urllib.error.URLError`; `http.client.HTTPException`
@@ -32,8 +32,17 @@ class ApiError(Exception):
         self.status = status
 
 
-def is_transient(status: int) -> bool:
-    return status >= 500 or status in (408, 429)
+def retry_delay(error: urllib.error.HTTPError, backoff: int) -> float | None:
+    """The seconds to wait before a retry of the request that failed with `error`, or `None` for no retry.
+
+    A 5xx, 408 or 429 status is transient. GitHub sends a rate limit as 403 or
+    429, with `Retry-After` when a short wait is enough. Without that header, a
+    403 is a missing permission or a rate limit that resets too late to wait for.
+    """
+    retry_after = error.headers.get("Retry-After", "") if error.headers else ""
+    if error.code in (403, 429) and retry_after.isdigit():
+        return max(int(retry_after), backoff) if int(retry_after) <= MAX_RETRY_AFTER else None
+    return backoff if error.code >= 500 or error.code in (408, 429) else None
 
 
 class GitHub:
@@ -52,19 +61,20 @@ class GitHub:
                 "X-GitHub-Api-Version": "2022-11-28",
             },
         )
-        for attempt in range(ATTEMPTS):
-            last = attempt + 1 == ATTEMPTS
+        # `None` marks the last attempt, which returns or raises.
+        for backoff in (*BACKOFF, None):
             try:
                 with urllib.request.urlopen(request, timeout=TIMEOUT_SECONDS) as response:
                     return json.load(response)
             except urllib.error.HTTPError as error:
-                if not is_transient(error.code) or last:
+                delay = None if backoff is None else retry_delay(error, backoff)
+                if delay is None:
                     raise ApiError(f"GET {path} failed with HTTP {error.code}", error.code) from None
             except TRANSPORT_ERRORS:
-                if last:
+                if backoff is None:
                     raise ApiError(f"GET {path} failed") from None
-            time.sleep(2**attempt)
-        raise AssertionError("unreachable: the loop returns or raises")
+                delay = backoff
+            time.sleep(delay)
 
     def compare(self, repository: str, base: str, head: str) -> dict:
         return self.get(f"/repos/{repository}/compare/{quote(base, safe='')}...{quote(head, safe='')}?per_page=1")

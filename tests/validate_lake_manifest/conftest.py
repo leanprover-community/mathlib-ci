@@ -47,14 +47,15 @@ class FakeGitHub:
     """What the fake GitHub serves.
 
     A manifest is its text, or the answer to send instead: an HTTP status, or
-    a JSON value such as `[]` for a directory. `failures` is how many requests
-    to answer with 502 first.
+    a JSON value such as `[]` for a directory. `failures` are the HTTP statuses
+    to answer the first requests with, each with `Retry-After: retry_after` if set.
     """
 
     head: object
     base: object = None
     tags: dict[str, str] = field(default_factory=dict)
-    failures: int = 0
+    failures: list[int] = field(default_factory=list)
+    retry_after: str | None = None
 
     CONTAINS = {"main": {OLD, NEW}, NEW: {OLD, NEW}, OLD: {OLD}, FORK: {FORK}}
 
@@ -87,8 +88,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if self.headers.get("Authorization") != f"Bearer {TOKEN}":
             return self.answer(401)
         if github.failures:
-            github.failures -= 1
-            return self.answer(502)
+            return self.answer(github.failures.pop(0), github.retry_after)
         if path.endswith("/contents/lake-manifest.json"):
             return self.answer(github.manifest(urllib.parse.parse_qs(url.query)["ref"][0]))
         if match := re.fullmatch(r"/repos/[^/]+/[^/]+/compare/(.+)\.\.\.(.+)", path):
@@ -97,10 +97,14 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return self.answer(github.tag_commit(match[1]))
         self.answer(404)
 
-    def answer(self, body):
-        """Send `body` as JSON, or an int as an HTTP status."""
+    def answer(self, body, retry_after: str | None = None):
+        """Send `body` as JSON, or an int as an HTTP status with an optional `Retry-After`."""
         if isinstance(body, int):
-            return self.send_error(body)
+            self.send_response(body)
+            if retry_after is not None:
+                self.send_header("Retry-After", retry_after)
+            self.send_header("Content-Length", "0")
+            return self.end_headers()
         data = json.dumps(body).encode()
         self.send_response(200)
         self.send_header("Content-Type", "application/json")

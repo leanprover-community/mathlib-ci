@@ -29,6 +29,12 @@ def test_allowed_fields(run, fields):
     assert run(FakeGitHub(head=text, base=text)) == (0, [])
 
 
+@pytest.mark.parametrize("rev", ["main", NEW[:12], "A" * 40, None])
+def test_malformed_pin_fails_every_run(run, rev):
+    head = manifest(package(rev=rev))
+    assert run(FakeGitHub(head=head, base=BASE)) == (1, [("error", "Invalid dependency pin"), INVALID])
+
+
 @pytest.mark.parametrize("fields, title", [
     ({"input_rev": "nightly-testing"}, "Invalid dependency inputRev"),
     ({"input_rev": "v4.25"}, "Invalid dependency inputRev"),
@@ -38,28 +44,35 @@ def test_allowed_fields(run, fields):
     ({"url": "https://github.com/leanprover-community/batteries/../x"}, "Invalid dependency repository"),
     ({"url": "http://github.com/leanprover-community/batteries"}, "Invalid dependency repository"),
     ({"url": "https://gitlab.com/leanprover-community/batteries"}, "Invalid dependency repository"),
-    ({"rev": "main"}, "Invalid dependency pin"),
-    ({"rev": NEW[:12]}, "Invalid dependency pin"),
-    ({"rev": "A" * 40}, "Invalid dependency pin"),
-    ({"rev": None}, "Invalid dependency pin"),
 ])
-def test_field_rules_fail_every_run(run, fields, title):
-    assert run(FakeGitHub(head=manifest(package(**fields)), base=BASE)) == (1, [("error", title), INVALID])
+def test_source_rules_fail_only_strict_runs(run, fields, title):
+    github = FakeGitHub(head=manifest(package(**fields)), base=BASE)
+    assert run(github) == (0, [("warning", title)])
+    assert run(github, "--strict") == (1, [("error", title), INVALID])
+
+
+def test_batteries_adaptation_pr(run):
+    # The Batteries bot makes the adaptation PR require the Batteries PR's head commit from its repository.
+    head = manifest(package(input_rev=FORK, url="https://github.com/someone/batteries", rev=FORK))
+    titles = ["Invalid dependency inputRev", "Invalid dependency repository"]
+    assert run(FakeGitHub(head=head, base=BASE)) == (0, [("warning", t) for t in titles])
+    assert run(FakeGitHub(head=head, base=BASE), "--strict") == (1, [*(("error", t) for t in titles), INVALID])
 
 
 def test_every_broken_field_is_reported(run):
     head = manifest(package(input_rev="nightly-testing", url="https://github.com/evil/b", rev="main"))
     assert run(FakeGitHub(head=head, base=BASE)) == (1, [
-        ("error", "Invalid dependency inputRev"),
-        ("error", "Invalid dependency repository"),
+        ("warning", "Invalid dependency inputRev"),
+        ("warning", "Invalid dependency repository"),
         ("error", "Invalid dependency pin"),
         INVALID,
     ])
 
 
-def test_inherited_dependency_hint_names_the_requiring_dependency(stdout):
-    _, out = stdout(FakeGitHub(head=manifest(package(input_rev="x", inherited=True)), base=BASE))
-    assert "in the dependency that requires it" in out
+def test_inherited_dependency_hints_name_the_requiring_dependency(stdout):
+    _, out = stdout(FakeGitHub(head=manifest(package(input_rev="x", rev="main", inherited=True)), base=BASE))
+    assert "in the dependency that requires it, then run `lake update`." in out
+    assert "Hint: Run `lake update` and commit lake-manifest.json." in out
 
 
 def test_pin_off_the_branch(run):
@@ -126,9 +139,20 @@ def test_unreadable_manifest_fails(stdout, head):
     assert out.startswith("::error::CI could not read lake-manifest.json: ")
 
 
-def test_transient_error_is_retried(run):
+@pytest.mark.parametrize("status, retry_after", [(502, None), (429, None), (403, "0"), (429, "1")])
+def test_transient_error_is_retried(run, status, retry_after):
     # One retry, with its one-second backoff.
-    assert run(FakeGitHub(head=BASE, base=BASE, failures=1)) == (0, [])
+    assert run(FakeGitHub(head=BASE, base=BASE, failures=[status], retry_after=retry_after)) == (0, [])
+
+
+@pytest.mark.parametrize("retry_after", [None, "3600"])
+def test_forbidden_fails_at_once(stdout, retry_after):
+    # A missing permission, or a rate limit that resets too late to wait for.
+    github = FakeGitHub(head=BASE, base=BASE, failures=[403], retry_after=retry_after)
+    code, out = stdout(github)
+    assert (code, out) == (1, "::error::CI could not read lake-manifest.json: "
+                              "GET /repos/leanprover-community/mathlib4/contents/lake-manifest.json?ref=head "
+                              "failed with HTTP 403\n")
 
 
 def test_annotation_carries_the_notes_and_the_hint(stdout):
