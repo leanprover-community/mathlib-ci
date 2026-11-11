@@ -19,7 +19,7 @@ FULL_SHA = re.compile(r"[0-9a-f]{40}")
 # The kinds of finding.
 MALFORMED = "malformed"  # The pin is not a full commit hash. An error on every run.
 UNMERGEABLE = "unmergeable"  # A PR can test this, but bors must not merge it.
-OLDER_PIN = "older-pin"  # The pin is older than the base pin. Also unmergeable.
+OLDER_PIN = "older-pin"  # The pin does not descend from the base pin. Also unmergeable.
 
 
 @dataclass(frozen=True)
@@ -160,9 +160,10 @@ def check_pin(dep: Dependency, old: Dependency | None, github) -> Finding | None
 def validate(github, repository: str, ref: str) -> list[Finding]:
     """The findings for lake-manifest.json at `ref`.
 
-    The base manifest is `BASE_BRANCH`'s manifest at the merge base. Raises
-    `ApiError` or `ValueError` when the manifest at `ref` cannot be read. A
-    failure in the pin checks is an `UNMERGEABLE` finding.
+    The base manifest is `BASE_BRANCH`'s manifest at the merge base of
+    `BASE_BRANCH` and `ref`. Raises `ApiError` or `ValueError` when the manifest
+    at `ref` cannot be read. A failure to read the base manifest or to check a
+    pin is one `UNMERGEABLE` finding.
     """
     findings: list[Finding] = []
     valid: list[Dependency] = []
@@ -182,6 +183,6 @@ def validate(github, repository: str, ref: str) -> list[Finding]:
             UNMERGEABLE,
             "Dependency pin check failed",
             f"CI could not check the dependency pins: {error}",
-            ("Hint: Re-run the failed job.",),
+            ("Hint: Re-run the job.",),
         ))
     return findings

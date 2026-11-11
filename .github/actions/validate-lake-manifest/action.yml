@@ -1,7 +1,7 @@
 name: Validate lake-manifest.json
 description: >-
   Check the dependencies in mathlib4's lake-manifest.json at a commit, and
-  report each problem as an annotation on the file. The step reads the
+  report each broken rule as an annotation on the file. The action reads the
   manifests through the GitHub API, so it checks out no code. README.md
   lists the rules.
 

@@ -52,7 +52,7 @@ def test_source_rules_fail_only_strict_runs(run, fields, title):
 
 
 def test_batteries_adaptation_pr(run):
-    # The Batteries bot makes the adaptation PR require the Batteries PR's head commit from its repository.
+    # The adaptation PR requires the head commit of a Batteries PR, from the repository of that PR.
     head = manifest(package(input_rev=FORK, url="https://github.com/someone/batteries", rev=FORK))
     titles = ["Invalid dependency inputRev", "Invalid dependency repository"]
     assert run(FakeGitHub(head=head, base=BASE)) == (0, [("warning", t) for t in titles])

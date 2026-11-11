@@ -1,7 +1,7 @@
 """The GitHub REST calls that the validation makes. Stdlib only.
 
 Every request is a GET, so a retry is safe. `retry_delay` decides which
-answers retry. A request fails after `len(BACKOFF) + 1` attempts.
+responses retry. A request makes at most `len(BACKOFF) + 1` attempts.
 """
 
 from __future__ import annotations
@@ -25,7 +25,7 @@ TRANSPORT_ERRORS = (OSError, http.client.HTTPException)
 
 
 class ApiError(Exception):
-    """A request that failed, or an answer the validation cannot use. `status` is the HTTP status, if any."""
+    """A failed request, or a response that the validation cannot use. `status` is the HTTP status, if any."""
 
     def __init__(self, message: str, status: int | None = None):
         super().__init__(message)
@@ -35,9 +35,12 @@ class ApiError(Exception):
 def retry_delay(error: urllib.error.HTTPError, backoff: int) -> float | None:
     """The seconds to wait before a retry of the request that failed with `error`, or `None` for no retry.
 
-    A 5xx, 408 or 429 status is transient. GitHub sends a rate limit as 403 or
-    429, with `Retry-After` when a short wait is enough. Without that header, a
-    403 is a missing permission or a rate limit that resets too late to wait for.
+    A 5xx, 408 or 429 status is transient and retries after `backoff` seconds.
+    GitHub sends a rate limit as 403 or 429, with `Retry-After` when a short wait
+    is enough. A 403 or 429 with `Retry-After` retries after the longer of that
+    header and `backoff`, and fails at once when the header exceeds
+    `MAX_RETRY_AFTER`. A 403 without the header is a missing permission or a
+    rate limit that resets too late to wait for, so it fails at once.
     """
     retry_after = error.headers.get("Retry-After", "") if error.headers else ""
     if error.code in (403, 429) and retry_after.isdigit():
@@ -51,7 +54,7 @@ class GitHub:
         self.api_url = api_url.rstrip("/")
 
     def get(self, path: str) -> Any:
-        """The decoded JSON answer to `GET path`."""
+        """The decoded JSON response to `GET path`."""
         request = urllib.request.Request(
             self.api_url + path,
             headers={
@@ -90,7 +93,7 @@ class GitHub:
         return base64.b64decode(answer["content"]).decode("utf-8")
 
     def is_ancestor(self, repository: str, commit: str, tip: str) -> bool:
-        """Whether `commit` is `tip` or an ancestor of `tip`. False for an unknown commit."""
+        """Whether `commit` is `tip` or an ancestor of `tip`. False on a 404, as for an unknown commit."""
         try:
             status = self.compare(repository, commit, tip)["status"]
         except ApiError as error:

@@ -1,8 +1,8 @@
 """Run the action's CLI against a fake GitHub API, and read its annotations.
 
-The fake serves the three endpoints the action uses from a `FakeGitHub` table:
-the manifests by ref, the commits each branch or commit contains, and the
-tags. `main` holds OLD and NEW; FORK is on no branch; UNKNOWN is no commit.
+The fake serves the three endpoints that the action uses from a `FakeGitHub`:
+the manifests by ref, the commits that each branch or commit contains, and the
+tags. `main` contains OLD and NEW. FORK is on no branch. UNKNOWN is no commit.
 """
 
 from __future__ import annotations
@@ -47,8 +47,9 @@ class FakeGitHub:
     """What the fake GitHub serves.
 
     A manifest is its text, or the answer to send instead: an HTTP status, or
-    a JSON value such as `[]` for a directory. `failures` are the HTTP statuses
-    to answer the first requests with, each with `Retry-After: retry_after` if set.
+    a JSON value such as `[]` for a directory. `None` is a 404. `failures` are
+    the HTTP statuses that answer the first requests, each with
+    `Retry-After: retry_after` if set.
     """
 
     head: object
@@ -66,7 +67,7 @@ class FakeGitHub:
         return 404 if answer is None else answer
 
     def compare(self, base: str, head: str):
-        if (base, head) == ("master", HEAD):  # mathlib4: the action wants the merge base.
+        if (base, head) == ("master", HEAD):  # The merge base of mathlib4's master and the commit under test.
             return {"status": "ahead", "merge_base_commit": {"sha": MERGE_BASE}}
         if base not in self.CONTAINS or head not in self.CONTAINS:
             return 404

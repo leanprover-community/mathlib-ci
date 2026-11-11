@@ -1,7 +1,7 @@
 name: Test validate-lake-manifest action
 
-# Runs the end-to-end tests for the `validate-lake-manifest` composite
-# action on every push / PR that touches its source or its tests.
+# Runs the end-to-end tests of the `validate-lake-manifest` composite action
+# when a push to master or a PR changes the paths below.
 
 on:
   push:
