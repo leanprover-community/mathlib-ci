@@ -56,6 +56,9 @@ Layout:
   `late_importers.sh` for further details.
 - `zulip_build_report.sh` summarizes a Lean build log as a Zulip message. The `nightly-docgen.yml`
   and `nightly-regression-report.yml` workflows and Mathlib's `weekly-lints.yml` use it.
+  The summary counts each distinct message; messages that occur only a few times can also link
+  to their locations, and a full report with every location is written to the GitHub job summary.
+  See the header of the script for the environment variables that configure it.
 
 ## `maintainer/`
 - `get_tlabel.sh` extracts the `t-`label that a PR has (assuming that there is exactly one).
@@ -64,8 +67,9 @@ Layout:
 - `maintainer_merge_message.sh` contains a shell script that produces the Zulip message for a
   `maintainer merge`/`maintainer delegate` comment.
 - `lean-pr-testing-comments.sh`
-  Generate comments and labels on a Batteries PR after CI has finished on a
-  `batteries-pr-testing-NNNN` branch.
+  Reports Mathlib CI results on the Batteries PR named by `batteries-pr-testing-NNNN`.
+  Accepts PR or push event context and the reporting App's login.
+  Links PR reports to the Mathlib adaptation PR and skips outdated Batteries pins when the caller supplies the tested revision.
 
 ## `zulip/`
 - `parse_lake_manifest_changes.py` compares two versions of `lake-manifest.json` to report
