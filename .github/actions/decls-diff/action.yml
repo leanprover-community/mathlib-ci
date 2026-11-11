@@ -3,22 +3,39 @@
 # at this repo's `scripts/` directory) before invoking this action.
 
 name: 'Declarations diff (post-build)'
-description: 'Compute the Lean-aware declarations diff from two pre-computed `decls.txt` files and emit a Markdown override snippet.'
+description: 'Compute the Lean-aware declarations diff from two pre-computed dumps and emit a Markdown override snippet.'
 author: 'Damiano Testa'
 
+# Each side is given as a dump directory (`reference-dir`, `new-dir`), as written by
+# `dumpReasonableDecls.lean --out-dir` and uploaded as a whole, or as the separate files
+# callers passed before dump directories existed. A directory holds the API dump
+# `api.jsonl`, or `decls.txt` if it was written before the API dump; `declsDiff.py`
+# takes the names from whichever is there, so the rendered section is the same.
 inputs:
+  reference-dir:
+    description: 'Dump directory of the reference commit: `api.jsonl` (or `decls.txt`, if it predates the API dump) and `imports.json`. Replaces `reference-decls-file` and `reference-imports-file`.'
+    required: false
+    default: ''
+  new-dir:
+    description: 'Dump directory of the new commit. Replaces `new-decls-file` and `new-imports-file`.'
+    required: false
+    default: ''
   reference-decls-file:
-    description: 'Path to the file containing the declarations in the reference commit.'
-    required: true
+    description: 'Path to the file containing the declarations in the reference commit, if `reference-dir` is not given.'
+    required: false
+    default: ''
   new-decls-file:
-    description: 'Path to the file containing the declarations in the new commit.'
-    required: true
+    description: 'Path to the file containing the declarations in the new commit, if `new-dir` is not given.'
+    required: false
+    default: ''
   reference-imports-file:
-    description: 'Path to the `imports.json` file for the reference commit.'
-    required: true
+    description: 'Path to the `imports.json` file for the reference commit, if `reference-dir` is not given.'
+    required: false
+    default: ''
   new-imports-file:
-    description: 'Path to the `imports.json` file for the new commit.'
-    required: true
+    description: 'Path to the `imports.json` file for the new commit, if `new-dir` is not given.'
+    required: false
+    default: ''
   new-sha:
     description: 'Full SHA of the new commit.'
     required: false
@@ -37,16 +54,19 @@ outputs:
     value: ${{ steps.run.outputs.diff-file }}
   base-json:
     description: 'Path to the `imports.json` file for the reference commit.'
-    value: ${{ inputs.reference-imports-file }}
+    value: ${{ steps.run.outputs.base-json }}
   head-json:
     description: 'Path to the `imports.json` file for the new commit.'
-    value: ${{ inputs.new-imports-file }}
+    value: ${{ steps.run.outputs.head-json }}
   plus-count:
     description: 'Number of declarations present only in the new commit.'
     value: ${{ steps.run.outputs.plus-count }}
   minus-count:
     description: 'Number of declarations present only in the reference commit.'
     value: ${{ steps.run.outputs.minus-count }}
+  api-dump:
+    description: 'Whether both sides have an API dump (`api.jsonl`): `used`, or `absent` when a side predates it. Only `used` lets a later stage compare more than names.'
+    value: ${{ steps.run.outputs.api-dump }}
 
 runs:
   using: 'composite'
@@ -54,8 +74,12 @@ runs:
     - id: run
       shell: bash
       env:
+        IN_REF_DIR:       ${{ inputs.reference-dir }}
+        IN_NEW_DIR:       ${{ inputs.new-dir }}
         IN_REF_DECLS:     ${{ inputs.reference-decls-file }}
         IN_NEW_DECLS:     ${{ inputs.new-decls-file }}
+        IN_REF_IMPORTS:   ${{ inputs.reference-imports-file }}
+        IN_NEW_IMPORTS:   ${{ inputs.new-imports-file }}
         IN_NEW_SHA:       ${{ inputs.new-sha }}
         IN_WITH_HEADING:  ${{ inputs.with-heading }}
       run: |
@@ -71,10 +95,34 @@ runs:
           exit 1
         fi
 
+        # Each side: its dump directory, or the files of a caller that predates them. A
+        # directory replaces both files, so neither may be given with it.
+        if [ -n "$IN_REF_DIR" ] && [ -z "$IN_REF_DECLS$IN_REF_IMPORTS" ]; then
+          REF_ARGS=(--ref-dir "$IN_REF_DIR"); REF_LABEL="$IN_REF_DIR/"
+          REF_JSON="$IN_REF_DIR/imports.json"
+        elif [ -z "$IN_REF_DIR" ] && [ -n "$IN_REF_DECLS" ]; then
+          REF_ARGS=(--ref-decls "$IN_REF_DECLS"); REF_LABEL="$IN_REF_DECLS"
+          REF_JSON="$IN_REF_IMPORTS"
+        else
+          echo "decls-diff action: give either reference-dir, or reference-decls-file and reference-imports-file." >&2
+          exit 1
+        fi
+        if [ -n "$IN_NEW_DIR" ] && [ -z "$IN_NEW_DECLS$IN_NEW_IMPORTS" ]; then
+          NEW_ARGS=(--new-dir "$IN_NEW_DIR"); NEW_LABEL="$IN_NEW_DIR/"
+          NEW_JSON="$IN_NEW_DIR/imports.json"
+        elif [ -z "$IN_NEW_DIR" ] && [ -n "$IN_NEW_DECLS" ]; then
+          NEW_ARGS=(--new-decls "$IN_NEW_DECLS"); NEW_LABEL="$IN_NEW_DECLS"
+          NEW_JSON="$IN_NEW_IMPORTS"
+        else
+          echo "decls-diff action: give either new-dir, or new-decls-file and new-imports-file." >&2
+          exit 1
+        fi
+
         STAGE="$(mktemp -d "${RUNNER_TEMP:-/tmp}/decls-diff.XXXXXX")"
         DECLS_OVERRIDE="$STAGE/decls_override.md"
         DIFF_FILE="$STAGE/decls_diff.txt"
         COUNTS="$STAGE/decls_counts.txt"
+        API_STATUS="$STAGE/api_status.txt"
 
         HEADING_ARG=()
         if [ "${IN_WITH_HEADING:-false}" = "true" ]; then
@@ -82,32 +130,43 @@ runs:
         fi
 
         python3 "$DRIVER" \
-          --ref-decls      "$IN_REF_DECLS" \
-          --new-decls      "$IN_NEW_DECLS" \
+          "${REF_ARGS[@]}" \
+          "${NEW_ARGS[@]}" \
           --new-sha        "$IN_NEW_SHA" \
           --decls-override "$DECLS_OVERRIDE" \
           --diff-out       "$DIFF_FILE" \
           --counts-file    "$COUNTS" \
+          --api-status     "$API_STATUS" \
           "${HEADING_ARG[@]}"
 
         PLUS=0; MINUS=0
         read -r PLUS MINUS < "$COUNTS" || true
         : "${PLUS:=0}"; : "${MINUS:=0}"
 
+        # `declsDiff.py` writes a fixed state word and a message that quotes nothing
+        # from the dumps, so both are safe in the step summary.
+        API_STATE=absent; API_MESSAGE=""
+        read -r API_STATE API_MESSAGE < "$API_STATUS" || true
+        [ "$API_STATE" = used ] || API_STATE=absent
+
         {
           echo "decls-override-file=$DECLS_OVERRIDE"
           echo "diff-file=$DIFF_FILE"
           echo "plus-count=$PLUS"
           echo "minus-count=$MINUS"
+          echo "base-json=$REF_JSON"
+          echo "head-json=$NEW_JSON"
+          echo "api-dump=$API_STATE"
         } | tee -a "$GITHUB_OUTPUT"
 
         SHORT="${IN_NEW_SHA:0:7}"
         {
           echo "## Declarations diff"
           echo
-          echo "* new:       \`$IN_NEW_SHA\` (\`$SHORT\`)"
-          echo "* ref decls: \`$IN_REF_DECLS\`"
-          echo "* new decls: \`$IN_NEW_DECLS\`"
+          echo "* new commit: \`$IN_NEW_SHA\` (\`$SHORT\`)"
+          echo "* ref dump: \`$REF_LABEL\`"
+          echo "* new dump: \`$NEW_LABEL\`"
+          echo "* API dump: \`$API_STATE\` $API_MESSAGE"
           echo
           echo "**+$PLUS** new / **−$MINUS** removed"
           echo

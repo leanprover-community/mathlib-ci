@@ -8,7 +8,7 @@ import ImportGraph.Imports.ImportGraph
 import ImportGraph.Graph.TransitiveClosure
 
 /-!
-# Dump "reasonable" declarations and/or transitive-import counts
+# Dump "reasonable" declarations, transitive-import counts and the API
 
 ## Outputs
 
@@ -21,14 +21,75 @@ import ImportGraph.Graph.TransitiveClosure
   root-prefixed module to the size of its transitive closure in
   `Lean.Environment.importGraph`.
 
-The flags can be combined; both files are produced from one env load.
-If neither is given, defaults to `--out reasonable_decls.txt`.
+* `--api-out FILE`: writes the API dump, one JSON object per line: a
+  header, then a row for each reasonable declaration, then a row for
+  each module. See *The API dump*.
+
+* `--out-dir DIR`: writes the CI outputs to `DIR/imports.json` and
+  `DIR/api.jsonl`, except for any that `--imports-out` or `--api-out`
+  gives a path of its own. `declsDiff.py` reads a
+  directory laid out this way (`--ref-dir`, `--new-dir`), so CI can
+  upload and check it as a whole. The API dump lists the names
+  `--out` would, so `--out` is for local use; `declsDiff.py` still
+  reads `decls.txt` from directories written before the API dump
+  was added.
+
+The flags can be combined; every file is produced from one env load.
+If no output flag is given, defaults to `--out reasonable_decls.txt`.
+
+## The API dump
+
+The first line is a header such as `{"fields":{"k":1,"m":1,"mod":1,"n":1},"schema":1}`.
+
+* `schema` is the version of the format as a whole: the header, the
+  two kinds of row, and the keys `n` and `mod` that identify them.
+* `fields` contains the versions of the fields corresponding to its keys.
+  A field's version is bumped whenever its values stop being
+  comparable with the old ones, for example after changing a hash
+  function.
+
+(The current versions are recorded in `apiSchema` and `apiFields` below.)
+
+The base side of a PR's comparison comes from a `master` artifact up to
+90 days old, so:
+
+* A reader compares a field only when both sides are at the same version.
+* The keys `n` and `mod` are the exception: `declsDiff.py` compares
+  names whatever the other fields are at, so they stay at version 1,
+  and changing what they hold needs a new `schema`.
+* The reader (`apiDump.py`) goes on reading every `schema` up to its
+  own. If it stopped reading an older one, every comparison against a
+  `master` artifact written before the bump would fail.
+
+Declaration rows and module rows share the one `fields` map, so a key
+belongs to one kind of row only: a module-row field can never be
+called `m`, for example.
+
+A row may leave out a field that has an empty value in the tables
+below, and a reader then takes that value; a field with `—` is in
+every row of its kind.
+
+Declaration rows, sorted by name:
+
+| key | version | empty | meaning |
+|-----|---------|-------|---------|
+| `n` | 1 | — | declaration name, exactly as written by `--out` |
+| `k` | 1 | — | kind: `thm` / `def` / `ax` / `ind` / `ctor` / `rec` / `opaq` / `quot` |
+| `m` | 1 | — | defining module |
+
+Module rows, sorted by name:
+
+| key | version | empty | meaning |
+|-----|---------|-------|---------|
+| `mod` | 1 | — | module name |
+
+TODO: add hashes, attributes, deprecations, etc. under new keys.
 
 ## Roots
 
 Positional `ROOT` arguments are Lean module names (e.g. `Mathlib`,
 `Plausible`). Each is imported and used as a `Name`-prefix filter on
-both outputs. At least one `ROOT` is required for the dumps to be
+every output. At least one `ROOT` is required for the dumps to be
 non-empty.
 
 ## Usage
@@ -37,6 +98,8 @@ non-empty.
 lake env lean --run scripts/pr_summary/dumpReasonableDecls.lean \
     [-o DECLS_OUT | --out DECLS_OUT] \
     [--imports-out IMPORTS_OUT] \
+    [--api-out API_OUT] \
+    [--out-dir DIR] \
     [ROOT ...]
 ```
 
@@ -54,31 +117,41 @@ structure Config where
   declsOut   : Option System.FilePath := none
   /-- Path for the transitive-import counts JSON; `none` means "don't dump imports". -/
   importsOut : Option System.FilePath := none
+  /-- Path for the API dump; `none` means "don't dump the API". -/
+  apiOut     : Option System.FilePath := none
+  /-- Directory for the CI outputs not given paths of their own; see `Config.withOutDir`. -/
+  outDir     : Option System.FilePath := none
   /-- Module roots to import (via `withImportModules`) and use as a
-  `Name`-prefix filter on both outputs. Empty disables the filter. -/
+  `Name`-prefix filter on every output. Empty disables the filter. -/
   roots      : Array Name := #[]
   deriving Inhabited
 
 def helpText : String :=
-"Dump declarations + transitive imports from a Lean environment.
+"Dump declarations, transitive imports and the API from a Lean environment.
 
 Usage:
   lake env lean --run dumpReasonableDecls.lean [OPTIONS] [ROOT ...]
 
-Outputs (any combination; both can run in one env load):
+Outputs (any combination; all run in one env load):
   -o, --out FILE        write 'reasonable' declaration names (one per line)
       --imports-out F   write transitive-import counts as JSON
                         (object keyed by module name)
+      --api-out F       write the API dump (JSON Lines: a header, then one
+                        row per declaration and one per module)
+      --out-dir DIR     write imports.json and api.jsonl into DIR, except
+                        for any given a path by --imports-out or --api-out
 
 If no output flag is given, defaults to `-o reasonable_decls.txt`.
 
-Each ROOT (e.g. Mathlib) is imported, and both outputs are filtered to
+Each ROOT (e.g. Mathlib) is imported, and every output is filtered to
 modules under the root prefix. At least one ROOT is required for the
 dumps to be non-empty.
 
 Options:
   -o, --out FILE        decls output file
       --imports-out F   transitive-imports JSON file
+      --api-out F       API dump file
+      --out-dir DIR     directory for imports.json and api.jsonl
   -h, --help            show this message and exit
 "
 
@@ -95,17 +168,36 @@ partial def parseArgs : List String → Config → IO Config
   | ("-o" :: f :: rest),                 cfg => parseArgs rest { cfg with declsOut := some f }
   | ("--out" :: f :: rest),              cfg => parseArgs rest { cfg with declsOut := some f }
   | ("--imports-out" :: f :: rest),      cfg => parseArgs rest { cfg with importsOut := some f }
+  | ("--api-out" :: f :: rest),          cfg => parseArgs rest { cfg with apiOut := some f }
+  | ("--out-dir" :: d :: rest),          cfg => parseArgs rest { cfg with outDir := some d }
   | ("--imports-out" :: _),              _   =>
       throw <| IO.userError "--imports-out requires a file argument"
+  | ("--api-out" :: _),                  _   =>
+      throw <| IO.userError "--api-out requires a file argument"
+  | ("--out-dir" :: _),                  _   =>
+      throw <| IO.userError "--out-dir requires a directory argument"
   | (a :: rest),                         cfg =>
     if let some f := parseOutEq? a then
       parseArgs rest { cfg with declsOut := some f }
     else if a.startsWith "--imports-out=" then
       parseArgs rest { cfg with importsOut := some (a.drop "--imports-out=".length).toString }
+    else if a.startsWith "--api-out=" then
+      parseArgs rest { cfg with apiOut := some (a.drop "--api-out=".length).toString }
+    else if a.startsWith "--out-dir=" then
+      parseArgs rest { cfg with outDir := some (a.drop "--out-dir=".length).toString }
     else if a.startsWith "-" then
       throw <| IO.userError s!"unknown option: {a}\n\n{helpText}"
     else
       parseArgs rest { cfg with roots := cfg.roots.push a.toName }
+
+/-- Set the paths of CI outputs that haven't been assigned paths yet, using `--out-dir` and the names
+that `declsDiff.py` looks for. -/
+def Config.withOutDir (cfg : Config) : Config :=
+  match cfg.outDir with
+  | none => cfg
+  | some d => { cfg with
+      importsOut := cfg.importsOut <|> some (d / "imports.json")
+      apiOut     := cfg.apiOut     <|> some (d / "api.jsonl") }
 
 /-- A constant is "reasonable" iff it is not `private`, not `unsafe`, and not
 flagged as an internal detail (`Lean.Name.isInternalDetail`). -/
@@ -118,25 +210,71 @@ def sourceModule? (env : Environment) (n : Name) : Option Name := do
   let idx ← env.getModuleIdxFor? n
   env.allImportedModuleNames[idx.toNat]?
 
+/-- True iff `m` is `prefix.<...>` (or `prefix` itself) for some `prefix` in `roots`.
+An empty `roots` accepts everything. -/
+def underAnyRoot (roots : Array Name) (m : Name) : Bool :=
+  roots.isEmpty || roots.any (·.isPrefixOf m)
+
 /-- True iff `n`'s source module is `prefix.<...>` for some `prefix` in `roots`.
 An empty `roots` accepts everything. -/
 def inAnyRoot (env : Environment) (roots : Array Name) (n : Name) : Bool :=
   if roots.isEmpty then true
   else match sourceModule? env n with
     | none   => false
-    | some m => roots.any fun p => p.isPrefixOf m
+    | some m => underAnyRoot roots m
 
-/-- Iterate the constants once and write the reasonable-declaration dump. -/
-private def writeDeclsDump (env : Environment) (roots : Array Name)
-    (outFile : System.FilePath) : IO Nat := do
-  let decls : Array Name :=
-    env.constants.fold (init := #[]) fun acc n ci =>
-      if isReasonable n ci && inAnyRoot env roots n then acc.push n
-      else acc
-  let sorted := decls.qsort (fun a b => a.toString < b.toString)
+/-- A reasonable declaration under the roots. This includes a rendering of the name as a string
+for efficiency. -/
+structure ReasonableDecl where
+  str  : String
+  name : Name
+  info : ConstantInfo
+
+/-- Iterate the constants once and collect the reasonable declarations under the roots,
+sorted by name. `--out` and `--api-out` are both written from this, so they list the same names
+in the same order. -/
+def reasonableDecls (env : Environment) (roots : Array Name) : Array ReasonableDecl :=
+  let decls := env.constants.fold (init := (#[] : Array ReasonableDecl)) fun acc n ci =>
+    if isReasonable n ci && inAnyRoot env roots n then
+      acc.push { str := n.toString, name := n, info := ci }
+    else acc
+  decls.qsort (·.str < ·.str)
+
+/-- Write the reasonable-declaration dump. -/
+private def writeDeclsDump (decls : Array ReasonableDecl) (outFile : System.FilePath) :
+    IO Unit :=
   IO.FS.withFile outFile .write fun h => do
-    for n in sorted do h.putStrLn n.toString
-  return sorted.size
+    for d in decls do h.putStrLn d.str
+
+/-- The API dump's line format; see *The API dump*. -/
+def apiSchema : Nat := 1
+
+/-- Every key the API dump's rows use, with its version; see *The API dump*. -/
+def apiFields : List (String × Nat) := [("n", 1), ("k", 1), ("m", 1), ("mod", 1)]
+
+/-- The names used in the `k` field. -/
+def declKind : ConstantInfo → String
+  | .axiomInfo _ => "ax" | .defnInfo _ => "def" | .thmInfo _ => "thm"
+  | .opaqueInfo _ => "opaq" | .quotInfo _ => "quot"
+  | .inductInfo _ => "ind" | .ctorInfo _ => "ctor" | .recInfo _ => "rec"
+
+/-- Write the API dump: the header, a row per declaration, then a row per module under the
+roots. Returns the number of declaration rows and of module rows. -/
+private def writeApiDump (env : Environment) (roots : Array Name)
+    (decls : Array ReasonableDecl) (outFile : System.FilePath) : IO (Nat × Nat) := do
+  let header := Json.mkObj [("schema", toJson apiSchema),
+    ("fields", Json.mkObj (apiFields.map fun (k, v) => (k, toJson v)))]
+  let mods := env.allImportedModuleNames.filter (underAnyRoot roots) |>.map toString
+    |>.qsort (· < ·)
+  IO.FS.withFile outFile .write fun h => do
+    h.putStrLn header.compress
+    for d in decls do
+      let m := (sourceModule? env d.name).getD .anonymous
+      h.putStrLn (Json.mkObj [("n", toJson d.str), ("k", toJson (declKind d.info)),
+        ("m", toJson m.toString)]).compress
+    for m in mods do
+      h.putStrLn (Json.mkObj [("mod", toJson m)]).compress
+  return (decls.size, mods.size)
 
 /-- Write the transitive-import counts JSON. Keys are strict descendants of
 any configured root; non-root boundary leaves are dropped from the key set.
@@ -171,16 +309,22 @@ unsafe def runDump (cfg : Config) : IO UInt32 := do
   let imports : Array Import := cfg.roots.map ({ module := · })
   Lean.withImportModules imports {} (trustLevel := 1024) fun env => do
     let rootsStr := " ".intercalate (cfg.roots.toList.map toString)
+    let decls :=
+      if cfg.declsOut.isSome || cfg.apiOut.isSome then reasonableDecls env cfg.roots else #[]
     if let some path := cfg.declsOut then
-      let n ← writeDeclsDump env cfg.roots path
-      IO.println s!"Wrote {n} reasonable declarations from [{rootsStr}] to {path}"
+      writeDeclsDump decls path
+      IO.println s!"Wrote {decls.size} reasonable declarations from [{rootsStr}] to {path}"
+    if let some path := cfg.apiOut then
+      let (nd, nm) ← writeApiDump env cfg.roots decls path
+      IO.println s!"Wrote the API of {nd} declarations and {nm} modules from [{rootsStr}] to {path}"
     if let some path := cfg.importsOut then
       let n ← writeImportsDump env cfg.roots path
       IO.println s!"Wrote {n} transitive-import counts from [{rootsStr}] to {path}"
     return 0
 
 def main (args : List String) : IO UInt32 := do
-  let mut cfg ← parseArgs args {}
-  if cfg.declsOut.isNone && cfg.importsOut.isNone then
+  let mut cfg := (← parseArgs args {}).withOutDir
+  if let some d := cfg.outDir then IO.FS.createDirAll d
+  if cfg.declsOut.isNone && cfg.importsOut.isNone && cfg.apiOut.isNone then
     cfg := { cfg with declsOut := some "reasonable_decls.txt" }
   unsafe runDump cfg
