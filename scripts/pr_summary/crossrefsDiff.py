@@ -49,13 +49,14 @@ def added_refs(base: dict, head: dict) -> list[dict]:
     }
     return [
         {"decl": entry["decl"], "module": entry["module"], "line": entry["line"],
-         "db": ref["db"], "id": ref["id"], "url": ref["url"], "comment": ref["comment"]}
+         # `url` is missing from exports made before it was added; `render` leaves those unlinked.
+         "db": ref["db"], "id": ref["id"], "url": ref.get("url"), "comment": ref["comment"]}
         for entry in head.get("entries", [])
         for ref in entry.get("refs", [])
         if (entry["decl"], ref["db"], ref["id"]) not in old
     ]
 
-#GitHub comments are capped at 65536 chars
+# GitHub comments are capped at 65536 chars
 COMMENT_MAX_SIZE = 60000
 
 def render(rows: list[dict], repo: str, sha: str, hosts: set[str]) -> str:
@@ -81,8 +82,8 @@ def render(rows: list[dict], repo: str, sha: str, hosts: set[str]) -> str:
         size.append(size[-1] + 1 + len(line))
     if size[-1] > COMMENT_MAX_SIZE:
         lines = [line for line, s in zip(lines, size) if s <= COMMENT_MAX_SIZE]
-        lines.append(f"\n_Table truncated to fit GitHub's comment size limit; "
-                     f"{len(rows) - len(lines) + 2} more not shown._")
+        shown = len(lines) - 2  # minus header and separator
+        lines.append(f"\n_(showing first {shown} of {len(rows)} cross-references)_")
 
     return "\n".join(lines) + "\n"
 
