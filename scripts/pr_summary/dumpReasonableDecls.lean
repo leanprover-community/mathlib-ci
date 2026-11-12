@@ -118,13 +118,17 @@ import stores whether or not it runs the extensions' import hooks:
 ### Extensions read as empty
 
 A toolchain bump can change an extension so that reading its entries
-silently returns nothing, rather than failing to compile. So the dumper
-counts what it reads, and an extension that reads as empty leaves the
-fields it feeds out of the header and out of every row, with a warning:
-`a` for the simp sets, instances and `ext`; `x` for the translation
-maps; `rs` for matchers; `g` and `l` when no declaration has a range.
-A reader then does not compare them, rather than reporting every one
-changed, and the dump still succeeds.
+silently returns nothing, rather than failing to compile. To detect this, 
+the dumper counts how many items it reads from each extension, and
+if an extension with zero results is present, the dumper prints a 
+warning, and the relevant fields are omitted from the header and every
+row:
+- `a` for the simp sets, instances and `ext`; 
+- `x` for the translation maps; 
+- `rs` for matchers; 
+- `g` and `l` when no declaration has a range.
+That way the comparator simply skips these fields, rather than reporting 
+them all as changed.
 
 ## Roots
 

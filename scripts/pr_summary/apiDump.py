@@ -35,8 +35,8 @@ API_FILE = "api.jsonl"
 IMPORTS_FILE = "imports.json"
 DECLS_FILE = "decls.txt"
 
-# What a row means by leaving a field out, for every field that may be: the "empty" column of
-# *The API dump*'s tables. `n`, `k`, `m` and `mod` are in every row of their kind.
+# Default values assigned to omitted fields: the "empty" column of *The API dump*'s tables.
+# `n`, `k`, `m` and `mod` are in every row of their kind.
 EMPTY = {
     "d": None, "a": [], "p": False, "x": None, "g": False, "dep": None, "al": None, "rs": False,
     "l": None,
