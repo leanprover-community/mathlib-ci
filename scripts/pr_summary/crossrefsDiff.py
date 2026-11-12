@@ -81,7 +81,8 @@ def render(rows: list[dict], repo: str, sha: str, hosts: set[str]) -> str:
         size.append(size[-1] + 1 + len(line))
     if size[-1] > COMMENT_MAX_SIZE:
         lines = [line for line, s in zip(lines, size) if s <= COMMENT_MAX_SIZE]
-        lines.append(f"\n<!-- Truncated {len(rows) - len(lines) + 2} rows due to comment size limit -->")
+        lines.append(f"\n_Table truncated to fit GitHub's comment size limit; "
+                     f"{len(rows) - len(lines) + 2} more not shown._")
 
     return "\n".join(lines) + "\n"
 
