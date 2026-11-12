@@ -30,12 +30,28 @@ jobs:
     - name: Resolve the current Mathlib bump branch
       id: bump
       shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
       run: |
-        read -r sha _ < <(
+        read -r _ ref < <(
           git ls-remote --heads https://github.com/leanprover-community/mathlib4.git \
             'refs/heads/bump/v4.*.0' | sort -V -k2 | tail -n 1
         )
-        echo "sha=$sha" >> "$GITHUB_OUTPUT"
+        ref=${ref#refs/heads/}
+
+        # Use the newest pushed commit whose build succeeded, so that a failure shows a regression.
+        for sha in $(gh run list -R "$TARGET_REPO" --workflow build.yml --branch "$ref" --event push \
+            --limit 10 --json headSha --jq '.[].headSha'); do
+          conclusions=$(gh api "repos/$TARGET_REPO/commits/$sha/check-runs?check_name=ci%20%2F%20Build" \
+            --jq '[.check_runs[].conclusion] | join(",")')
+          if [ "$conclusions" = success ]; then
+            echo "Testing $ref@$sha"
+            echo "sha=$sha" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+        done
+        echo "::error::No recent commit on $ref has a successful build."
+        exit 1
 
     - name: Checkout Mathlib bump
       uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
