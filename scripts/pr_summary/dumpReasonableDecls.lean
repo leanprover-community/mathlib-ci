@@ -435,11 +435,13 @@ def generatedHeuristic (env : Environment) (n : Name) : Bool :=
 the reverse; and a module's entries are exported in the order they were added. So the first
 entry seen for a pair gives its direction. `to_dual self` stores `n ↦ n`.
 
-That order is an implementation detail, so it is checked against `generatedByRange?`: a pair
-whose source looks generated and whose translation has a range that does not is counted, and
-any such pair leaves out `x`. A translation with no range proves nothing: `@[simps]` lemmas
-such as `Cone.ext_hom_hom` have a `to_dual none` translation `…._to_dual_1` without one. On all
-of `Mathlib` at v4.36.0-rc2 none is counted. -/
+That order is an implementation detail, so it is checked against `generatedByRange?` on pairs
+of public declarations: one whose source looks generated and whose translation has a range
+that does not is counted, and any such pair leaves out `x`. A side with no range proves
+nothing. An internal side, such as the `…._to_dual_1` that `to_dual none` makes, has no row,
+and its range is not to be trusted: v4.35's Mathlib gave the one made from the `@[simps]` lemma
+`Arrow.homMk_left` a selection range of its own, which reads as hand-written. On all of
+`Mathlib` at v4.36.0-rc2 none is counted. -/
 def translationSources (env : Environment) : NameMap Name × Nat := Id.run do
   let mut back : NameMap Name := {}
   let mut conflicts := 0
@@ -451,8 +453,8 @@ def translationSources (env : Environment) : NameMap Name × Nat := Id.run do
         -- The reverse of a pair already seen, or a translation already recorded.
         if seen.find? src == some tgt || seen.contains tgt then continue
         seen := seen.insert tgt src
-        if t.isDual && src != tgt && generatedByRange? env src == some true &&
-            generatedByRange? env tgt == some false then
+        if t.isDual && src != tgt && !src.isInternalDetail && !tgt.isInternalDetail &&
+            generatedByRange? env src == some true && generatedByRange? env tgt == some false then
           conflicts := conflicts + 1
     for (tgt, src) in seen do
       unless back.contains tgt do
