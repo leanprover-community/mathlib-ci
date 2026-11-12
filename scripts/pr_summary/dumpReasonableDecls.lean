@@ -81,6 +81,8 @@ Declaration rows, sorted by name:
 | `n` | 1 | — | declaration name, exactly as written by `--out` |
 | `k` | 1 | — | kind: `thm` / `def` / `ax` / `ind` / `ctor` / `rec` / `opaq` / `quot` |
 | `m` | 1 | — | defining module |
+| `t` | 1 | — | hash of the type, normalised (*Hashing*) |
+| `te` | 1 | — | `t` with every universe level erased, 32 bits: the same `te` and another `t` mean only the universes changed |
 | `d` | 1 | `null` | hash of the docstring, trimmed; none for the docstring `alias` generates (`isAliasDocstring`) |
 | `a` | 1 | `[]` | the attributes probed, sorted (*Attributes*) |
 | `p` | 1 | `false` | `protected` |
@@ -89,6 +91,8 @@ Declaration rows, sorted by name:
 | `dep` | 1 | `null` | `{to, since, text}` from `@[deprecated]` |
 | `al` | 1 | `null` | `{k, of}` from Batteries' `alias`: `k` is `plain`, `forward` or `reverse` |
 | `rs` | 1 | `false` | a reserved name realised on demand (`foo.eq_1`, `foo.congr_simp`) |
+| `nu` | 1 | `0` | the number of universe parameters |
+| `uo` | 1 | `null` | `{d, p}` when the universe parameters are not declared in canonical order (*Hashing*): the declared names, and the canonical position of each |
 | `l` | 1 | `null` | the line of the declaration's name in its source; for a declaration made by an attribute, the attribute's. Where it is, not what it is: never compared |
 
 Module rows, sorted by name:
@@ -100,6 +104,27 @@ Module rows, sorted by name:
 | `md` | 1 | `null` | hash of the module docstrings, each trimmed |
 | `imp` | 1 | `[]` | the module's imports, for a deprecated module only, where they name its replacement |
 | `src` | 1 | `null` | hash of the module's source file, found through `LEAN_SRC_PATH`. It differs between two sides exactly when the file is in the diff. Never compared |
+
+### Hashing
+
+`t` comes from a structural hasher that erases what does not
+change a declaration's meaning to its callers: binder names, `mdata`,
+universe parameter names, how a level is written, the order of the
+arguments in a nest of `max`es, and proofs. It is not rename-invariant:
+each declaration is compared with itself, so the constants it mentions
+count by name.
+
+* Universe parameters are numbered in **canonical order**: by first
+  appearance in the type, then, for those it does not mention, as
+  declared. `Type*` does not keep the declared order, which is what
+  `foo.{a, b}` binds, so that is recorded on its own, as `uo`. The
+  universe arguments of a constant a term mentions are hashed in that
+  constant's canonical order.
+* A **proof** is an application headed by a theorem, or a `fun` whose
+  body is one, and hashes as one constant. Lean lifts a proof inside a
+  definition or a statement into a theorem `foo._proof_n`, numbered by
+  position, so dropping one renumbers the rest. Terms that differ only
+  in proofs are definitionally equal.
 
 ### Attributes
 
@@ -293,8 +318,8 @@ def apiSchema : Nat := 1
 
 /-- Every key the API dump's rows use, with its version; see *The API dump*. -/
 def apiFields : List (String × Nat) := [
-  ("n", 1), ("k", 1), ("m", 1), ("d", 1), ("a", 1), ("p", 1), ("x", 1), ("g", 1), ("dep", 1),
-  ("al", 1), ("rs", 1), ("l", 1),
+  ("n", 1), ("k", 1), ("m", 1), ("t", 1), ("te", 1), ("d", 1), ("a", 1), ("p", 1), ("x", 1),
+  ("g", 1), ("dep", 1), ("al", 1), ("rs", 1), ("nu", 1), ("uo", 1), ("l", 1),
   ("mod", 1), ("dm", 1), ("md", 1), ("imp", 1), ("src", 1)]
 
 /-- The names used in the `k` field. -/
@@ -302,6 +327,190 @@ def declKind : ConstantInfo → String
   | .axiomInfo _ => "ax" | .defnInfo _ => "def" | .thmInfo _ => "thm"
   | .opaqueInfo _ => "opaq" | .quotInfo _ => "quot"
   | .inductInfo _ => "ind" | .ctorInfo _ => "ctor" | .recInfo _ => "rec"
+
+/-! ## Hashing (`t`, `te`) -/
+
+private def hashBI : BinderInfo → UInt64
+  | .default => 101 | .implicit => 103 | .strictImplicit => 107 | .instImplicit => 109
+
+/-- The arguments of a nest of `max`es. -/
+private def maxArgs : Level → Array Level
+  | .max a b => maxArgs a ++ maxArgs b
+  | l => #[l]
+
+/-- A level, with each parameter by its position in `lp`. -/
+private partial def hashLvl (lp : List Name) : Level → UInt64
+  | .zero => 13
+  | .succ l => mixHash 17 (hashLvl lp l)
+  -- `max` is associative and commutative, and Lean orders its arguments by universe name when
+  -- it normalises a level, so renaming `Type u` to `Type*` can swap them.
+  | l@(.max _ _) => ((maxArgs l).map (hashLvl lp)).qsort (· < ·) |>.foldl mixHash 19
+  | .imax a b => mixHash 23 (mixHash (hashLvl lp a) (hashLvl lp b))
+  | .param n => mixHash 29 (hash ((lp.findIdx? (· == n)).getD 9999))
+  | .mvar _ => 31
+
+/-- The universe parameters of `e`, in the order `collectLevelParams` finds them, stopping once
+it has found `n` of them: the same walk, with a visited set by address in place of
+`collectLevelParams`' structural one, which made this 110 s on `Mathlib`. -/
+private unsafe def firstLevelParamsImpl (n : Nat) (e : Expr) : Array Name :=
+  ((go e).run (#[], {})).run.2.1
+where
+  done : StateM (Array Name × Std.HashSet USize) Bool := return (← get).1.size ≥ n
+  lvl (u : Level) : StateM (Array Name × Std.HashSet USize) Unit := do
+    if !u.hasParam || (← done) then return
+    match u with
+    | .succ v => lvl v
+    | .max a b | .imax a b => do lvl a; lvl b
+    | .param p => modify fun (ps, vs) => (if ps.contains p then ps else ps.push p, vs)
+    | _ => pure ()
+  go (e : Expr) : StateM (Array Name × Std.HashSet USize) Unit := do
+    if !e.hasLevelParam || (← done) then return
+    let k := ptrAddrUnsafe e
+    if (← get).2.contains k then return
+    modify fun (ps, vs) => (ps, vs.insert k)
+    match e with
+    | .proj _ _ s => go s
+    | .forallE _ d b _ | .lam _ d b _ => do go d; go b
+    | .letE _ t v b _ => do go t; go v; go b
+    | .app f a => do go f; go a
+    | .mdata _ b => go b
+    | .const _ us => for u in us do lvl u
+    | .sort u => lvl u
+    | _ => pure ()
+
+@[implemented_by firstLevelParamsImpl]
+private def firstLevelParams (_ : Nat) (e : Expr) : Array Name :=
+  (collectLevelParams {} e).params
+
+/-- A constant's universe parameters in canonical order: first appearance in its type, then
+the rest as declared. -/
+def canonicalLevelParams (ci : ConstantInfo) : List Name :=
+  if ci.levelParams.length < 2 then ci.levelParams else
+  let seen := (firstLevelParams ci.levelParams.length ci.type).toList
+  seen ++ ci.levelParams.filter (!seen.contains ·)
+
+/-- For each constant whose declared and canonical orders differ, the declared position of each
+of its universe parameters, in canonical order. Built once: per reference it would walk the
+constant's type each time. -/
+def canonicalArgOrders (env : Environment) : NameMap (Array Nat) :=
+  env.constants.fold (init := {}) fun m n ci =>
+    if ci.levelParams.length < 2 then m else
+    let canon := canonicalLevelParams ci
+    if canon == ci.levelParams then m else m.insert n (canon.toArray.map ci.levelParams.idxOf)
+
+/-- `us`, the universe arguments of `n` in its declared order, in its canonical order. -/
+private def canonicalArgs (orders : NameMap (Array Nat)) (n : Name) (us : List Level) :
+    List Level :=
+  if us.length < 2 then us else
+  match orders.find? n with
+  | some o => if o.size == us.length then o.toList.map (us[·]!) else us
+  | none => us
+
+/-- Is `n` a theorem? Then any application of it is a proof. -/
+private def isTheorem (env : Environment) (n : Name) : Bool :=
+  (env.find? n).any (·.isTheorem)
+
+/-- Is `e` a proof the hasher erases: a theorem, applied or not, or a `fun` whose body is one? -/
+private def isErasedProof (env : Environment) : Expr → Bool
+  | .lam _ _ b _ => isErasedProof env b
+  | e => match e.getAppFn with
+    | .const c _ => isTheorem env c
+    | _ => false
+
+/-- The hash an erased proof is given, whatever the proof. -/
+private def proofHash : UInt64 := 61
+
+/-- The structural hash (*Hashing*). With `erase`, universe levels are left out altogether:
+sorts hash alike, and so do a constant's instances at any universes. A term with no proof in
+it hashes as it would if proofs were not erased. -/
+private partial def hashE (env : Environment) (orders : NameMap (Array Nat)) (lp : List Name)
+    (erase : Bool) : Expr → UInt64
+  | .bvar i => mixHash 2 (hash i)
+  | .fvar _ => 3
+  | .mvar _ => 5
+  | .sort l => if erase then 7 else mixHash 7 (hashLvl lp l.normalize)
+  | .const n us => if isTheorem env n then proofHash else
+      mixHash 11 (mixHash (hash n) <| if erase then 0 else
+        (canonicalArgs orders n us).foldl (init := 0) fun h u => mixHash h (hashLvl lp u.normalize))
+  | e@(.app ..) => if isErasedProof env e then proofHash else spine e
+  | e@(.lam ..) => if isErasedProof env e then proofHash else lams e
+  | .forallE _ d b bi => mixHash 43 (mixHash (go d) (mixHash (go b) (hashBI bi)))
+  | .letE _ t v b _ => mixHash 47 (mixHash (go t) (mixHash (go v) (go b)))
+  | .lit l => mixHash 53 (hash l)
+  | .mdata _ e => go e
+  | .proj s i e => mixHash 59 (mixHash (hash s) (mixHash (hash i) (go e)))
+where
+  go := hashE env orders lp erase
+  /-- An application whose head is not a theorem: neither is any prefix of it. -/
+  spine : Expr → UInt64
+    | .app f a => mixHash 13 (mixHash (spine f) (go a))
+    | e => go e
+  /-- A `fun` whose body is not a proof: nor is that of any `fun` inside it. -/
+  lams : Expr → UInt64
+    | .lam _ d b bi => mixHash 41 (mixHash (go d) (mixHash (lams b) (hashBI bi)))
+    | e => go e
+
+/-- `hashE`, both ways at once, and each subterm a term shares hashed once, by address. -/
+private unsafe def hashBothImpl (env : Environment) (orders : NameMap (Array Nat))
+    (lp : List Name) (e : Expr) : UInt64 × UInt64 :=
+  (go e).run' {} |>.run
+where
+  /-- A node already hashed: its hash does not depend on where it is, since a node reached by
+  `spine` or `lams` hashes as `go` would hash it there. -/
+  memo (e : Expr) (k : StateM (Std.HashMap USize (UInt64 × UInt64)) (UInt64 × UInt64)) :
+      StateM (Std.HashMap USize (UInt64 × UInt64)) (UInt64 × UInt64) := do
+    let a := ptrAddrUnsafe e
+    if let some h := (← get).get? a then return h
+    let h ← k
+    modify (·.insert a h)
+    return h
+  both (f : UInt64 → UInt64) (h : UInt64 × UInt64) : UInt64 × UInt64 := (f h.1, f h.2)
+  go (e : Expr) : StateM (Std.HashMap USize (UInt64 × UInt64)) (UInt64 × UInt64) := do
+    match e with
+    | .bvar i => let h := mixHash 2 (hash i); return (h, h)
+    | .fvar _ => return (3, 3)
+    | .mvar _ => return (5, 5)
+    | .sort l => return (mixHash 7 (hashLvl lp l.normalize), 7)
+    | .const n us =>
+      if isTheorem env n then return (proofHash, proofHash)
+      return (mixHash 11 (mixHash (hash n) ((canonicalArgs orders n us).foldl (init := 0)
+          fun h u => mixHash h (hashLvl lp u.normalize))), mixHash 11 (mixHash (hash n) 0))
+    | .app .. => memo e do
+        if isErasedProof env e then return (proofHash, proofHash) else spine e
+    | .lam .. => memo e do
+        if isErasedProof env e then return (proofHash, proofHash) else lams e
+    | .forallE _ d b bi => memo e do
+        let (d, b) := (← go d, ← go b)
+        return (mixHash 43 (mixHash d.1 (mixHash b.1 (hashBI bi))),
+          mixHash 43 (mixHash d.2 (mixHash b.2 (hashBI bi))))
+    | .letE _ t v b _ => memo e do
+        let (t, v, b) := (← go t, ← go v, ← go b)
+        return (mixHash 47 (mixHash t.1 (mixHash v.1 b.1)), mixHash 47 (mixHash t.2 (mixHash v.2 b.2)))
+    | .lit l => let h := mixHash 53 (hash l); return (h, h)
+    | .mdata _ x => go x
+    | .proj s i x => memo e do
+        return both (fun h => mixHash 59 (mixHash (hash s) (mixHash (hash i) h))) (← go x)
+  spine (e : Expr) : StateM (Std.HashMap USize (UInt64 × UInt64)) (UInt64 × UInt64) := do
+    match e with
+    | .app f a => memo e do
+        let (f, a) := (← spine f, ← go a)
+        return (mixHash 13 (mixHash f.1 a.1), mixHash 13 (mixHash f.2 a.2))
+    | e => go e
+  lams (e : Expr) : StateM (Std.HashMap USize (UInt64 × UInt64)) (UInt64 × UInt64) := do
+    match e with
+    | .lam _ d b bi => memo e do
+        let (d, b) := (← go d, ← lams b)
+        return (mixHash 41 (mixHash d.1 (mixHash b.1 (hashBI bi))),
+          mixHash 41 (mixHash d.2 (mixHash b.2 (hashBI bi))))
+    | e => go e
+
+/-- The structural hash of `e`, and the hash with universe levels erased, which `hashE` defines.
+Compiled, it is one walk that hashes each shared subterm once: 2.4 times as fast on `Mathlib`'s
+types, where the two naive walks took 314 s. -/
+@[implemented_by hashBothImpl]
+private def hashBoth (env : Environment) (orders : NameMap (Array Nat)) (lp : List Name)
+    (e : Expr) : UInt64 × UInt64 :=
+  (hashE env orders lp false e, hashE env orders lp true e)
 
 /-! ## Attributes (`a`), from module entries
 
@@ -454,11 +663,14 @@ def fieldsFedBy : List (String × List String) :=
    ("declaration ranges", ["g", "l"])]
 
 /-- One declaration's row, as key-value pairs, leaving out empty values. -/
-def declRow (env : Environment) (back : NameMap Name) (ix : EntryIndex) (d : ReasonableDecl)
-    (line : Option Nat) : IO (List (String × Json)) := do
+def declRow (env : Environment) (orders : NameMap (Array Nat)) (back : NameMap Name)
+    (ix : EntryIndex) (d : ReasonableDecl) (line : Option Nat) : IO (List (String × Json)) := do
   let n := d.name
   let ci := d.info
+  -- Universe parameters are numbered canonically, not as declared (*Hashing*).
+  let lp := canonicalLevelParams ci
   let str (h : UInt64) := toJson (toString h)
+  let ty := hashBoth env orders lp ci.type
   let docHash := ((← findDocString? env n).filter (!isAliasDocstring env n ·)).map
     (hash ·.trimAscii.copy)
   let attrs := entryAttrs env ix n
@@ -467,7 +679,8 @@ def declRow (env : Environment) (back : NameMap Name) (ix : EntryIndex) (d : Rea
     | none => []
   let flag (k : String) (b : Bool) : List (String × Json) := if b then [(k, toJson true)] else []
   return [("n", toJson d.str), ("k", toJson (declKind ci)),
-      ("m", toJson ((sourceModule? env n).getD .anonymous).toString)]
+      ("m", toJson ((sourceModule? env n).getD .anonymous).toString),
+      ("t", str ty.1), ("te", toJson (toString ty.2.toUInt32))]
     ++ opt "d" (docHash.map str)
     ++ (if attrs.isEmpty then [] else [("a", toJson attrs)])
     ++ flag "p" (isProtected env n)
@@ -476,6 +689,9 @@ def declRow (env : Environment) (back : NameMap Name) (ix : EntryIndex) (d : Rea
     ++ opt "dep" (deprecationJson? env n)
     ++ opt "al" (aliasJson? env n)
     ++ flag "rs" (isReservedName env n)
+    ++ (if ci.levelParams.isEmpty then [] else [("nu", toJson ci.levelParams.length)])
+    ++ (if lp == ci.levelParams then [] else [("uo", Json.mkObj [
+        ("d", toJson (ci.levelParams.map toString)), ("p", toJson (ci.levelParams.map lp.idxOf))])])
     ++ opt "l" (line.map toJson)
 
 /-- The hash of a module's source file, found through `LEAN_SRC_PATH`, or `none`. -/
@@ -515,6 +731,7 @@ private def writeApiDump (env : Environment) (roots : Array Name)
   let (env, dual) ← loadExt (translations Mathlib.Tactic.ToDual.data) env
   let ix := EntryIndex.build env
   let back := translationSources env
+  let orders := canonicalArgOrders env
   let walk : CoreM (Array (List (String × Json)) × Nat) := do
     let mut rows := #[]
     let mut ranged := 0
@@ -523,7 +740,7 @@ private def writeApiDump (env : Environment) (roots : Array Name)
       -- `findDeclarationRanges?` gives a recursor its inductive's range.
       let line := (← findDeclarationRanges? d.name).map (·.selectionRange.pos.line)
       if line.isSome then ranged := ranged + 1
-      rows := rows.push (← declRow env back ix d line)
+      rows := rows.push (← declRow env orders back ix d line)
     return (rows, ranged)
   let ((rows, ranged), _) ← walk.toIO { fileName := "<dumpReasonableDecls>", fileMap := default }
     { env }

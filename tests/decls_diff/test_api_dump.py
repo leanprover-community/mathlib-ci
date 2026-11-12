@@ -38,10 +38,11 @@ class TestRealDump:
         assert list(api.modules) == ["Mathlib.Order.Bounds.Basic"]
         assert api.decls["upperBounds_union"] == {
             "n": "upperBounds_union", "k": "thm", "m": "Mathlib.Order.Bounds.Basic",
-            "a": ["simp"], "x": "lowerBounds_union", "l": 324}
+            "t": "16907828637081357657", "te": "857188824", "a": ["simp"], "x": "lowerBounds_union",
+            "nu": 1, "l": 324}
         # Every field is in some row, so a field the dumper silently stopped writing shows.
         written = {k for r in (*api.decls.values(), *api.modules.values()) for k in r}
-        assert written == set(api.fields) - {"dep", "rs", "dm", "imp"}
+        assert written == set(api.fields) - {"dep", "rs", "uo", "dm", "imp"}
 
     def test_lean_and_python_agree(self) -> None:
         """The schema, the field list and the `--out-dir` file names are written in Lean
@@ -179,10 +180,10 @@ class TestReadApi:
 
 class TestValue:
     def test_a_field_left_out_reads_as_its_empty_value(self) -> None:
-        row = {"n": "foo", "k": "thm", "m": "M", "a": ["simp"]}
+        row = {"n": "foo", "k": "thm", "m": "M", "t": "1", "te": "2", "a": ["simp"]}
         assert apiDump.value(row, "a") == ["simp"]
         assert apiDump.value(row, "p") is False and apiDump.value(row, "x") is None
-        assert apiDump.value(row, "rs") is False and apiDump.value(row, "imp") == []
+        assert apiDump.value(row, "nu") == 0 and apiDump.value(row, "imp") == []
         # A field this reader does not know has no empty value.
         assert apiDump.value(row, "zz") is None
 
