@@ -19,9 +19,11 @@ from urllib.parse import urlsplit
 # them can close a Markdown link.
 _URL = re.compile(r"https://([^/]+)/[A-Za-z0-9._/]*")
 
+# Dot-separated ASCII identifiers: no `/` and no empty component (so no `..`), nothing that closes a link.
+_MODULE = re.compile(r"[A-Za-z0-9_]+(\.[A-Za-z0-9_]+)*")
+
 def trusted_hosts(base: dict) -> set[str]:
-    """Hosts of the reference urls in the base export. That export is built by master's CI, so
-    unlike the head export (built by the PR's own code) its urls can be trusted."""
+    """Hosts of the reference urls in the base export (built by master's CI)."""
     return {urlsplit(ref["url"]).netloc
             for entry in base.get("entries", []) for ref in entry.get("refs", [])
             if isinstance(ref.get("url"), str)}
@@ -46,19 +48,23 @@ COMMENT_MAX_SIZE = 60000
 
 def render(rows: list[dict], repo: str, sha: str, hosts: set[str]) -> str:
     """Render the Markdown table, one row per added cross-reference. A reference is linked only if
-    its url is on one of `hosts` and has a plain path; otherwise it is shown unlinked."""
+    its url is on one of `hosts` and has a plain path, and a declaration only if its module and line
+    are well-formed; otherwise they are shown unlinked."""
     if not rows:
         return ""
     lines = ["| Declaration | Reference | Comment |", "|---|---|---|"]
     size = [len(lines[0]), len("\n".join(lines))]
     for r in rows:
-        path = r["module"].replace(".", "/") + ".lean"
-        permalink = f"https://github.com/{repo}/blob/{sha}/{path}#L{r['line']}"
+        decl = f"`{r['decl']}`"
+        if (isinstance(r["module"], str) and _MODULE.fullmatch(r["module"])
+                and type(r["line"]) is int and r["line"] > 0):
+            path = r["module"].replace(".", "/") + ".lean"
+            decl = f"[{decl}](https://github.com/{repo}/blob/{sha}/{path}#L{r['line']})"
         comment = " ".join(r["comment"].split()).replace("|", r"\|")
         ref = f"{r['db']} {r['id']}"
         if isinstance(r["url"], str) and (m := _URL.fullmatch(r["url"])) and m.group(1) in hosts:
             ref = f"[{ref}]({r['url']})"
-        line = f"| [`{r['decl']}`]({permalink}) | {ref} | {comment} |"
+        line = f"| {decl} | {ref} | {comment} |"
         lines.append(line)
         size.append(size[-1] + 1 + len(line))
     if size[-1] > COMMENT_MAX_SIZE:
