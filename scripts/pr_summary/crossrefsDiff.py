@@ -4,6 +4,9 @@
 Diffs the two `crossrefs.json` exports (from `mathlib4/scripts/export_crossrefs.lean`), and displays
 links to the loc with the new tag, the corresponding resolved database entry url, and the tag's
 optional comment.
+
+The head export is produced by the PR's own code, so every value from it is rendered as an inline
+code span and every link is checked before it is emitted.
 """
 
 from __future__ import annotations
@@ -21,6 +24,15 @@ _URL = re.compile(r"https://([^/]+)/[A-Za-z0-9._/]*")
 
 # Dot-separated ASCII identifiers: no `/` and no empty component (so no `..`), nothing that closes a link.
 _MODULE = re.compile(r"[A-Za-z0-9_]+(\.[A-Za-z0-9_]+)*")
+
+def code(value: object) -> str:
+    """`value` as an inline code span that can't leave its table cell: line breaks and `|` are
+    escaped, and the fence is one backtick longer than any backtick run in the value."""
+    s = str(value).replace("\r", r"\r").replace("\n", r"\n").replace("|", r"\|")
+    if not s:
+        return ""
+    fence = "`" * (max(map(len, re.findall("`+", s)), default=0) + 1)
+    return f"{fence} {s} {fence}"
 
 def trusted_hosts(base: dict) -> set[str]:
     """Hosts of the reference urls in the base export (built by master's CI)."""
@@ -55,13 +67,13 @@ def render(rows: list[dict], repo: str, sha: str, hosts: set[str]) -> str:
     lines = ["| Declaration | Reference | Comment |", "|---|---|---|"]
     size = [len(lines[0]), len("\n".join(lines))]
     for r in rows:
-        decl = f"`{r['decl']}`"
+        decl = code(r["decl"])
         if (isinstance(r["module"], str) and _MODULE.fullmatch(r["module"])
                 and type(r["line"]) is int and r["line"] > 0):
             path = r["module"].replace(".", "/") + ".lean"
             decl = f"[{decl}](https://github.com/{repo}/blob/{sha}/{path}#L{r['line']})"
-        comment = " ".join(r["comment"].split()).replace("|", r"\|")
-        ref = f"{r['db']} {r['id']}"
+        comment = code(" ".join(str(r["comment"]).split()))
+        ref = code(f"{r['db']} {r['id']}")
         if isinstance(r["url"], str) and (m := _URL.fullmatch(r["url"])) and m.group(1) in hosts:
             ref = f"[{ref}]({r['url']})"
         line = f"| {decl} | {ref} | {comment} |"
