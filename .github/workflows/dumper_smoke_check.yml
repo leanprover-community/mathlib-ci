@@ -1,0 +1,98 @@
+name: Dumper smoke check
+
+# Runs `dumpReasonableDecls.lean` in a checkout of mathlib4 master, weekly and on every push or
+# PR that touches it. mathlib4 pins this repository by commit, so a change here cannot break
+# mathlib until the pin moves; but a toolchain bump on mathlib's side can break the pinned
+# script, and this shows it first. It fails when:
+#
+# * the script does not compile;
+# * the API dump's header leaves out a field: the dumper does that, with a warning, when an
+#   extension it reads reads as empty, which after a toolchain bump can happen silently
+#   (`dumpReasonableDecls.lean`, *Extensions read as empty*).
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - scripts/pr_summary/dumpReasonableDecls.lean
+      - scripts/pr_summary/apiDump.py
+      - .github/workflows/dumper_smoke_check.yml
+  pull_request:
+    paths:
+      - scripts/pr_summary/dumpReasonableDecls.lean
+      - scripts/pr_summary/apiDump.py
+      - .github/workflows/dumper_smoke_check.yml
+  schedule:
+    - cron: '17 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout mathlib-ci
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          path: ci
+
+      - name: Checkout mathlib4 master
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: leanprover-community/mathlib4
+          ref: master
+          path: mathlib4
+
+      - name: Configure Lean
+        uses: leanprover/lean-action@f061402b660e0c34644504b324e830f2991d4865 # v1.6.1
+        with:
+          auto-config: false
+          use-github-cache: false
+          use-mathlib-cache: false
+          lake-package-directory: mathlib4
+
+      # Only what the script imports, and the module it dumps: a few hundred files, not all of
+      # Mathlib.
+      - name: Fetch the oleans the script needs
+        working-directory: mathlib4
+        run: |
+          lake exe cache get Mathlib/Tactic/ToDual.lean Mathlib/Tactic/ToAdditive.lean \
+            Mathlib/Order/Bounds/Basic.lean
+          lake build ImportGraph.Imports.ImportGraph ImportGraph.Graph.TransitiveClosure \
+            Batteries.Tactic.Alias Mathlib.Order.Bounds.Basic
+
+      - name: Dump Mathlib.Order.Bounds.Basic
+        working-directory: mathlib4
+        run: |
+          status=0
+          lake env lean --run ../ci/scripts/pr_summary/dumpReasonableDecls.lean \
+            --out-dir ../dump Mathlib.Order.Bounds.Basic 2>../dump.stderr || status=$?
+          cat ../dump.stderr >&2
+          exit "$status"
+
+      - name: Check that the header lists every field
+        run: |
+          python3 - <<'EOF'
+          import re
+          import sys
+          from pathlib import Path
+
+          sys.path.insert(0, "ci/scripts/pr_summary")
+          from apiDump import read_api
+
+          src = Path("ci/scripts/pr_summary/dumpReasonableDecls.lean").read_text()
+          body = re.search(r"def apiFields : List \(String × Nat\) :=\s*\[(.*?)\]", src, re.S)
+          expected = {k: int(v) for k, v in re.findall(r'\("(\w+)", (\d+)\)', body.group(1))}
+          api = read_api(Path("dump/api.jsonl"))
+          missing = sorted(set(expected) - set(api.fields))
+          warnings = [ln for ln in Path("dump.stderr").read_text().splitlines()
+                      if ln.startswith("warning:")]
+          for ln in warnings:
+              print(f"::error::{ln}")
+          if missing:
+              print(f"::error::the header leaves out {', '.join(missing)}")
+          print(f"{len(api.decls)} declarations, fields {sorted(api.fields)}")
+          sys.exit(1 if missing or warnings else 0)
+          EOF
