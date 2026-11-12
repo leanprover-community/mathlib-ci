@@ -2,15 +2,29 @@
 """crossrefsDiff.py — compute the cross-reference tags a PR adds and print a Markdown summary table.
 
 Diffs the two `crossrefs.json` exports (from `mathlib4/scripts/export_crossrefs.lean`), and displays
-links to the loc with the new tag and the corresponding resolved database entry url.
+links to the loc with the new tag, the corresponding resolved database entry url, and the tag's
+optional comment.
 """
 
 from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from pathlib import Path
+from urllib.parse import urlsplit
+
+# Path characters of `Database.url` and of every id the cross-ref attribute parsers accept; none of
+# them can close a Markdown link.
+_URL = re.compile(r"https://([^/]+)/[A-Za-z0-9._/]*")
+
+def trusted_hosts(base: dict) -> set[str]:
+    """Hosts of the reference urls in the base export. That export is built by master's CI, so
+    unlike the head export (built by the PR's own code) its urls can be trusted."""
+    return {urlsplit(ref["url"]).netloc
+            for entry in base.get("entries", []) for ref in entry.get("refs", [])
+            if isinstance(ref.get("url"), str)}
 
 def added_refs(base: dict, head: dict) -> list[dict]:
     """Return the flattened references present in `head` but not in `base`."""
@@ -21,24 +35,36 @@ def added_refs(base: dict, head: dict) -> list[dict]:
     }
     return [
         {"decl": entry["decl"], "module": entry["module"], "line": entry["line"],
-         "db": ref["db"], "id": ref["id"], "url": ref["url"]}
+         "db": ref["db"], "id": ref["id"], "url": ref["url"], "comment": ref["comment"]}
         for entry in head.get("entries", [])
         for ref in entry.get("refs", [])
         if (entry["decl"], ref["db"], ref["id"]) not in old
     ]
 
-def render(rows: list[dict], repo: str, sha: str) -> str:
-    """Render the Markdown table, one row per added cross-reference."""
+#GitHub comments are capped at 65536 chars
+COMMENT_MAX_SIZE = 60000
+
+def render(rows: list[dict], repo: str, sha: str, hosts: set[str]) -> str:
+    """Render the Markdown table, one row per added cross-reference. A reference is linked only if
+    its url is on one of `hosts` and has a plain path; otherwise it is shown unlinked."""
     if not rows:
         return ""
-    lines = ["| Declaration | Reference |", "|---|---|"]
+    lines = ["| Declaration | Reference | Comment |", "|---|---|---|"]
+    size = [len(lines[0]), len("\n".join(lines))]
     for r in rows:
         path = r["module"].replace(".", "/") + ".lean"
         permalink = f"https://github.com/{repo}/blob/{sha}/{path}#L{r['line']}"
-        lines.append(
-            f"| [`{r['decl']}`]({permalink}) "
-            f"| [{r['db']} {r['id']}]({r['url']}) |"
-        )
+        comment = " ".join(r["comment"].split()).replace("|", r"\|")
+        ref = f"{r['db']} {r['id']}"
+        if isinstance(r["url"], str) and (m := _URL.fullmatch(r["url"])) and m.group(1) in hosts:
+            ref = f"[{ref}]({r['url']})"
+        line = f"| [`{r['decl']}`]({permalink}) | {ref} | {comment} |"
+        lines.append(line)
+        size.append(size[-1] + 1 + len(line))
+    if size[-1] > COMMENT_MAX_SIZE:
+        lines = [line for line, s in zip(lines, size) if s <= COMMENT_MAX_SIZE]
+        lines.append(f"\n<!-- Truncated {len(rows) - len(lines) + 2} rows due to comment size limit -->")
+
     return "\n".join(lines) + "\n"
 
 def parse_args(argv: list[str] | None) -> argparse.Namespace:
@@ -71,7 +97,7 @@ def main(argv: list[str] | None = None) -> int:
     head = json.loads(args.head_crossrefs.read_text(encoding="utf-8"))
 
     rows = added_refs(base, head)
-    print(render(rows, args.repo, args.new_sha), end="")
+    print(render(rows, args.repo, args.new_sha, trusted_hosts(base)), end="")
     return 0
 
 if __name__ == "__main__":
