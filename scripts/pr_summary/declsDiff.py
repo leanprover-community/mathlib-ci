@@ -202,7 +202,7 @@ def load_side(flag: str, dump_dir: Path | None, decls: Path | None) -> Side | st
 
 
 def api_status(ref: Side, new: Side) -> tuple[str, str]:
-    """Returns `used` and the fields at the same version in both API dumps, or
+    """Returns `used` and the fields the two API dumps can be compared on, or
     `absent` and which side is missing the API dump. The only text the message
     takes from the dumps is field names, and `read_api` accepts only short
     identifiers as field names (`_FIELD_NAME` in `apiDump.py`), so the message
