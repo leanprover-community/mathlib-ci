@@ -9,6 +9,10 @@ name: Dumper smoke check
 # * the API dump's header leaves out a field: the dumper does that, with a warning, when an
 #   extension it reads reads as empty, which after a toolchain bump can happen silently
 #   (`dumpReasonableDecls.lean`, *Extensions read as empty*).
+#
+# A failure of the weekly run or of a push to master is posted to Zulip, in
+# #nightly-testing-mathlib > "API dumper smoke check failure", with what failed and the output
+# that says why. A failure on a PR or a manual run only shows in the run.
 
 on:
   push:
@@ -34,19 +38,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout mathlib-ci
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           path: ci
 
       - name: Checkout mathlib4 master
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: leanprover-community/mathlib4
           ref: master
           path: mathlib4
 
       - name: Configure Lean
-        uses: leanprover/lean-action@f061402b660e0c34644504b324e830f2991d4865 # v1.6.1
+        uses: leanprover/lean-action@ba3fdfe5c4476c925da13bf11a005ddb47e47aee # v1.7.1
         with:
           auto-config: false
           use-github-cache: false
@@ -56,6 +60,7 @@ jobs:
       # Only what the script imports, and the module it dumps: a few hundred files, not all of
       # Mathlib.
       - name: Fetch the oleans the script needs
+        id: fetch
         working-directory: mathlib4
         run: |
           lake exe cache get Mathlib/Tactic/ToDual.lean Mathlib/Tactic/ToAdditive.lean \
@@ -63,16 +68,22 @@ jobs:
           lake build ImportGraph.Imports.ImportGraph ImportGraph.Graph.TransitiveClosure \
             Batteries.Tactic.Alias Mathlib.Order.Bounds.Basic
 
+      # Lean prints the script's compile errors on stdout, and the dumper its warnings on stderr;
+      # both are kept for the Zulip report.
       - name: Dump Mathlib.Order.Bounds.Basic
+        id: dump
         working-directory: mathlib4
         run: |
+          set -o pipefail
           status=0
           lake env lean --run ../ci/scripts/pr_summary/dumpReasonableDecls.lean \
-            --out-dir ../dump Mathlib.Order.Bounds.Basic 2>../dump.stderr || status=$?
+            --out-dir ../dump Mathlib.Order.Bounds.Basic 2>../dump.stderr | tee ../dump.stdout \
+            || status=$?
           cat ../dump.stderr >&2
           exit "$status"
 
       - name: Check that the header lists every field
+        id: check
         run: |
           python3 - <<'EOF'
           import re
@@ -87,12 +98,84 @@ jobs:
           expected = {k: int(v) for k, v in re.findall(r'\("(\w+)", (\d+)\)', body.group(1))}
           api = read_api(Path("dump/api.jsonl"))
           missing = sorted(set(expected) - set(api.fields))
-          warnings = [ln for ln in Path("dump.stderr").read_text().splitlines()
+          problems = [ln for ln in Path("dump.stderr").read_text().splitlines()
                       if ln.startswith("warning:")]
-          for ln in warnings:
-              print(f"::error::{ln}")
           if missing:
-              print(f"::error::the header leaves out {', '.join(missing)}")
+              problems.append(f"the header leaves out {', '.join(missing)}")
+          Path("check.errors").write_text("".join(f"{p}\n" for p in problems))
+          for p in problems:
+              print(f"::error::{p}")
           print(f"{len(api.decls)} declarations, fields {sorted(api.fields)}")
-          sys.exit(1 if missing or warnings else 0)
+          sys.exit(1 if problems else 0)
           EOF
+
+      - name: Write the Zulip report
+        id: report
+        if: >-
+          failure() && github.repository == 'leanprover-community/mathlib-ci'
+          && (github.event_name == 'schedule' || github.event_name == 'push')
+        env:
+          FETCH: ${{ steps.fetch.outcome }}
+          DUMP: ${{ steps.dump.outcome }}
+          CHECK: ${{ steps.check.outcome }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          # The earliest of the steps above that failed; the ones after it were skipped.
+          # shellcheck disable=SC2016 # The backticks are literal Markdown.
+          if [ "${DUMP}" = failure ]; then
+            what='`dumpReasonableDecls.lean` failed on `Mathlib.Order.Bounds.Basic`'
+            cat dump.stdout dump.stderr > details 2>/dev/null || true
+          elif [ "${CHECK}" = failure ]; then
+            what="the dumper warned, or the API dump's header leaves out a field"
+            cp check.errors details 2>/dev/null || true
+          elif [ "${FETCH}" = failure ]; then
+            what='fetching or building the oleans the script needs failed'
+          else
+            what='a setup step failed'
+          fi
+          mathlib=$(git -C mathlib4 rev-parse HEAD 2>/dev/null) || mathlib=
+          if [ -n "${mathlib}" ]; then
+            against="mathlib4 [\`${mathlib:0:10}\`](${GITHUB_SERVER_URL}/leanprover-community/mathlib4/commit/${mathlib})"
+          else
+            against='mathlib4 master'
+          fi
+          ci="mathlib-ci [\`${GITHUB_SHA:0:10}\`](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/commit/${GITHUB_SHA})"
+
+          # Zulip takes at most 10000 bytes; the output is cut at a line before 7000.
+          limit=7000
+          {
+            echo "❌ The dumper smoke check [failed](${RUN_URL}) on ${against} with ${ci}: ${what}."
+            if [ -s details ]; then
+              echo
+              echo '```spoiler Output'
+              echo '~~~text'
+              if [ "$(wc -c < details)" -gt "${limit}" ]; then
+                printf '%s\n' "$(head -c "${limit}" details | sed '$d')"
+                echo '… (cut: the full output is in the run log)'
+              else
+                printf '%s\n' "$(cat details)"
+              fi
+              echo '~~~'
+              echo '```'
+            fi
+          } > report.md
+          cat report.md
+
+          delimiter=$(cat /proc/sys/kernel/random/uuid)
+          {
+            echo "message<<${delimiter}"
+            cat report.md
+            echo "${delimiter}"
+          } >> "${GITHUB_OUTPUT}"
+
+      - name: Post the report on Zulip
+        if: failure() && steps.report.outcome == 'success'
+        uses: zulip/github-actions-zulip/send-message@f675f2b4eb2a95fae974215476dcb7ad8dfeff6b # v2.0.2
+        with:
+          api-key: ${{ secrets.ZULIP_MATHLIB_CI_BOT_API_KEY }}
+          email: 'github-mathlib-ci-bot@leanprover.zulipchat.com'
+          organization-url: 'https://leanprover.zulipchat.com'
+          to: 'nightly-testing-mathlib'
+          type: 'stream'
+          topic: 'API dumper smoke check failure'
+          content: ${{ steps.report.outputs.message }}
