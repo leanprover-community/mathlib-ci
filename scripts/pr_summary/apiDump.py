@@ -139,7 +139,7 @@ def _parse(fh: BinaryIO) -> ApiDump:
 
 def value(row: dict, field: str):
     """A row's value for a field, or the field's empty value if the row leaves it out. A row
-    is kept as parsed, so that a full `Mathlib` dump is not filled out 352k times over."""
+    is kept as parsed, to reduce duplication in a full `Mathlib` dump."""
     return row[field] if field in row else EMPTY.get(field)
 
 

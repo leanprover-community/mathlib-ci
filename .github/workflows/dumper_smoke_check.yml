@@ -1,14 +1,12 @@
 name: Dumper smoke check
 
 # Runs `dumpReasonableDecls.lean` in a checkout of mathlib4 master, weekly and on every push or
-# PR that touches it. mathlib4 pins this repository by commit, so a change here cannot break
-# mathlib until the pin moves; but a toolchain bump on mathlib's side can break the pinned
-# script, and this shows it first. It fails when:
+# PR that touches it. This fails when:
 #
 # * the script does not compile;
-# * the API dump's header leaves out a field: the dumper does that, with a warning, when an
-#   extension it reads reads as empty, which after a toolchain bump can happen silently
-#   (`dumpReasonableDecls.lean`, *Extensions read as empty*).
+# * the API dump's header leaves out a field: after a toolchain bump, an extension could
+# end up returning nothing, with the dumper only returning a warning, cf.
+# (`dumpReasonableDecls.lean`, *Extensions read as empty*).
 #
 # A failure of the weekly run or of a push to master is posted to Zulip, in
 # #nightly-testing-mathlib > "API dumper smoke check failure", with what failed and the output
@@ -57,8 +55,6 @@ jobs:
           use-mathlib-cache: false
           lake-package-directory: mathlib4
 
-      # Only what the script imports, and the module it dumps: a few hundred files, not all of
-      # Mathlib.
       - name: Fetch the oleans the script needs
         id: fetch
         working-directory: mathlib4
@@ -68,8 +64,6 @@ jobs:
           lake build ImportGraph.Imports.ImportGraph ImportGraph.Graph.TransitiveClosure \
             Batteries.Tactic.Alias Mathlib.Order.Bounds.Basic
 
-      # Lean prints the script's compile errors on stdout, and the dumper its warnings on stderr;
-      # both are kept for the Zulip report.
       - name: Dump Mathlib.Order.Bounds.Basic
         id: dump
         working-directory: mathlib4
