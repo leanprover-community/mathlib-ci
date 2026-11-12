@@ -83,6 +83,7 @@ Declaration rows, sorted by name:
 | `m` | 1 | — | defining module |
 | `t` | 1 | — | hash of the type, normalised (*Hashing*) |
 | `te` | 1 | — | `t` with every universe level erased, 32 bits: the same `te` and another `t` mean only the universes changed |
+| `v` | 1 | `null` | hash of the value, normalised as `t` is; none for theorems |
 | `d` | 1 | `null` | hash of the docstring, trimmed; none for the docstring `alias` generates (`isAliasDocstring`) |
 | `a` | 1 | `[]` | the attributes probed, sorted (*Attributes*) |
 | `p` | 1 | `false` | `protected` |
@@ -107,7 +108,7 @@ Module rows, sorted by name:
 
 ### Hashing
 
-`t` comes from a structural hasher that erases what does not
+`t` and `v` come from a structural hasher that erases what does not
 change a declaration's meaning to its callers: binder names, `mdata`,
 universe parameter names, how a level is written, the order of the
 arguments in a nest of `max`es, and proofs. It is not rename-invariant:
@@ -318,8 +319,8 @@ def apiSchema : Nat := 1
 
 /-- Every key the API dump's rows use, with its version; see *The API dump*. -/
 def apiFields : List (String × Nat) := [
-  ("n", 1), ("k", 1), ("m", 1), ("t", 1), ("te", 1), ("d", 1), ("a", 1), ("p", 1), ("x", 1),
-  ("g", 1), ("dep", 1), ("al", 1), ("rs", 1), ("nu", 1), ("uo", 1), ("l", 1),
+  ("n", 1), ("k", 1), ("m", 1), ("t", 1), ("te", 1), ("v", 1), ("d", 1), ("a", 1), ("p", 1),
+  ("x", 1), ("g", 1), ("dep", 1), ("al", 1), ("rs", 1), ("nu", 1), ("uo", 1), ("l", 1),
   ("mod", 1), ("dm", 1), ("md", 1), ("imp", 1), ("src", 1)]
 
 /-- The names used in the `k` field. -/
@@ -328,7 +329,7 @@ def declKind : ConstantInfo → String
   | .opaqueInfo _ => "opaq" | .quotInfo _ => "quot"
   | .inductInfo _ => "ind" | .ctorInfo _ => "ctor" | .recInfo _ => "rec"
 
-/-! ## Hashing (`t`, `te`) -/
+/-! ## Hashing (`t`, `te`, `v`) -/
 
 private def hashBI : BinderInfo → UInt64
   | .default => 101 | .implicit => 103 | .strictImplicit => 107 | .instImplicit => 109
@@ -681,6 +682,7 @@ def declRow (env : Environment) (orders : NameMap (Array Nat)) (back : NameMap N
   return [("n", toJson d.str), ("k", toJson (declKind ci)),
       ("m", toJson ((sourceModule? env n).getD .anonymous).toString),
       ("t", str ty.1), ("te", toJson (toString ty.2.toUInt32))]
+    ++ opt "v" (if ci.isTheorem then none else ci.value?.map fun v => str (hashBoth env orders lp v).1)
     ++ opt "d" (docHash.map str)
     ++ (if attrs.isEmpty then [] else [("a", toJson attrs)])
     ++ flag "p" (isProtected env n)

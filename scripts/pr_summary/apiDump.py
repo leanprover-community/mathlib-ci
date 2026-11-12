@@ -38,8 +38,8 @@ DECLS_FILE = "decls.txt"
 # What a row means by leaving a field out, for every field that may be: the "empty" column of
 # *The API dump*'s tables. `n`, `k`, `m`, `t`, `te` and `mod` are in every row of their kind.
 EMPTY = {
-    "d": None, "a": [], "p": False, "x": None, "g": False, "dep": None, "al": None, "rs": False,
-    "nu": 0, "uo": None, "l": None,
+    "v": None, "d": None, "a": [], "p": False, "x": None, "g": False, "dep": None, "al": None,
+    "rs": False, "nu": 0, "uo": None, "l": None,
     "dm": None, "md": None, "imp": [], "src": None,
 }
 
