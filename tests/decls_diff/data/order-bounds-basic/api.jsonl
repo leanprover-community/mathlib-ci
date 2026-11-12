@@ -97,8 +97,8 @@
 {"a":["reducibility:[reducible]"],"d":"9567389457856884060","k":"def","l":96,"m":"Mathlib.Order.Bounds.Basic","n":"IsLeast.orderBot","x":"IsGreatest.orderTop"}
 {"d":"2453468402402864147","k":"thm","l":407,"m":"Mathlib.Order.Bounds.Basic","n":"IsLeast.union","x":"IsGreatest.union"}
 {"k":"thm","l":851,"m":"Mathlib.Order.Bounds.Basic","n":"IsLeast.unique","x":"IsGreatest.unique"}
-{"al":{"k":"plain","of":"IsCofinalFor.of_subset"},"d":"7275049282775462452","k":"thm","l":110,"m":"Mathlib.Order.Bounds.Basic","n":"LE.le.isCofinalFor","x":"LE.le.isCoinitialFor"}
-{"al":{"k":"plain","of":"IsCoinitialFor.of_subset"},"d":"10636301162074290645","g":true,"k":"thm","l":109,"m":"Mathlib.Order.Bounds.Basic","n":"LE.le.isCoinitialFor","x":"LE.le.isCofinalFor"}
+{"al":{"k":"plain","of":"IsCofinalFor.of_subset"},"k":"thm","l":110,"m":"Mathlib.Order.Bounds.Basic","n":"LE.le.isCofinalFor","x":"LE.le.isCoinitialFor"}
+{"al":{"k":"plain","of":"IsCoinitialFor.of_subset"},"g":true,"k":"thm","l":109,"m":"Mathlib.Order.Bounds.Basic","n":"LE.le.isCoinitialFor","x":"LE.le.isCofinalFor"}
 {"a":["reducibility:[instance_reducible]"],"d":"9586501681725524027","k":"def","l":1000,"m":"Mathlib.Order.Bounds.Basic","n":"Lattice.ofIsLUBofIsGLB","x":"Lattice.ofIsLUBofIsGLB"}
 {"a":["instance:1000","reducibility:[instance_reducible]"],"k":"def","l":982,"m":"Mathlib.Order.Bounds.Basic","n":"Nat.instDecidableIsLeast"}
 {"a":["simp"],"g":true,"k":"thm","l":618,"m":"Mathlib.Order.Bounds.Basic","n":"NoBotOrder.lowerBounds_univ","x":"NoTopOrder.upperBounds_univ"}

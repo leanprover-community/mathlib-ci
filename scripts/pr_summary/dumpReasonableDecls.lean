@@ -81,7 +81,7 @@ Declaration rows, sorted by name:
 | `n` | 1 | — | declaration name, exactly as written by `--out` |
 | `k` | 1 | — | kind: `thm` / `def` / `ax` / `ind` / `ctor` / `rec` / `opaq` / `quot` |
 | `m` | 1 | — | defining module |
-| `d` | 1 | `null` | hash of the docstring, trimmed |
+| `d` | 1 | `null` | hash of the docstring, trimmed; none for the docstring `alias` generates (`isAliasDocstring`) |
 | `a` | 1 | `[]` | the attributes probed, sorted (*Attributes*) |
 | `p` | 1 | `false` | `protected` |
 | `x` | 1 | `null` | the declaration this one is a `to_additive` or `to_dual` translation of |
@@ -432,6 +432,18 @@ def aliasJson? (env : Environment) (n : Name) : Option Json :=
     | .forward t => Json.mkObj [("k", "forward"), ("of", toJson t.toString)]
     | .reverse t => Json.mkObj [("k", "reverse"), ("of", toJson t.toString)]
 
+/-- Whether `doc` is the docstring `alias` gives an alias written without one. Batteries'
+`addAliasDocstring` writes "**Alias** of `X`." (or "…of the forward direction of…", "…of the
+reverse direction of…"), followed by `X`'s own docstring after a `---` when `X` has one.
+`to_additive` and `to_dual` give their copies of an alias the same. `d` leaves such a
+docstring out: nobody wrote it, and it changes whenever the alias is re-pointed. -/
+def isAliasDocstring (env : Environment) (n : Name) (doc : String) : Bool :=
+  match Batteries.Tactic.Alias.aliasExt.find? env n with
+  | some info =>
+    let gen := info.toString
+    doc.trimAscii.copy == gen || doc.startsWith s!"{gen}\n\n---\n\n"
+  | none => false
+
 /-! ## Writing the API dump -/
 
 /-- The fields each extension feeds, which are left out if it reads as empty (*Extensions read
@@ -447,7 +459,8 @@ def declRow (env : Environment) (back : NameMap Name) (ix : EntryIndex) (d : Rea
   let n := d.name
   let ci := d.info
   let str (h : UInt64) := toJson (toString h)
-  let docHash := (← findDocString? env n).map (hash ·.trimAscii.copy)
+  let docHash := ((← findDocString? env n).filter (!isAliasDocstring env n ·)).map
+    (hash ·.trimAscii.copy)
   let attrs := entryAttrs env ix n
   let opt (k : String) : Option Json → List (String × Json)
     | some j => [(k, j)]
