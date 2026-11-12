@@ -18,19 +18,29 @@ Layout:
   It is used by the `PR_summary` workflow to maintain an up-to-date report with a searchable history.
 - `count-trans-deps.py`, `import-graph-report.py` and `import_trans_difference.sh` produce various
   summaries of changes in transitive imports that the `PR_summary` message incorporates.
+  `count-trans-deps.py` parses import headers with a regex rather than building Mathlib, so
+  it must track Lean's import grammar — `(public)? (meta)? import (all)? <module>`, plus
+  mathlib's trailing `-- shake: keep` comments. Tested by `tests/trans_deps/`.
 - `dumpReasonableDecls.lean` writes (to `--out`) a sorted list of every "reasonable"
-  declaration in the imported environment and (to `--imports-out`) a single-line JSON of
-  per-module transitive-import counts (format-compatible with `count-trans-deps.py`). Both
-  outputs are produced from a single Lean env load. Invoked post-build by
-  `mathlib4`'s `build_template.yml` to populate the `import-graph` artifact.
-- `declsDiff.py` takes two pre-computed `decls.txt` files (from
-  `dumpReasonableDecls.lean`) and emits the `+NAME` / `-NAME` set-difference plus a Markdown
-  body for the `#### Declarations diff` section of the PR summary comment. With `--with-heading`
-  it also emits the `#### Declarations diff (Lean)` heading and `<details>` wrap, for splicing
-  into the comment.
+  declaration in the imported environment, (to `--imports-out`) a single-line JSON of
+  per-module transitive-import counts (format-compatible with `count-trans-deps.py`) and (to
+  `--api-out`) the API dump `api.jsonl`: a versioned header, then one JSON row per
+  declaration and per module, documented in the script. `--out-dir DIR` writes the last
+  two into `DIR` under their standard names; the API dump lists the same names as `--out`,
+  which is kept for local use. Every output is produced from a single Lean env load.
+  Invoked post-build by `mathlib4`'s `build_template.yml` to populate the `import-graph`
+  artifact.
+- `declsDiff.py` takes two pre-computed dumps (dump directories, or bare `decls.txt` files)
+  and emits the `+NAME` / `-NAME` set-difference plus a Markdown body for the
+  `#### Declarations diff` section of the PR summary comment. With `--with-heading` it also
+  emits the `#### Declarations diff (Lean)` heading and `<details>` wrap, for splicing into
+  the comment. A directory's names come from `api.jsonl`, or from `decls.txt` in artifacts
+  written before the API dump; `--api-status` reports which fields two API dumps share.
 - `crossrefsDiff.py` takes two `crossrefs.json` exports (`mathlib4/scripts/export_crossrefs.lean`)
   and emits a Markdown table of the cross-references the PR adds, each linked to its entry
   in the external database.
+- `apiDump.py` reads `api.jsonl` for `declsDiff.py`. It treats the dump as untrusted, and
+  decides which fields two dumps share: those both headers list at the same version.
 - `updateDeclsDiffSection.py` PATCHes the `#### Declarations diff (Lean)` block of a PR's
   `### PR summary` comment with the Lean-aware diff, by replacing the region between the
   `<!-- DECLS_DIFF_LEAN_BEGIN/END -->` markers (the regex block is left untouched). Invoked
@@ -57,6 +67,10 @@ Layout:
   `late_importers.sh` for further details.
 - `zulip_build_report.sh` is used to analyse the output from building the nightly-testing-green
   branch with additional linting enabled, and posts a summary of its findings on zulip.
+  It is also used by Mathlib's weekly linting report.  The summary counts each distinct message;
+  messages that occur only a few times can also link to their locations, and a full report with
+  every location is written to the GitHub job summary.  See the header of the script for the
+  environment variables that configure it.
 
 ## `maintainer/`
 - `get_tlabel.sh` extracts the `t-`label that a PR has (assuming that there is exactly one).
@@ -65,8 +79,9 @@ Layout:
 - `maintainer_merge_message.sh` contains a shell script that produces the Zulip message for a
   `maintainer merge`/`maintainer delegate` comment.
 - `lean-pr-testing-comments.sh`
-  Generate comments and labels on a Lean or Batteries PR after CI has finished on a
-  `*-pr-testing-NNNN` branch.
+  Reports Mathlib CI results on the Batteries PR named by `batteries-pr-testing-NNNN`.
+  Accepts PR or push event context and the reporting App's login.
+  Links PR reports to the Mathlib adaptation PR and skips outdated Batteries pins when the caller supplies the tested revision.
 
 ## `nightly/`
 - `create-adaptation-pr.sh` implements some of the steps in the workflow described at
@@ -80,10 +95,6 @@ Layout:
   - finally, merge the new branch back into `nightly-testing`, if conflict resolution was required.
 
   If there are merge conflicts, it pauses and asks for help from the human driver.
-- `merge-lean-testing-pr.sh` takes a PR number `NNNN` as argument,
-  and attempts to merge the branch `lean-pr-testing-NNNN` into `master`.
-  It will resolve conflicts in `lean-toolchain`, `lakefile.lean`, and `lake-manifest.json`.
-  If there are more conflicts, it will bail.
 
 ## `zulip/`
 - `parse_lake_manifest_changes.py` compares two versions of `lake-manifest.json` to report

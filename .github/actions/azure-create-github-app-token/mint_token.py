@@ -28,6 +28,7 @@ References:
 
 import base64
 import hashlib
+import http.client
 import json
 import os
 import sys
@@ -35,10 +36,24 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+from collections.abc import Callable
 
 GITHUB_API_URL = "https://api.github.com"
 OIDC_AUDIENCE = "api://AzureADTokenExchange"
 JWT_EXPIRATION_SECONDS = 540
+# `iat` is backdated by this much to tolerate clock skew. The usable lifetime of the JWT
+# is `JWT_EXPIRATION_SECONDS` minus this.
+CLOCK_SKEW_BACKDATE_SECONDS = 60
+REQUEST_TIMEOUT_SECONDS = 20
+RETRY_BACKOFF_SECONDS = (2, 4, 8)
+# Duration of one request when every attempt runs to the timeout.
+WORST_CASE_REQUEST_SECONDS = (len(RETRY_BACKOFF_SECONDS) + 1) * REQUEST_TIMEOUT_SECONDS + sum(
+    RETRY_BACKOFF_SECONDS
+)
+# Maximum number of requests sent after `iat` is stamped: the Key Vault sign, the org and
+# user installation lookups, and the token mint. Their combined worst case must fit in the
+# usable lifetime of the JWT. The test suite checks this.
+MAX_JWT_CLOCK_REQUESTS = 4
 
 
 class GithubHttpError(Exception):
@@ -101,6 +116,58 @@ def parse_expiration_seconds(raw: str) -> int:
     return expiration_seconds
 
 
+def _urlopen_once(req: urllib.request.Request) -> bytes:
+    """Send a request once and return the response body."""
+
+    with urllib.request.urlopen(req, timeout=REQUEST_TIMEOUT_SECONDS) as resp:
+        return resp.read()
+
+
+def urlopen_retrying(
+    req: urllib.request.Request,
+    *,
+    send: Callable[[urllib.request.Request], bytes] = _urlopen_once,
+    sleep: Callable[[float], None] = time.sleep,
+) -> bytes:
+    """Send a request, retry transient failures, and return the response body.
+
+    A 5xx response, a dropped connection, and a timeout are transient. After one of these
+    the function waits for the next entry of `RETRY_BACKOFF_SECONDS` and sends the request
+    again. After the last entry it makes one final attempt. A 4xx response means the
+    request itself is wrong, so it is raised at once.
+
+    The last error is raised as a `urllib.error.URLError`. An `HTTPError` is raised as is,
+    with its body unread, so callers can include the body in their own message. Any other
+    `OSError` or `HTTPException` is wrapped in a `URLError`.
+
+    `send` sends the request once and `sleep` waits between attempts; tests pass fakes for
+    both.
+    """
+
+    for delay in RETRY_BACKOFF_SECONDS:
+        try:
+            return send(req)
+        except urllib.error.HTTPError as err:
+            if err.code < 500:
+                raise
+            err.close()
+            reason = f"HTTP {err.code}"
+        except (OSError, http.client.HTTPException) as err:
+            # urllib wraps a failure in URLError only while it sends the request. A dropped
+            # connection, a truncated body, or a timeout on the response arrives as a bare
+            # OSError or HTTPException.
+            reason = str(err)
+        print(f"{req.full_url} failed ({reason}); retrying in {delay}s.", file=sys.stderr)
+        sleep(delay)
+    try:
+        return send(req)
+    except urllib.error.URLError:
+        # URLError is an OSError; re-raise it before the wrap below.
+        raise
+    except (OSError, http.client.HTTPException) as err:
+        raise urllib.error.URLError(err) from err
+
+
 def get_actions_oidc_token(audience: str) -> str:
     """Fetch a GitHub Actions OIDC token for the configured audience."""
 
@@ -123,8 +190,7 @@ def get_actions_oidc_token(audience: str) -> str:
     req = urllib.request.Request(url=url_with_audience, method="GET")
     req.add_header("Authorization", f"Bearer {request_token}")
     try:
-        with urllib.request.urlopen(req) as resp:
-            oidc_response = json.loads(resp.read().decode("utf-8"))
+        oidc_response = json.loads(urlopen_retrying(req).decode("utf-8"))
     except urllib.error.HTTPError as err:
         detail = err.read().decode("utf-8", errors="replace")
         fail(f"Failed to fetch GitHub OIDC token: HTTP {err.code}\n{detail}")
@@ -158,8 +224,7 @@ def exchange_oidc_for_keyvault_token(tenant_id: str, client_id: str, oidc_token:
     req = urllib.request.Request(url=token_url, data=body, method="POST")
     req.add_header("Content-Type", "application/x-www-form-urlencoded")
     try:
-        with urllib.request.urlopen(req) as resp:
-            token_response = json.loads(resp.read().decode("utf-8"))
+        token_response = json.loads(urlopen_retrying(req).decode("utf-8"))
     except urllib.error.HTTPError as err:
         detail = err.read().decode("utf-8", errors="replace")
         fail(f"Failed to exchange OIDC token for Key Vault token: HTTP {err.code}\n{detail}")
@@ -193,8 +258,7 @@ def run_keyvault_sign(
     req.add_header("Authorization", f"Bearer {access_token}")
     req.add_header("Content-Type", "application/json")
     try:
-        with urllib.request.urlopen(req) as resp:
-            sign_result = json.loads(resp.read().decode("utf-8"))
+        sign_result = json.loads(urlopen_retrying(req).decode("utf-8"))
     except urllib.error.HTTPError as err:
         detail = err.read().decode("utf-8", errors="replace")
         fail(f"Azure Key Vault signing failed: HTTP {err.code}\n{detail}")
@@ -227,11 +291,13 @@ def github_request(api_url: str, method: str, path: str, jwt: str, body: dict | 
     if data is not None:
         req.add_header("Content-Type", "application/json")
     try:
-        with urllib.request.urlopen(req) as resp:
-            return json.loads(resp.read().decode("utf-8"))
+        return json.loads(urlopen_retrying(req).decode("utf-8"))
     except urllib.error.HTTPError as err:
         detail = err.read().decode("utf-8", errors="replace")
         raise GithubHttpError(method, url, err.code, detail) from err
+    except urllib.error.URLError as err:
+        # Not a GithubHttpError: there is no status for `resolve_installation_id` to route on.
+        fail(f"GitHub API {method} {url} failed: {err.reason}")
 
 
 def resolve_installation_id(api_url: str, jwt: str, owner: str) -> int:
@@ -279,8 +345,12 @@ def build_app_jwt(
 ) -> str:
     """Build and sign a GitHub App JWT using Azure Key Vault."""
 
-    # Backdate iat slightly to tolerate minor clock skew between systems.
-    iat = int(time.time()) - 60
+    # Get the Key Vault credentials before `iat` is stamped, so their retries do not count
+    # against the JWT lifetime. See `MAX_JWT_CLOCK_REQUESTS`.
+    oidc_token = get_actions_oidc_token(OIDC_AUDIENCE)
+    keyvault_token = exchange_oidc_for_keyvault_token(azure_tenant_id, azure_client_id, oidc_token)
+
+    iat = int(time.time()) - CLOCK_SKEW_BACKDATE_SECONDS
     exp = iat + expiration_seconds
     jwt_header = {"alg": "RS256", "typ": "JWT"}
     jwt_payload = {"iat": iat, "exp": exp, "iss": app_id}
@@ -291,8 +361,6 @@ def build_app_jwt(
 
     # For RS256, Key Vault signs the SHA-256 digest of the JWS signing input.
     digest_b64url = b64url_encode(hashlib.sha256(signing_input).digest())
-    oidc_token = get_actions_oidc_token(OIDC_AUDIENCE)
-    keyvault_token = exchange_oidc_for_keyvault_token(azure_tenant_id, azure_client_id, oidc_token)
     signature_from_az = run_keyvault_sign(vault_name, key_name, key_version, digest_b64url, keyvault_token)
     # Normalize the returned signature to canonical base64url for the JWT segment.
     signature_bytes = b64url_decode(signature_from_az)

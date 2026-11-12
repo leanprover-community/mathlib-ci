@@ -1,23 +1,30 @@
 name: Test decls-diff scripts
 
-# Runs the unit-test suite for `scripts/pr_summary/declsDiff.py` and the
-# `decls-diff` composite action on every push / PR that touches their
-# source or their tests.
+# Runs the unit-test suite for `scripts/pr_summary/declsDiff.py`, the API-dump
+# reader `apiDump.py` and the `decls-diff` composite action on every push / PR
+# that touches their source or their tests. `dumpReasonableDecls.lean` is
+# included because a test checks that it writes what `apiDump.py` reads.
 
 on:
   push:
     branches: [master]
     paths:
       - scripts/pr_summary/declsDiff.py
+      - scripts/pr_summary/apiDump.py
+      - scripts/pr_summary/dumpReasonableDecls.lean
       - .github/actions/decls-diff/**
       - tests/decls_diff/**
       - .github/workflows/test_decls_diff.yml
+      - pytest.ini
   pull_request:
     paths:
       - scripts/pr_summary/declsDiff.py
+      - scripts/pr_summary/apiDump.py
+      - scripts/pr_summary/dumpReasonableDecls.lean
       - .github/actions/decls-diff/**
       - tests/decls_diff/**
       - .github/workflows/test_decls_diff.yml
+      - pytest.ini
 
 permissions:
   contents: read
@@ -26,8 +33,8 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6.2.0
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
           python-version: '3.x'
       - run: python3 -m pip install --upgrade pip pytest
