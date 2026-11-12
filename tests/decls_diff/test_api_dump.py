@@ -37,7 +37,11 @@ class TestRealDump:
         assert list(api.decls) == sorted(api.decls)
         assert list(api.modules) == ["Mathlib.Order.Bounds.Basic"]
         assert api.decls["upperBounds_union"] == {
-            "n": "upperBounds_union", "k": "thm", "m": "Mathlib.Order.Bounds.Basic"}
+            "n": "upperBounds_union", "k": "thm", "m": "Mathlib.Order.Bounds.Basic",
+            "a": ["simp"], "x": "lowerBounds_union", "l": 324}
+        # Every field is in some row, so a field the dumper silently stopped writing shows.
+        written = {k for r in (*api.decls.values(), *api.modules.values()) for k in r}
+        assert written == set(api.fields) - {"dep", "rs", "dm", "imp"}
 
     def test_lean_and_python_agree(self) -> None:
         """The schema, the field list and the `--out-dir` file names are written in Lean
@@ -45,13 +49,21 @@ class TestRealDump:
         src = _DUMPER.read_text()
         schema = re.search(r"def apiSchema : Nat := (\d+)", src)
         assert schema and int(schema.group(1)) == apiDump.SCHEMA
-        fields = re.search(r"def apiFields : List \(String × Nat\) := \[(.*)\]", src)
+        fields = re.search(r"def apiFields : List \(String × Nat\) :=\s*\[(.*?)\]", src, re.S)
         assert fields
         lean_fields = {k: int(v) for k, v in re.findall(r'\("(\w+)", (\d+)\)', fields.group(1))}
         assert lean_fields == read_api(_REAL / "api.jsonl").fields, \
             "re-record tests/decls_diff/data/order-bounds-basic with the current dumper"
         for name in (apiDump.IMPORTS_FILE, apiDump.API_FILE):
             assert f'd / "{name}"' in src
+
+    def test_empty_values_agree(self) -> None:
+        """`EMPTY` is the "empty" column of the dumper's tables, which say what a row means by
+        leaving a field out. A field with `—` is never left out."""
+        src = _DUMPER.read_text()
+        rows = re.findall(r"^\| `(\w+)` \| (\d+) \| (`[^`]*`|—) \|", src, re.M)
+        assert {k for k, _, _ in rows} == set(read_api(_REAL / "api.jsonl").fields)
+        assert {k: json.loads(e.strip("`")) for k, _, e in rows if e != "—"} == apiDump.EMPTY
 
 
 class TestReadApi:
@@ -163,6 +175,16 @@ class TestReadApi:
             with pytest.raises(ApiDumpError) as e:
                 read_api(_write(tmp_path / "a.jsonl", rows))
             assert "forged" not in str(e.value)
+
+
+class TestValue:
+    def test_a_field_left_out_reads_as_its_empty_value(self) -> None:
+        row = {"n": "foo", "k": "thm", "m": "M", "a": ["simp"]}
+        assert apiDump.value(row, "a") == ["simp"]
+        assert apiDump.value(row, "p") is False and apiDump.value(row, "x") is None
+        assert apiDump.value(row, "rs") is False and apiDump.value(row, "imp") == []
+        # A field this reader does not know has no empty value.
+        assert apiDump.value(row, "zz") is None
 
 
 class TestComparableFields:
