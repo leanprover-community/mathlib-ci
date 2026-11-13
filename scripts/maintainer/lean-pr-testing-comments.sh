@@ -15,11 +15,6 @@ if [ "${1:-}" != "batteries" ]; then
   exit 1
 fi
 
-# Set NIGHTLY_TESTING_REPO for comparison URLs (where the branches actually live)
-if [ -z "${NIGHTLY_TESTING_REPO:-}" ]; then
-  NIGHTLY_TESTING_REPO="leanprover-community/mathlib4-nightly-testing"
-fi
-
 # This is not meant to be run from the command line, only from CI.
 # The inputs must be prepared as:
 # env:
@@ -36,14 +31,13 @@ fi
 #   TEST_OUTCOME: ${{ steps.test.outcome }}
 #   WANTED_OUTCOME, MK_ALL_OUTCOME: Optional additional build checks.
 
-BOT_LOGIN="${BOT_LOGIN:-mathlib-nightly-testing[bot]}"
+BOT_LOGIN="${BOT_LOGIN:?BOT_LOGIN must name the App that supplies TOKEN}"
 
 branch_prefix="batteries-pr-testing"
 repo_url="https://api.github.com/repos/leanprover-community/batteries"
-base_branch="master"
 
 # Extract branch name and check if it matches the pattern.
-branch_name=$(echo "$GITHUB_CONTEXT" | jq -r '.event.pull_request.head.ref // (.ref | sub("^refs/heads/"; ""))')
+branch_name=$(echo "$GITHUB_CONTEXT" | jq -r '.event.pull_request.head.ref // empty')
 if [[ "$branch_name" =~ ^$branch_prefix-([0-9]+)$ ]]; then
   pr_number="${BASH_REMATCH[1]}"
   current_time=$(date "+%Y-%m-%d %H:%M:%S")
@@ -119,8 +113,8 @@ if [[ "$branch_name" =~ ^$branch_prefix-([0-9]+)$ ]]; then
       -d "$(jq --null-input --arg name "$1" '{labels: [$name]}')"
   }
 
-  adaptation_url=$(echo "$GITHUB_CONTEXT" | jq -r '.event.pull_request.html_url // empty')
-  branch="[$branch_prefix-$pr_number](${adaptation_url:-https://github.com/$NIGHTLY_TESTING_REPO/compare/$base_branch...$branch_prefix-$pr_number})"
+  adaptation_url=$(echo "$GITHUB_CONTEXT" | jq -r '.event.pull_request.html_url')
+  branch="[$branch_prefix-$pr_number]($adaptation_url)"
   case "$state" in
     success)
       message="- ✅ Mathlib branch $branch has successfully built against this PR. ($current_time) [View Log]($WORKFLOW_URL)"
