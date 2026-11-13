@@ -28,11 +28,13 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          read -r _ ref < <(
-            git ls-remote --heads https://github.com/leanprover-community/mathlib4.git \
-              'refs/heads/bump/v4.*.0' | sort -V -k2 | tail -n 1
-          )
+          ref=$(git ls-remote --heads "https://github.com/$TARGET_REPO.git" 'refs/heads/bump/v4.*.0' |
+            sort -V -k2 | tail -n 1 | cut -f2)
           ref=${ref#refs/heads/}
+          if [ -z "$ref" ]; then
+            echo "::error::$TARGET_REPO has no bump/v4.*.0 branch."
+            exit 1
+          fi
 
           # Use the newest pushed commit whose build succeeded, so that the cache has its oleans.
           for sha in $(gh run list -R "$TARGET_REPO" --workflow build.yml --branch "$ref" --event push \
@@ -63,6 +65,10 @@ jobs:
       - name: Build and lint the project.
         id: build-lean
         uses: leanprover/lean-action@f061402b660e0c34644504b324e830f2991d4865 # v1.6.1
+        env:
+          # The bump branch's CI uploads its oleans to the `forks` container under its commit.
+          # Mathlib's own checkout reads only `master` by default.
+          MATHLIB_CACHE_FROM: master,forks
         with:
           use-mathlib-cache: true
           lake-package-directory: ${{ env.TARGET_PATH }}

@@ -33,11 +33,13 @@ jobs:
       env:
         GH_TOKEN: ${{ github.token }}
       run: |
-        read -r _ ref < <(
-          git ls-remote --heads https://github.com/leanprover-community/mathlib4.git \
-            'refs/heads/bump/v4.*.0' | sort -V -k2 | tail -n 1
-        )
+        ref=$(git ls-remote --heads "https://github.com/$TARGET_REPO.git" 'refs/heads/bump/v4.*.0' |
+          sort -V -k2 | tail -n 1 | cut -f2)
         ref=${ref#refs/heads/}
+        if [ -z "$ref" ]; then
+          echo "::error::$TARGET_REPO has no bump/v4.*.0 branch."
+          exit 1
+        fi
 
         # Use the newest pushed commit whose build succeeded, so that a failure shows a regression.
         for sha in $(gh run list -R "$TARGET_REPO" --workflow build.yml --branch "$ref" --event push \
