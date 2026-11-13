@@ -1,0 +1,33 @@
+name: Test route scripts
+
+# Runs the unit-test suite for `scripts/route/` on every push / PR that touches
+# its source or its tests.
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - scripts/route/**
+      - tests/route/**
+      - .github/workflows/test_route.yml
+      - pytest.ini
+  pull_request:
+    paths:
+      - scripts/route/**
+      - tests/route/**
+      - .github/workflows/test_route.yml
+      - pytest.ini
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: '3.x'
+      - run: python3 -m pip install --upgrade pip pytest
+      - run: python3 -m pytest tests/route -v
