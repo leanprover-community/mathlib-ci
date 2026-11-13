@@ -22,6 +22,11 @@ jobs:
       TARGET_REPO: leanprover-community/mathlib4
       TARGET_PATH: mathlib
     steps:
+      - name: Checkout mathlib-ci
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          path: ci-tools
+
       - name: Resolve the current Mathlib bump branch
         id: bump
         shell: bash
@@ -56,11 +61,6 @@ jobs:
           repository: leanprover-community/mathlib4
           ref: ${{ steps.bump.outputs.sha }}
           path: ${{ env.TARGET_PATH }}
-
-      - name: Checkout mathlib-ci
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          path: ci-tools
 
       - name: Build the project.
         id: build-lean
