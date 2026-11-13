@@ -77,7 +77,7 @@ Layout:
   `maintainer merge`/`maintainer delegate` comment.
 - `lean-pr-testing-comments.sh`
   Reports Mathlib CI results on the Batteries PR named by `batteries-pr-testing-NNNN`.
-  Accepts PR or push event context and the reporting App's login.
+  Accepts a pull request event context and the reporting App's login.
   Links PR reports to the Mathlib adaptation PR and skips outdated Batteries pins when the caller supplies the tested revision.
 
 ## `nightly/`
