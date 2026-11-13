@@ -6,7 +6,6 @@ Layout:
 - `scripts/pr_summary/`: PR summary and import/declaration analysis helpers.
 - `scripts/reporting/`: reporting scripts for debt, file size, import lints, and build reports.
 - `scripts/maintainer/`: maintainer merge/delegate and PR-testing helper scripts.
-- `scripts/nightly/`: nightly branch automation scripts.
 - `scripts/zulip/`: Zulip integration scripts.
 - `scripts/verification/`: commit verification scripts.
 
@@ -62,12 +61,11 @@ Layout:
 - `late_importers.sh` is the main script used by the `latest_import.yml` action: it formats
   the `linter.minImports` output, summarizing the data in a table.  See the module docs of
   `late_importers.sh` for further details.
-- `zulip_build_report.sh` is used to analyse the output from building the nightly-testing-green
-  branch with additional linting enabled, and posts a summary of its findings on zulip.
-  It is also used by Mathlib's weekly linting report.  The summary counts each distinct message;
-  messages that occur only a few times can also link to their locations, and a full report with
-  every location is written to the GitHub job summary.  See the header of the script for the
-  environment variables that configure it.
+- `zulip_build_report.sh` summarizes the messages in a `lake build` log as a Zulip message.
+  The `nightly-docgen.yml` and `nightly-regression-report.yml` workflows and Mathlib's
+  `weekly-lints.yml` use it. The summary counts each distinct message and can link the locations
+  of rare messages. The GitHub job summary lists every location. The header of the script lists
+  the environment variables that configure it.
 
 ## `maintainer/`
 - `get_tlabel.sh` extracts the `t-`label that a PR has (assuming that there is exactly one).
@@ -79,19 +77,6 @@ Layout:
   Reports Mathlib CI results on the Batteries PR named by `batteries-pr-testing-NNNN`.
   Accepts PR or push event context and the reporting App's login.
   Links PR reports to the Mathlib adaptation PR and skips outdated Batteries pins when the caller supplies the tested revision.
-
-## `nightly/`
-- `create-adaptation-pr.sh` implements some of the steps in the workflow described at
-  https://leanprover-community.github.io/contribute/tags_and_branches.html#mathlib-nightly-and-bump-branches
-  Specifically, it will:
-  - merge `master` into `bump/v4.x.y`
-  - create a new branch from `bump/v4.x.y`, called `bump/nightly-YYYY-MM-DD`
-  - merge `nightly-testing` into the new branch
-  - open a PR to merge the new branch back into `bump/v4.x.y`
-  - announce the PR on zulip
-  - finally, merge the new branch back into `nightly-testing`, if conflict resolution was required.
-
-  If there are merge conflicts, it pauses and asks for help from the human driver.
 
 ## `zulip/`
 - `parse_lake_manifest_changes.py` compares two versions of `lake-manifest.json` to report

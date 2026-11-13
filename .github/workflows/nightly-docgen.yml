@@ -1,4 +1,4 @@
-name: Docgen test on nightly-testing
+name: Docgen test on the Mathlib bump branch
 
 on:
   schedule:
@@ -16,42 +16,75 @@ permissions:
 
 jobs:
   build:
-    name: build mathlib4-nightly-testing docs
+    name: Build Mathlib bump docs
     runs-on: doc-gen
     env:
-      TARGET_REPO: leanprover-community/mathlib4-nightly-testing
-      TARGET_PATH: nightly-testing
+      TARGET_REPO: leanprover-community/mathlib4
+      TARGET_PATH: mathlib
     steps:
-      - name: Checkout mathlib
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          repository: leanprover-community/mathlib4-nightly-testing
-          ref: nightly-testing-green
-          path: ${{ env.TARGET_PATH }}
-
       - name: Checkout mathlib-ci
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           path: ci-tools
 
-      - name: Capture target SHA
-        id: target
-        run: echo "sha=$(git -C '${{ env.TARGET_PATH }}' rev-parse HEAD)" >> "$GITHUB_OUTPUT"
-
-      - name: Add upstream
-        working-directory: ${{ env.TARGET_PATH }}
+      - name: Choose the Mathlib bump commit
+        id: bump
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          # Add the nightly-testing remote if it does not exist already, otherwise `lake exe cache` gets confused.
-          (git remote | grep -q '^nightly-testing$') || git remote add nightly-testing https://github.com/leanprover-community/mathlib4-nightly-testing.git
+          ref=$(git ls-remote --heads "https://github.com/$TARGET_REPO.git" 'refs/heads/bump/v4.*.0' |
+            sort -V -k2 | tail -n 1 | cut -f2)
+          ref=${ref#refs/heads/}
+          if [ -z "$ref" ]; then
+            echo "::error::$TARGET_REPO has no bump/v4.*.0 branch."
+            exit 1
+          fi
 
-      - name: Build and lint the project.
+          # Use the newest pushed commit with a successful build. Its CI uploads the oleans after the build.
+          shas=$(gh run list -R "$TARGET_REPO" --workflow build.yml --branch "$ref" --event push \
+            --limit 10 --json headSha --jq '.[].headSha')
+          if [ -z "$shas" ]; then
+            echo "::error::$TARGET_REPO has no push build on $ref."
+            exit 1
+          fi
+          for sha in $shas; do
+            # A commit can have several `ci / Build` runs, for example when it is also on master.
+            # They build the same tree, so one success is enough.
+            conclusions=$(gh api "repos/$TARGET_REPO/commits/$sha/check-runs?check_name=ci%20%2F%20Build" \
+              --jq '[.check_runs[].conclusion] | if any(. == "success") then "success" else join(",") end')
+            echo "$sha: ${conclusions:-no build}"
+            if [ "$conclusions" = success ]; then
+              echo "Testing $ref@$sha"
+              echo "sha=$sha" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          done
+          echo "::error::No recent commit on $ref has a successful build."
+          exit 1
+
+      - name: Checkout the Mathlib bump commit
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: leanprover-community/mathlib4
+          ref: ${{ steps.bump.outputs.sha }}
+          path: ${{ env.TARGET_PATH }}
+
+      - name: Build the project.
         id: build-lean
         uses: leanprover/lean-action@f061402b660e0c34644504b324e830f2991d4865 # v1.6.1
+        env:
+          # The bump branch's CI uploads its oleans to the `forks` container under the commit.
+          # A checkout of mathlib4 reads only `master` by default.
+          MATHLIB_CACHE_FROM: master,forks
         with:
           use-mathlib-cache: true
+          # Mathlib's CI runs the tests and the linters on the bump branch. The docs need only the build.
+          test: false
+          lint: false
           lake-package-directory: ${{ env.TARGET_PATH }}
 
-      # This is not quite the same as `docgen-action` does, since we do not actually want to upload the result.
+      # Unlike `docgen-action`, this job does not upload the result.
       - name: create dummy docs project
         working-directory: ${{ env.TARGET_PATH }}
         run: |
@@ -84,7 +117,7 @@ jobs:
           # No need to reinstall packages if we can just copy them from Mathlib.
           mkdir -p .lake/packages
           cp -r ../.lake/packages/* .lake/packages
-          cp ../lean-toolchain . # Use Mathlib's (nightly) toolchain.
+          cp ../lean-toolchain . # Use Mathlib's toolchain.
 
           # Disable an error message due to a non-blocking bug. See Zulip
           MATHLIB_NO_CACHE_ON_UPDATE=1 lake update "$NAME"
@@ -121,11 +154,11 @@ jobs:
 
       - name: Prepare Zulip report
         id: zulip-report
-        if: always()
+        if: always() && steps.bump.outcome == 'success'
         run: |
           # Process output for posting to Zulip
           WORKFLOW="${{ github.workflow }}" \
-          TARGET_SHA="${{ steps.target.outputs.sha }}" \
+          TARGET_SHA="${{ steps.bump.outputs.sha }}" \
           TARGET_REPO="${{ env.TARGET_REPO }}" \
           WORKFLOW_REPO="${{ github.repository }}" \
           WORKFLOW_RUN_ID="${{ github.run_id }}" \
@@ -133,7 +166,7 @@ jobs:
             ./ci-tools/scripts/reporting/zulip_build_report.sh "${{ steps.buildlog.outputs.filename }}" >> "${GITHUB_OUTPUT}"
 
       - name: Send message on Zulip
-        if: always() && steps.zulip-report.outcome == 'success' && (github.event_name != 'workflow_dispatch' || inputs.send_zulip)
+        if: always() && (steps.zulip-report.outcome == 'success' || steps.bump.outcome == 'failure') && (github.event_name != 'workflow_dispatch' || inputs.send_zulip)
         uses: zulip/github-actions-zulip/send-message@e4c8f27c732ba9bd98ac6be0583096dea82feea5 # v1.0.2
         with:
           api-key: ${{ secrets.ZULIP_MATHLIB_CI_BOT_API_KEY }}
@@ -142,4 +175,4 @@ jobs:
           to: 'nightly-testing-mathlib'
           type: 'stream'
           topic: 'Docgen status updates'
-          content: ${{ steps.zulip-report.outputs.zulip-message }}
+          content: ${{ steps.bump.outcome == 'success' && steps.zulip-report.outputs.zulip-message || format('❌ {0} [failed]({1}/{2}/actions/runs/{3}) before it chose a Mathlib bump commit.', github.workflow, github.server_url, github.repository, github.run_id) }}
