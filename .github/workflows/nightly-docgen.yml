@@ -36,7 +36,7 @@ jobs:
             exit 1
           fi
 
-          # Use the newest pushed commit whose build succeeded, so that the cache has its oleans.
+          # Use the newest pushed commit with a successful build. Its CI uploads the oleans after the build.
           for sha in $(gh run list -R "$TARGET_REPO" --workflow build.yml --branch "$ref" --event push \
               --limit 10 --json headSha --jq '.[].headSha'); do
             conclusions=$(gh api "repos/$TARGET_REPO/commits/$sha/check-runs?check_name=ci%20%2F%20Build" \
@@ -50,7 +50,7 @@ jobs:
           echo "::error::No recent commit on $ref has a successful build."
           exit 1
 
-      - name: Checkout mathlib
+      - name: Checkout the Mathlib bump commit
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           repository: leanprover-community/mathlib4
@@ -66,14 +66,14 @@ jobs:
         id: build-lean
         uses: leanprover/lean-action@f061402b660e0c34644504b324e830f2991d4865 # v1.6.1
         env:
-          # The bump branch's CI uploads its oleans to the `forks` container under its commit.
-          # Mathlib's own checkout reads only `master` by default.
+          # The bump branch's CI uploads its oleans to the `forks` container under the commit.
+          # A checkout of mathlib4 reads only `master` by default.
           MATHLIB_CACHE_FROM: master,forks
         with:
           use-mathlib-cache: true
           lake-package-directory: ${{ env.TARGET_PATH }}
 
-      # This is not quite the same as `docgen-action` does, since we do not actually want to upload the result.
+      # Unlike `docgen-action`, this job does not upload the result.
       - name: create dummy docs project
         working-directory: ${{ env.TARGET_PATH }}
         run: |

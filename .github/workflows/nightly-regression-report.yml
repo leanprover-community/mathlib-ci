@@ -41,7 +41,7 @@ jobs:
           exit 1
         fi
 
-        # Use the newest pushed commit whose build succeeded, so that a failure shows a regression.
+        # Use the newest pushed commit with a successful build, so that a failure comes from the regression linters.
         for sha in $(gh run list -R "$TARGET_REPO" --workflow build.yml --branch "$ref" --event push \
             --limit 10 --json headSha --jq '.[].headSha'); do
           conclusions=$(gh api "repos/$TARGET_REPO/commits/$sha/check-runs?check_name=ci%20%2F%20Build" \
@@ -55,7 +55,7 @@ jobs:
         echo "::error::No recent commit on $ref has a successful build."
         exit 1
 
-    - name: Checkout Mathlib bump
+    - name: Checkout the Mathlib bump commit
       uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       with:
         repository: leanprover-community/mathlib4
