@@ -14,8 +14,9 @@ from apiDump import ApiDump, ApiDumpError, comparable_fields, read_api
 _REPO = Path(__file__).resolve().parents[2]
 _DUMPER = _REPO / "scripts" / "pr_summary" / "dumpReasonableDecls.lean"
 
-# `api.jsonl` from `dumpReasonableDecls.lean --out-dir` on `Mathlib.Order.Bounds.Basic`, at
-# mathlib4 `079459b1486` (v4.36.0-rc2). Re-record it when the dumper's fields change.
+# `api.jsonl` from `dumpReasonableDecls.lean --out-dir` on `Mathlib.Order.Bounds.Basic` and
+# `Mathlib.Order.Defs.PartialOrder` (for a structure), at mathlib4 `724f52a7e07`
+# (v4.36.0-rc2). Re-record it when the dumper's fields change.
 _REAL = Path(__file__).resolve().parent / "data" / "order-bounds-basic"
 
 # A schema-1 header. Keep it at schema 1 when `SCHEMA` goes up: `master` artifacts written
@@ -33,11 +34,32 @@ class TestRealDump:
         """The dumper's own output reads cleanly, declarations sorted by name: Lean's
         `String.lt` and Python's `<` both compare code points."""
         api = read_api(_REAL / "api.jsonl")
-        assert len(api.decls) == 311
+        assert len(api.decls) == 412
         assert list(api.decls) == sorted(api.decls)
-        assert list(api.modules) == ["Mathlib.Order.Bounds.Basic"]
+        assert list(api.modules) == ["Mathlib.Order.Bounds.Basic",
+                                     "Mathlib.Order.Defs.PartialOrder"]
+        # `@[to_dual (attr := simp)]` on `upperBounds_union` made `lowerBounds_union`: only
+        # the generated side has `x`.
         assert api.decls["upperBounds_union"] == {
-            "n": "upperBounds_union", "k": "thm", "m": "Mathlib.Order.Bounds.Basic"}
+            "n": "upperBounds_union", "k": "thm", "m": "Mathlib.Order.Bounds.Basic",
+            "a": ["simp"], "l": 324}
+        assert api.decls["lowerBounds_union"] == {
+            "n": "lowerBounds_union", "k": "thm", "m": "Mathlib.Order.Bounds.Basic",
+            "a": ["simp"], "x": "upperBounds_union", "g": True, "l": 323}
+        # A structure's constructor and fields have no selection range of their own, but
+        # `Preorder` is written by hand, so they have no `g`.
+        assert api.decls["Preorder.mk"] == {
+            "n": "Preorder.mk", "k": "ctor", "m": "Mathlib.Order.Defs.PartialOrder",
+            "x": "Preorder.mk", "l": 43}
+        assert api.decls["Preorder.le_refl"] == {
+            "n": "Preorder.le_refl", "k": "thm", "m": "Mathlib.Order.Defs.PartialOrder",
+            "p": True, "l": 44}
+        # Here every `x` names a row: none names the internal `…._to_dual_1` that
+        # `@[to_dual none]` makes.
+        assert all(r["x"] in api.decls for r in api.decls.values() if "x" in r)
+        # Every field is in some row, so a field the dumper silently stopped writing shows.
+        written = {k for r in (*api.decls.values(), *api.modules.values()) for k in r}
+        assert written == set(api.fields) - {"dep", "rs", "dm", "imp"}
 
     def test_lean_and_python_agree(self) -> None:
         """The schema, the field list and the `--out-dir` file names are written in Lean
@@ -45,13 +67,28 @@ class TestRealDump:
         src = _DUMPER.read_text()
         schema = re.search(r"def apiSchema : Nat := (\d+)", src)
         assert schema and int(schema.group(1)) == apiDump.SCHEMA
-        fields = re.search(r"def apiFields : List \(String × Nat\) := \[(.*)\]", src)
+        fields = re.search(r"def apiFields : List \(String × Nat\) :=\s*\[(.*?)\]", src, re.S)
         assert fields
         lean_fields = {k: int(v) for k, v in re.findall(r'\("(\w+)", (\d+)\)', fields.group(1))}
         assert lean_fields == read_api(_REAL / "api.jsonl").fields, \
             "re-record tests/decls_diff/data/order-bounds-basic with the current dumper"
         for name in (apiDump.IMPORTS_FILE, apiDump.API_FILE):
             assert f'd / "{name}"' in src
+
+    def test_empty_values_agree(self) -> None:
+        """`EMPTY` is the "empty" column of the dumper's tables, which say what a row means by
+        leaving a field out. A field with `—` is never left out."""
+        src = _DUMPER.read_text()
+        rows = re.findall(r"^\| `(\w+)` \| (\d+) \| (`[^`]*`|—) \|", src, re.M)
+        assert {k for k, _, _ in rows} == set(read_api(_REAL / "api.jsonl").fields)
+        assert {k: json.loads(e.strip("`")) for k, _, e in rows if e != "—"} == apiDump.EMPTY
+
+    def test_never_compared_agrees(self) -> None:
+        """`NEVER_COMPARED` is the fields whose meaning in the dumper's tables ends "never
+        compared"."""
+        rows = re.findall(r"^\| `(\w+)` \| \d+ \| [^|]+ \| (.*) \|$", _DUMPER.read_text(), re.M)
+        assert {k for k, m in rows if m.lower().endswith("never compared")} \
+            == apiDump.NEVER_COMPARED
 
 
 class TestReadApi:
@@ -165,6 +202,23 @@ class TestReadApi:
             assert "forged" not in str(e.value)
 
 
+class TestValue:
+    def test_a_field_left_out_reads_as_its_empty_value(self) -> None:
+        row = {"n": "foo", "k": "thm", "m": "M", "a": ["simp"]}
+        assert apiDump.value(row, "a") == ["simp"]
+        assert apiDump.value(row, "p") is False and apiDump.value(row, "x") is None
+        assert apiDump.value(row, "rs") is False and apiDump.value(row, "imp") == []
+        # A field this reader does not know has no empty value.
+        assert apiDump.value(row, "zz") is None
+
+    def test_an_empty_list_is_a_fresh_copy(self) -> None:
+        """Changing one row's empty `a` leaves the next row's empty."""
+        apiDump.value({"n": "foo"}, "a").append("simp")
+        apiDump.value({"mod": "M"}, "imp").append("N")
+        assert apiDump.value({"n": "bar"}, "a") == []
+        assert apiDump.value({"mod": "N"}, "imp") == []
+
+
 class TestComparableFields:
     def _dump(self, **fields: int) -> ApiDump:
         return ApiDump(fields=fields, decls={}, modules={})
@@ -183,3 +237,9 @@ class TestComparableFields:
         """A field whose meaning changed (a new hash, say) is skipped until both agree."""
         assert comparable_fields(self._dump(n=1, mod=1, t=1),
                                  self._dump(n=1, mod=1, t=2)) == ["mod", "n"]
+
+    def test_line_and_source_hash_are_never_compared(self) -> None:
+        """`l` moves with every edit above a declaration, and `src` with every edit to its
+        file: where it is, not what it is."""
+        both = self._dump(n=1, mod=1, k=1, l=1, src=1)
+        assert comparable_fields(both, both) == ["k", "mod", "n"]

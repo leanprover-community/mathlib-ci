@@ -4,11 +4,12 @@ and work out which of its fields two dumps can be compared on.
 The format is documented in `dumpReasonableDecls.lean` (*The API dump*). In short: a header
 line `{"schema": 1, "fields": {"n": 1, ...}}`, then one JSON object per declaration (keyed
 by `n`) and one per module (keyed by `mod`). Two dumps are compared only on the fields both
-headers list at the same version (`comparable_fields`), except for the keys `n` and `mod`,
-which every dump this reader accepts has at version 1 (`KEYS`).
+headers list at the same version, and never on `l` or `src` (`comparable_fields`), except for
+the keys `n` and `mod`, which every dump this reader accepts has at version 1 (`KEYS`).
 
 The dump comes from the PR's own build, so it is untrusted. Anything malformed raises
 `ApiDumpError`, and no error message quotes the file: the messages go to the workflow log.
+Only the header and the two keys are checked here; whoever compares a field checks its values.
 """
 
 from __future__ import annotations
@@ -34,6 +35,18 @@ API_FILE = "api.jsonl"
 IMPORTS_FILE = "imports.json"
 DECLS_FILE = "decls.txt"
 
+# Default values assigned to omitted fields: the "empty" column of *The API dump*'s tables.
+# `n`, `k`, `m` and `mod` are in every row of their kind.
+EMPTY = {
+    "d": None, "a": [], "p": False, "x": None, "g": False, "dep": None, "al": None, "rs": False,
+    "l": None,
+    "dm": None, "md": None, "imp": [], "src": None,
+}
+
+# The fields the dumper's tables say are never compared: where a declaration is (`l`), and
+# whether its file is in the diff (`src`), not what it is.
+NEVER_COMPARED = frozenset({"l", "src"})
+
 # Field names are short identifiers, so that a list of them can go into a log line or the
 # step summary as it is.
 _FIELD_NAME = re.compile(r"[A-Za-z_][A-Za-z0-9_]{0,31}")
@@ -46,7 +59,8 @@ class ApiDumpError(ValueError):
 @dataclass
 class ApiDump:
     """A parsed API dump, with at least one declaration. Rows are kept as parsed, so a field
-    that *The API dump* gives an empty value for may be missing from a row."""
+    that *The API dump* gives an empty value for may be missing from a row: read it with
+    `value`."""
 
     fields: dict[str, int]
     decls: dict[str, dict]
@@ -127,7 +141,18 @@ def _parse(fh: BinaryIO) -> ApiDump:
     return ApiDump(fields, decls, modules)
 
 
+def value(row: dict, field: str):
+    """A row's value for a field, or the field's empty value if the row leaves it out. A row
+    is kept as parsed, to reduce duplication in a full `Mathlib` dump. An empty list is a fresh
+    copy, so a caller that changes it does not change every later row's."""
+    if field in row:
+        return row[field]
+    empty = EMPTY.get(field)
+    return list(empty) if isinstance(empty, list) else empty
+
+
 def comparable_fields(a: ApiDump, b: ApiDump) -> list[str]:
-    """The fields that are at the same version in both dumps, sorted: the only ones to be
-    compared."""
-    return sorted(f for f, v in a.fields.items() if b.fields.get(f) == v)
+    """The fields that are at the same version in both dumps, less `NEVER_COMPARED`, sorted:
+    the only ones to be compared."""
+    return sorted(f for f, v in a.fields.items()
+                  if b.fields.get(f) == v and f not in NEVER_COMPARED)
