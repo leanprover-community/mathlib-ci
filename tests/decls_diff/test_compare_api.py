@@ -335,8 +335,8 @@ class TestSurvivingNames:
         base = [rec("src"), rec("a"), rec("b", x="src", g=True)]
         head = [rec("src"), rec("a", x="src", g=True), rec("b")]
         d = cmp(base, head)
-        assert names(d, "dedup") == ["a"] and names(d, "undedup") == ["b"]
-        assert d.shape() == "mixed: de-duplication undone + de-duplication"
+        assert names(d, "now-generated") == ["a"] and names(d, "now-hand-written") == ["b"]
+        assert d.shape() == "mixed: now hand-written + now generated"
 
     def test_a_move(self) -> None:
         d = cmp([rec("foo", m="A")], [rec("foo", m="B")])
