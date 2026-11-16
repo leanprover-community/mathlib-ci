@@ -36,6 +36,9 @@ Layout:
   emits the `#### Declarations diff (Lean)` heading and `<details>` wrap, for splicing into
   the comment. A directory's names come from `api.jsonl`, or from `decls.txt` in artifacts
   written before the API dump; `--api-status` reports which fields two API dumps share.
+- `crossrefsDiff.py` takes two `crossrefs.json` exports (`mathlib4/scripts/export_crossrefs.lean`)
+  and emits a Markdown table of the cross-references the PR adds, each linked to its entry
+  in the external database.
 - `apiDump.py` reads `api.jsonl` for `declsDiff.py`. It treats the dump as untrusted, and
   decides which fields two dumps share: those both headers list at the same version.
 - `updateDeclsDiffSection.py` PATCHes the `#### Declarations diff (Lean)` block of a PR's
