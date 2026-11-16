@@ -821,7 +821,8 @@ def fold_copies(delta: Delta) -> None:
     exactly as its source's did under the source: `@[to_additive]` copies an instance's
     priority, so lowering one lowers both. A chain of translations folds into its first
     source. A self-dual name, whose `x` is itself, folds into nothing, and so does a
-    flagged one."""
+    flagged one. The copy's lemmas now used by `dsimp` (`fold_dsimp_gains`) go with it, into
+    the source's `dsimp`: mathlib4 #45277's `ComplexShape.down_Rel` with `down`, under `up`."""
     its = {it.name: it for it in delta.items.get("attrs", [])}
     if not its:
         return
@@ -842,6 +843,7 @@ def fold_copies(delta: Delta) -> None:
     for n, r in root.items():
         if r != n:
             its[r].copies.append(n)
+            its[r].dsimp += its[n].dsimp
     delta.items["attrs"] = [it for it in delta.items["attrs"] if root[it.name] == it.name]
 
 

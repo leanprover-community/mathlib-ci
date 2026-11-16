@@ -320,6 +320,17 @@ class TestSurvivingNames:
         assert names(d, "attrs") == ["opMap", "other"]
         assert d.items["attrs"][0].dsimp == ["opMap_τ₁"]
 
+    def test_a_generated_copy_brings_its_lemmas_now_used_by_dsimp(self) -> None:
+        """`down`, `up`'s generated dual, is listed under `up`, and so is `down_Rel`."""
+        made = "reducibility:[implicit_reducible]"
+        base = [rec("up", k="def"), rec("down", k="def", g=True, x="up"),
+                rec("up_Rel", a=["simp"]), rec("down_Rel", a=["simp"], g=True, x="up_Rel")]
+        head = [rec("up", k="def", a=[made]), rec("down", k="def", a=[made], g=True, x="up"),
+                rec("up_Rel", a=["defeq", "simp"]),
+                rec("down_Rel", a=["defeq", "simp"], g=True, x="up_Rel")]
+        it = only(cmp(base, head), "attrs")
+        assert (it.name, it.copies, it.dsimp) == ("up", ["down"], ["up_Rel", "down_Rel"])
+
     def test_docstrings(self) -> None:
         base = [rec("a", d="1"), rec("b", d="1"), rec("c")]
         head = [rec("a"), rec("b", d="2"), rec("c", d="3")]
