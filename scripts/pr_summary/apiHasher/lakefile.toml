@@ -1,0 +1,6 @@
+name = "apiHasher"
+defaultTargets = ["apihasher"]
+
+[[lean_exe]]
+name = "apihasher"
+root = "ApiHasher"

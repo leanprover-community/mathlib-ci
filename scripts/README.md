@@ -28,6 +28,9 @@ Layout:
   declaration and per module, documented in the script. `--out-dir DIR` writes the last
   two into `DIR` under their standard names; the API dump lists the same names as `--out`,
   which is kept for local use. Every output is produced from a single Lean env load.
+  `--hashes FILE` copies the API dump's structural hashes from the output of `apiHasher/`,
+  a Lake package next to the script with the hasher as an executable: interpreted, as the
+  script runs, hashing all of `Mathlib` takes minutes.
   Invoked post-build by `mathlib4`'s `build_template.yml` to populate the `import-graph`
   artifact.
 - `declsDiff.py` takes two pre-computed dumps (dump directories, or bare `decls.txt` files)

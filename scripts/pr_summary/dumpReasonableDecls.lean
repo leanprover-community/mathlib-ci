@@ -30,6 +30,10 @@ import Batteries.Tactic.Alias
   header, then a row for each reasonable declaration, then a row for
   each module. See *The API dump*.
 
+* `--hashes FILE`: reads the API dump's structural hashes from `FILE`,
+  which `apiHasher/ApiHasher.lean` wrote for the same roots. See
+  *Hashes*.
+
 * `--out-dir DIR`: writes the CI outputs to `DIR/imports.json` and
   `DIR/api.jsonl`, except for any that `--imports-out` or `--api-out`
   gives a path of its own. `declsDiff.py` reads a
@@ -81,6 +85,9 @@ Declaration rows, sorted by name:
 | `n` | 1 | — | declaration name, exactly as written by `--out` |
 | `k` | 1 | — | kind: `thm` / `def` / `ax` / `ind` / `ctor` / `rec` / `opaq` / `quot` |
 | `m` | 1 | — | defining module |
+| `t` | 1 | — | hash of the type, normalised (*Hashes*) |
+| `te` | 1 | — | `t` with every universe level erased, 32 bits: the same `te` and another `t` mean only the universes changed |
+| `v` | 1 | `null` | hash of the value, normalised as `t` is; none for theorems |
 | `d` | 1 | `null` | hash of the docstring, trimmed; none for the docstring `alias` generates (`isAliasDocstring`) |
 | `a` | 1 | `[]` | the attributes probed, sorted (*Attributes*) |
 | `p` | 1 | `false` | `protected` |
@@ -90,6 +97,8 @@ Declaration rows, sorted by name:
 | `dep` | 1 | `null` | `{to, since, text}` from `@[deprecated]` |
 | `al` | 1 | `null` | `{k, of}` from Batteries' `alias`: `k` is `plain`, `forward` or `reverse` |
 | `rs` | 1 | `false` | a reserved name realised on demand (`foo.eq_1`, `foo.congr_simp`) |
+| `nu` | 1 | `0` | the number of universe parameters |
+| `uo` | 1 | `null` | `{d, p}` when the universe parameters are not declared in canonical order (*Hashes*): the declared names, and the canonical position of each |
 | `l` | 1 | `null` | the line of the declaration's name in its source; for a declaration made by an attribute, the attribute's. Where it is, not what it is: never compared |
 
 Module rows, sorted by name:
@@ -101,6 +110,21 @@ Module rows, sorted by name:
 | `md` | 1 | `null` | hash of the module docstrings, each trimmed |
 | `imp` | 1 | `[]` | the module's imports, for a deprecated module only, where they name its replacement |
 | `src` | 1 | `null` | hash of the module's source file, found through `LEAN_SRC_PATH`. It differs between two sides exactly when the file is in the diff. Never compared |
+
+### Hashes
+
+`t`, `te`, `v`, `nu` and `uo` are not computed here. This script runs
+under `lean --run`, interpreted, and hashing every type and value in
+`Mathlib` that way takes minutes. `apiHasher/ApiHasher.lean`, next to
+this file, is the hasher as an executable, and says what the hashes
+erase (*Hashing*). It writes those fields for each declaration, with
+their versions, and `--hashes FILE` copies them into the rows and the
+header, so those versions are the hasher's: the table's are a copy.
+
+Without `--hashes`, or for a field the hasher's header does not list,
+the field is left out of the header and of every row. The hasher must
+have been run on the same roots: the dumper stops if its rows are not
+for the same names in the same order.
 
 ### Attributes
 
@@ -151,6 +175,7 @@ lake env lean --run scripts/pr_summary/dumpReasonableDecls.lean \
     [-o DECLS_OUT | --out DECLS_OUT] \
     [--imports-out IMPORTS_OUT] \
     [--api-out API_OUT] \
+    [--hashes HASHES] \
     [--out-dir DIR] \
     [ROOT ...]
 ```
@@ -159,7 +184,8 @@ lake env lean --run scripts/pr_summary/dumpReasonableDecls.lean \
 
 `Lean`, the `importGraph` package, and from Mathlib and Batteries the
 modules that register the extensions the API dump reads. Runs in a
-mathlib checkout, through `lake env`.
+mathlib checkout, through `lake env`. For `--hashes`, the output of
+`apiHasher`, built and run in the same checkout.
 -/
 
 open Lean
@@ -172,6 +198,8 @@ structure Config where
   importsOut : Option System.FilePath := none
   /-- Path for the API dump; `none` means "don't dump the API". -/
   apiOut     : Option System.FilePath := none
+  /-- The hasher's output, for the API dump; `none` means "leave the hashes out". -/
+  hashes     : Option System.FilePath := none
   /-- Directory for the CI outputs not given paths of their own; see `Config.withOutDir`. -/
   outDir     : Option System.FilePath := none
   /-- Module roots to import (via `withImportModules`) and use as a
@@ -191,6 +219,8 @@ Outputs (any combination; all run in one env load):
                         (object keyed by module name)
       --api-out F       write the API dump (JSON Lines: a header, then one
                         row per declaration and one per module)
+      --hashes F        read the API dump's structural hashes from F, as
+                        written by apiHasher for the same ROOTs
       --out-dir DIR     write imports.json and api.jsonl into DIR, except
                         for any given a path by --imports-out or --api-out
 
@@ -204,6 +234,7 @@ Options:
   -o, --out FILE        decls output file
       --imports-out F   transitive-imports JSON file
       --api-out F       API dump file
+      --hashes F        the hasher's output
       --out-dir DIR     directory for imports.json and api.jsonl
   -h, --help            show this message and exit
 "
@@ -222,11 +253,14 @@ partial def parseArgs : List String → Config → IO Config
   | ("--out" :: f :: rest),              cfg => parseArgs rest { cfg with declsOut := some f }
   | ("--imports-out" :: f :: rest),      cfg => parseArgs rest { cfg with importsOut := some f }
   | ("--api-out" :: f :: rest),          cfg => parseArgs rest { cfg with apiOut := some f }
+  | ("--hashes" :: f :: rest),           cfg => parseArgs rest { cfg with hashes := some f }
   | ("--out-dir" :: d :: rest),          cfg => parseArgs rest { cfg with outDir := some d }
   | ("--imports-out" :: _),              _   =>
       throw <| IO.userError "--imports-out requires a file argument"
   | ("--api-out" :: _),                  _   =>
       throw <| IO.userError "--api-out requires a file argument"
+  | ("--hashes" :: _),                   _   =>
+      throw <| IO.userError "--hashes requires a file argument"
   | ("--out-dir" :: _),                  _   =>
       throw <| IO.userError "--out-dir requires a directory argument"
   | (a :: rest),                         cfg =>
@@ -236,6 +270,8 @@ partial def parseArgs : List String → Config → IO Config
       parseArgs rest { cfg with importsOut := some (a.drop "--imports-out=".length).toString }
     else if a.startsWith "--api-out=" then
       parseArgs rest { cfg with apiOut := some (a.drop "--api-out=".length).toString }
+    else if a.startsWith "--hashes=" then
+      parseArgs rest { cfg with hashes := some (a.drop "--hashes=".length).toString }
     else if a.startsWith "--out-dir=" then
       parseArgs rest { cfg with outDir := some (a.drop "--out-dir=".length).toString }
     else if a.startsWith "-" then
@@ -302,11 +338,15 @@ private def writeDeclsDump (decls : Array ReasonableDecl) (outFile : System.File
 /-- The API dump's line format; see *The API dump*. -/
 def apiSchema : Nat := 1
 
-/-- Every key the API dump's rows use, with its version; see *The API dump*. -/
+/-- Every key this script computes for the API dump's rows, with its version; see *The API
+dump*. -/
 def apiFields : List (String × Nat) := [
   ("n", 1), ("k", 1), ("m", 1), ("d", 1), ("a", 1), ("p", 1), ("mt", 1), ("x", 1), ("g", 1),
   ("dep", 1), ("al", 1), ("rs", 1), ("l", 1),
   ("mod", 1), ("dm", 1), ("md", 1), ("imp", 1), ("src", 1)]
+
+/-- The keys copied from the hasher's output, which has their versions; see *Hashes*. -/
+def hashFields : List String := ["t", "te", "v", "nu", "uo"]
 
 /-- The names used in the `k` field. -/
 def declKind : ConstantInfo → String
@@ -503,8 +543,8 @@ def fieldsFedBy : List (String × List String) :=
    ("declaration ranges", ["g", "l"])]
 
 /-- One declaration's row, as key-value pairs, leaving out empty values. -/
-def declRow (env : Environment) (back : NameMap Name) (ix : EntryIndex) (d : ReasonableDecl)
-    (line : Option Nat) : IO (List (String × Json)) := do
+def declRow (env : Environment) (back : NameMap Name)
+    (ix : EntryIndex) (d : ReasonableDecl) (line : Option Nat) : IO (List (String × Json)) := do
   let n := d.name
   let ci := d.info
   let str (h : UInt64) := toJson (toString h)
@@ -551,10 +591,42 @@ def moduleRow (env : Environment) (sp : SearchPath) (mod : Name) : IO (List (Str
     ++ (if imps.isEmpty then [] else [("imp", Json.arr imps)])
     ++ (src.map fun h => ("src", toJson (toString h))).toList
 
+/-- The hasher's output (*Hashes*): the fields of `hashFields` its header lists, with their
+versions, and each declaration's values for them, in `decls`' order. Fails unless its rows are
+for exactly `decls`' names, in order. -/
+def readHashes (path : System.FilePath) (decls : Array ReasonableDecl) :
+    IO (List (String × Nat) × Array (List (String × Json))) := do
+  let bad (what : String) : IO Unit := throw <| IO.userError s!"--hashes {path}: {what}"
+  let lines := (← IO.FS.lines path).filter (!·.isEmpty)
+  let parse (i : Nat) : IO Json :=
+    match Json.parse lines[i]! with
+    | .ok j => pure j
+    | .error e => throw <| IO.userError s!"--hashes {path}: line {i + 1} is not JSON: {e}"
+  if lines.isEmpty then bad "it is empty"
+  let header ← parse 0
+  let fields := hashFields.filterMap fun k =>
+    match header.getObjVal? "fields" >>= (·.getObjValAs? Nat k) with
+    | .ok v => some (k, v)
+    | .error _ => none
+  if lines.size != decls.size + 1 then
+    bad s!"it has rows for {lines.size - 1} declarations, and the roots have {decls.size}; \
+      was it written for the same roots?"
+  let mut rows := Array.mkEmpty decls.size
+  for h : i in [0:decls.size] do
+    let row ← parse (i + 1)
+    unless (row.getObjValAs? String "n").toOption == some decls[i].str do
+      bad s!"line {i + 2} is not for {decls[i].str}; was it written for the same roots?"
+    rows := rows.push <| fields.filterMap fun (k, _) => (row.getObjVal? k).toOption.map (k, ·)
+  return (fields, rows)
+
 /-- Write the API dump: the header, a row per declaration, then a row per module under the
 roots. Returns the number of declaration rows and of module rows. -/
 private def writeApiDump (env : Environment) (roots : Array Name)
-    (decls : Array ReasonableDecl) (outFile : System.FilePath) : IO (Nat × Nat) := do
+    (decls : Array ReasonableDecl) (hashes : Option System.FilePath)
+    (outFile : System.FilePath) : IO (Nat × Nat) := do
+  let (hashed, hashRows) ← match hashes with
+    | some path => readHashes path decls
+    | none => pure ([], #[])
   -- The plain maps: matchers (`rs`), reducibility set outside a declaration's module, and the
   -- translation maps, loaded here only to be counted (`translationSources` reads their entries).
   let (env, matchers) ← loadExt Meta.Match.Extension.extension env
@@ -568,12 +640,13 @@ private def writeApiDump (env : Environment) (roots : Array Name)
   let walk : CoreM (Array (List (String × Json)) × Nat) := do
     let mut rows := #[]
     let mut ranged := 0
-    for d in decls do
+    for h : i in [0:decls.size] do
+      let d := decls[i]
       -- The name's line, not the docstring's, so that a link lands on `theorem foo`.
       -- `findDeclarationRanges?` gives a recursor its inductive's range.
       let line := (← findDeclarationRanges? d.name).map (·.selectionRange.pos.line)
       if line.isSome then ranged := ranged + 1
-      rows := rows.push (← declRow env back ix d line)
+      rows := rows.push ((← declRow env back ix d line) ++ hashRows.getD i [])
     return (rows, ranged)
   let ((rows, ranged), _) ← walk.toIO { fileName := "<dumpReasonableDecls>", fileMap := default }
     { env }
@@ -592,7 +665,7 @@ private def writeApiDump (env : Environment) (roots : Array Name)
     IO.eprintln s!"warning: to_dual's entry order disagrees with the declaration ranges on \
       {conflicts} pairs; leaving out x"
     dropped := dropped ++ ["x"]
-  let fields := apiFields.filter (!dropped.contains ·.1)
+  let fields := (apiFields ++ hashed).filter (!dropped.contains ·.1)
   let header := Json.mkObj [("schema", toJson apiSchema),
     ("fields", Json.mkObj (fields.map fun (k, v) => (k, toJson v)))]
   let mods := env.allImportedModuleNames.filter (underAnyRoot roots) |>.qsort (·.toString < ·.toString)
@@ -645,7 +718,7 @@ unsafe def runDump (cfg : Config) : IO UInt32 := do
       writeDeclsDump decls path
       IO.println s!"Wrote {decls.size} reasonable declarations from [{rootsStr}] to {path}"
     if let some path := cfg.apiOut then
-      let (nd, nm) ← writeApiDump env cfg.roots decls path
+      let (nd, nm) ← writeApiDump env cfg.roots decls cfg.hashes path
       IO.println s!"Wrote the API of {nd} declarations and {nm} modules from [{rootsStr}] to {path}"
     if let some path := cfg.importsOut then
       let n ← writeImportsDump env cfg.roots path

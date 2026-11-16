@@ -13,10 +13,12 @@ from apiDump import ApiDump, ApiDumpError, comparable_fields, read_api
 
 _REPO = Path(__file__).resolve().parents[2]
 _DUMPER = _REPO / "scripts" / "pr_summary" / "dumpReasonableDecls.lean"
+_HASHER = _REPO / "scripts" / "pr_summary" / "apiHasher" / "ApiHasher.lean"
 
-# `api.jsonl` from `dumpReasonableDecls.lean --out-dir` on `Mathlib.Order.Bounds.Basic` and
-# `Mathlib.Order.Defs.PartialOrder` (for a structure), at mathlib4 `724f52a7e07`
-# (v4.36.0-rc2). Re-record it when the dumper's fields change.
+# `api.jsonl` from `dumpReasonableDecls.lean --out-dir --hashes` on
+# `Mathlib.Order.Bounds.Basic` and `Mathlib.Order.Defs.PartialOrder` (for a structure), at
+# mathlib4 `724f52a7e07` (v4.36.0-rc2), with `apihasher`'s output for the same roots.
+# Re-record it when the dumper's or the hasher's fields change.
 _REAL = Path(__file__).resolve().parent / "data" / "order-bounds-basic"
 
 # A schema-1 header. Keep it at schema 1 when `SCHEMA` goes up: `master` artifacts written
@@ -42,18 +44,19 @@ class TestRealDump:
         # the generated side has `x`.
         assert api.decls["upperBounds_union"] == {
             "n": "upperBounds_union", "k": "thm", "m": "Mathlib.Order.Bounds.Basic",
-            "a": ["simp"], "l": 324}
+            "t": "16907828637081357657", "te": "857188824", "a": ["simp"], "nu": 1, "l": 324}
         assert api.decls["lowerBounds_union"] == {
             "n": "lowerBounds_union", "k": "thm", "m": "Mathlib.Order.Bounds.Basic",
-            "a": ["simp"], "x": "upperBounds_union", "g": True, "l": 323}
+            "t": "2038777112643046153", "te": "2269244701", "a": ["simp"],
+            "x": "upperBounds_union", "g": True, "nu": 1, "l": 323}
         # A structure's constructor and fields have no selection range of their own, but
         # `Preorder` is written by hand, so they have no `g`.
         assert api.decls["Preorder.mk"] == {
             "n": "Preorder.mk", "k": "ctor", "m": "Mathlib.Order.Defs.PartialOrder",
-            "x": "Preorder.mk", "l": 43}
+            "t": "7546046534363638050", "te": "636125482", "x": "Preorder.mk", "nu": 1, "l": 43}
         assert api.decls["Preorder.le_refl"] == {
             "n": "Preorder.le_refl", "k": "thm", "m": "Mathlib.Order.Defs.PartialOrder",
-            "p": True, "l": 44}
+            "t": "16121059774894288497", "te": "4285497308", "p": True, "nu": 1, "l": 44}
         # `macro`, `syntax` and `notation` make a parser that is `meta`, as `meta def` would.
         assert {n for n, r in api.decls.items() if r.get("mt")} == {
             "tacticBddDefault", "«term_⋖_»", "«term_⩿_»"}
@@ -66,15 +69,23 @@ class TestRealDump:
 
     def test_lean_and_python_agree(self) -> None:
         """The schema, the field list and the `--out-dir` file names are written in Lean
-        and read in Python. Catch the two drifting apart."""
+        and read in Python. Catch the two drifting apart. The hasher has the versions of
+        the fields the dumper copies from it."""
         src = _DUMPER.read_text()
         schema = re.search(r"def apiSchema : Nat := (\d+)", src)
         assert schema and int(schema.group(1)) == apiDump.SCHEMA
-        fields = re.search(r"def apiFields : List \(String × Nat\) :=\s*\[(.*?)\]", src, re.S)
-        assert fields
-        lean_fields = {k: int(v) for k, v in re.findall(r'\("(\w+)", (\d+)\)', fields.group(1))}
+        lean_fields = {}
+        for text, name in ((src, "apiFields"), (_HASHER.read_text(), "hashFields")):
+            fields = re.search(rf"def {name} : List \(String × Nat\) :=\s*\[(.*?)\]", text, re.S)
+            assert fields
+            pairs = re.findall(r'\("(\w+)", (\d+)\)', fields.group(1))
+            assert not lean_fields.keys() & dict(pairs).keys()
+            lean_fields.update((k, int(v)) for k, v in pairs)
         assert lean_fields == read_api(_REAL / "api.jsonl").fields, \
             "re-record tests/decls_diff/data/order-bounds-basic with the current dumper"
+        copied = re.search(r"def hashFields : List String := \[(.*?)\]", src)
+        assert copied and set(re.findall(r'"(\w+)"', copied.group(1))) \
+            == set(re.findall(r'\("(\w+)", \d+\)', fields.group(1)))
         for name in (apiDump.IMPORTS_FILE, apiDump.API_FILE):
             assert f'd / "{name}"' in src
 
@@ -207,10 +218,10 @@ class TestReadApi:
 
 class TestValue:
     def test_a_field_left_out_reads_as_its_empty_value(self) -> None:
-        row = {"n": "foo", "k": "thm", "m": "M", "a": ["simp"]}
+        row = {"n": "foo", "k": "thm", "m": "M", "t": "1", "te": "2", "a": ["simp"]}
         assert apiDump.value(row, "a") == ["simp"]
         assert apiDump.value(row, "p") is False and apiDump.value(row, "x") is None
-        assert apiDump.value(row, "rs") is False and apiDump.value(row, "imp") == []
+        assert apiDump.value(row, "nu") == 0 and apiDump.value(row, "imp") == []
         # A field this reader does not know has no empty value.
         assert apiDump.value(row, "zz") is None
 

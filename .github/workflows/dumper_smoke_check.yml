@@ -1,9 +1,9 @@
 name: Dumper smoke check
 
-# Runs `dumpReasonableDecls.lean` in a checkout of mathlib4 master, weekly and on every push or
-# PR that touches it. This fails when:
+# Builds `apiHasher` and runs it and `dumpReasonableDecls.lean` in a checkout of mathlib4 master,
+# weekly and on every push or PR that touches them. This fails when:
 #
-# * the script does not compile;
+# * the hasher or the script does not compile;
 # * the API dump's header leaves out a field: after a toolchain bump, an extension could
 # end up returning nothing, with the dumper only returning a warning, cf.
 # (`dumpReasonableDecls.lean`, *Extensions read as empty*).
@@ -17,11 +17,13 @@ on:
     branches: [master]
     paths:
       - scripts/pr_summary/dumpReasonableDecls.lean
+      - scripts/pr_summary/apiHasher/**
       - scripts/pr_summary/apiDump.py
       - .github/workflows/dumper_smoke_check.yml
   pull_request:
     paths:
       - scripts/pr_summary/dumpReasonableDecls.lean
+      - scripts/pr_summary/apiHasher/**
       - scripts/pr_summary/apiDump.py
       - .github/workflows/dumper_smoke_check.yml
   schedule:
@@ -64,6 +66,18 @@ jobs:
           lake build ImportGraph.Imports.ImportGraph ImportGraph.Graph.TransitiveClosure \
             Batteries.Tactic.Alias Mathlib.Order.Bounds.Basic
 
+      # From the mathlib checkout, so that its `lean-toolchain` picks the compiler.
+      - name: Build the hasher and hash Mathlib.Order.Bounds.Basic
+        id: hash
+        working-directory: mathlib4
+        run: |
+          set -o pipefail
+          {
+            lake --dir ../ci/scripts/pr_summary/apiHasher build
+            lake env ../ci/scripts/pr_summary/apiHasher/.lake/build/bin/apihasher \
+              --out ../hashes.jsonl Mathlib.Order.Bounds.Basic
+          } 2>&1 | tee ../hash.output
+
       - name: Dump Mathlib.Order.Bounds.Basic
         id: dump
         working-directory: mathlib4
@@ -71,7 +85,8 @@ jobs:
           set -o pipefail
           status=0
           lake env lean --run ../ci/scripts/pr_summary/dumpReasonableDecls.lean \
-            --out-dir ../dump Mathlib.Order.Bounds.Basic 2>../dump.stderr | tee ../dump.stdout \
+            --hashes ../hashes.jsonl --out-dir ../dump Mathlib.Order.Bounds.Basic \
+            2>../dump.stderr | tee ../dump.stdout \
             || status=$?
           cat ../dump.stderr >&2
           exit "$status"
@@ -87,9 +102,13 @@ jobs:
           sys.path.insert(0, "ci/scripts/pr_summary")
           from apiDump import read_api
 
-          src = Path("ci/scripts/pr_summary/dumpReasonableDecls.lean").read_text()
-          body = re.search(r"def apiFields : List \(String × Nat\) :=\s*\[(.*?)\]", src, re.S)
-          expected = {k: int(v) for k, v in re.findall(r'\("(\w+)", (\d+)\)', body.group(1))}
+          # The dumper's own fields, and those it copies from the hasher's output.
+          expected = {}
+          for path, name in (("dumpReasonableDecls.lean", "apiFields"),
+                             ("apiHasher/ApiHasher.lean", "hashFields")):
+              src = Path("ci/scripts/pr_summary", path).read_text()
+              body = re.search(rf"def {name} : List \(String × Nat\) :=\s*\[(.*?)\]", src, re.S)
+              expected.update((k, int(v)) for k, v in re.findall(r'\("(\w+)", (\d+)\)', body.group(1)))
           api = read_api(Path("dump/api.jsonl"))
           missing = sorted(set(expected) - set(api.fields))
           problems = [ln for ln in Path("dump.stderr").read_text().splitlines()
@@ -110,6 +129,7 @@ jobs:
           && (github.event_name == 'schedule' || github.event_name == 'push')
         env:
           FETCH: ${{ steps.fetch.outcome }}
+          HASH: ${{ steps.hash.outcome }}
           DUMP: ${{ steps.dump.outcome }}
           CHECK: ${{ steps.check.outcome }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
@@ -122,6 +142,9 @@ jobs:
           elif [ "${CHECK}" = failure ]; then
             what="the dumper warned, or the API dump's header leaves out a field"
             cp check.errors details 2>/dev/null || true
+          elif [ "${HASH}" = failure ]; then
+            what='building or running `apiHasher` failed on `Mathlib.Order.Bounds.Basic`'
+            cp hash.output details 2>/dev/null || true
           elif [ "${FETCH}" = failure ]; then
             what='fetching or building the oleans the script needs failed'
           else
