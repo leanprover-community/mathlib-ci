@@ -388,6 +388,68 @@ class TestModules:
         assert [it.note for it in cmp(base, head).items["mod-doc"]] == ["changed", "lost"]
 
 
+def structure(n: str) -> list[dict]:
+    """An inductive type with one constructor, and some of what Lean makes for them."""
+    return [rec(n, k="ind"), rec(f"{n}.mk", k="ctor"), rec(f"{n}.rec", k="rec"),
+            rec(f"{n}.casesOn", k="def"), rec(f"{n}.noConfusion", k="def"),
+            rec(f"{n}.mk.inj"), rec(f"{n}.mk.injEq"), rec(f"{n}.mk.sizeOf_spec")]
+
+
+MADE_FOR_FOO = ["Foo.casesOn", "Foo.mk.inj", "Foo.mk.injEq", "Foo.mk.sizeOf_spec",
+                "Foo.noConfusion", "Foo.rec"]
+
+
+class TestKindChange:
+    """mathlib4 `d3b6d8f438c` made `NumberField.InfinitePlace.Completion`, a structure, an
+    abbreviation: the 10 names Lean had made for it read as 10 removals without a
+    deprecation."""
+
+    def test_listed_not_flagged_with_what_lean_made(self) -> None:
+        base = [*structure("Foo"), rec("Foo.below_1", k="def"), rec("Foo.val", k="def"),
+                rec("Foo.delab", k="def"), rec("Foo.mul_1")]
+        d = cmp(base, [rec("Foo", k="def")])
+        it = d.items["kind"][0]
+        assert (it.note, it.warn) == ("was an inductive type, now a definition", "")
+        assert it.made_by_lean == sorted(["Foo.below_1", *MADE_FOR_FOO])
+        # The constructor, a field and what was written by hand are still removals.
+        assert names(d, "removed") == ["Foo.delab", "Foo.mk", "Foo.mul_1", "Foo.val"]
+        assert not d.folded and d.shape() == "mixed: removals + kind changes"
+
+    def test_a_constructor_kept_as_a_definition_is_not_listed_again(self) -> None:
+        d = cmp(structure("Foo"), [rec("Foo", k="def"), rec("Foo.mk", k="def")])
+        assert only(d, "kind").name == "Foo" and d.shape() == "kind changes"
+
+    def test_a_definition_made_a_class(self) -> None:
+        d = cmp([rec("Foo", k="def")], structure("Foo"))
+        it = only_classes(d, "kind", "added").items["kind"][0]
+        assert it.note == "was a definition, now an inductive type"
+        assert it.made_by_lean == MADE_FOR_FOO and names(d, "added") == ["Foo.mk"]
+
+    def test_a_structure_kept_as_a_deprecated_alias(self) -> None:
+        d = cmp([*structure("Foo"), rec("Bar", k="ind")],
+                [alias("Foo", "Bar", k="def"), rec("Bar", k="ind")])
+        assert only_classes(d, "deprecated", "removed").items["deprecated"][0].made_by_lean \
+            == MADE_FOR_FOO
+        assert names(d, "removed") == ["Foo.mk"]
+
+    def test_what_lean_makes_for_a_type_that_stays_one_is_not_moved(self) -> None:
+        d = cmp(structure("Foo"), [*structure("Foo"), rec("Foo.ctorIdx", k="def")])
+        assert names(only_classes(d, "added"), "added") == ["Foo.ctorIdx"]
+
+    def test_without_kinds_nothing_changes_kind(self) -> None:
+        d = cmp(structure("Foo"), [rec("Foo", k="def")], head_fields=without("k"))
+        assert names(only_classes(d, "removed"), "removed") == [
+            "Foo.casesOn", "Foo.mk", "Foo.noConfusion", "Foo.rec"]
+        assert d.folded == {"Foo.mk": ["Foo.mk.inj", "Foo.mk.injEq", "Foo.mk.sizeOf_spec"]}
+
+    def test_in_the_json(self) -> None:
+        out = compareApi.to_json(cmp(structure("Foo"), [rec("Foo", k="def"),
+                                                        rec("Foo.mk", k="def")]))
+        assert out["classes"] == {"kind": [{
+            "name": "Foo", "note": "was an inductive type, now a definition",
+            "made_by_lean": MADE_FOR_FOO}]}
+
+
 class TestFieldsNotCompared:
     """A field that only one side has, or has at another version, reads as unchanged."""
 
