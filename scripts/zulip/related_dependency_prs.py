@@ -3,9 +3,9 @@
 
 Upstream maintainers often open a mathlib4 PR adapting Mathlib to their breaking change, and
 nobody finds it before the update-dependencies bot's PR fails and someone redoes the fixes on
-it. Run hourly by mathlib4's `update_dependencies_related_prs.yml` while the bot's PR is open,
-this script compares every recently updated open PR with the packages the bot's PR bumps and
-sorts the related ones into two tiers:
+it. Run hourly by mathlib4's `update_dependencies_related_prs.yml` while the bot's PR is open
+and not on the merge queue, this script compares every recently updated open PR with the
+packages the bot's PR bumps and sorts the related ones into two tiers:
 
 * **likely adaptations** -- the PR makes the same bump as the bot's PR, or part of it (every
   package it changes in `lake-manifest.json` goes to the bot's new revision), or it names an
@@ -61,6 +61,9 @@ SCAN_DAYS = 30  # open PRs updated within this window are considered at all
 PUSH_DAYS = 14  # the "also changing" tier also needs a commit within this window
 
 MARKER = "<!-- related-dependency-prs -->"
+# The record of the PRs already posted to Zulip. `render_comment` writes it as the comment's last
+# line, after every PR title, and only the last line is read back, so a title that copies it is
+# never taken for it, whatever the layout above.
 POSTED_RE = re.compile(r"<!-- related-dependency-prs-posted: (\[[0-9, ]*\]) -->")
 
 
@@ -262,9 +265,18 @@ def code_span(text: str) -> str:
     return f"`{text}`"
 
 
-def posted_from_comment(body: Optional[str]) -> set[int]:
-    m = POSTED_RE.search(body or "")
-    return set(json.loads(m.group(1))) if m else set()
+def posted_from_comment(body: Optional[str]) -> Optional[set[int]]:
+    """The PRs already posted to Zulip, from the record on the comment's last non-empty line: an
+    empty set when there is no comment yet, and None when the comment has no readable record
+    (after a hand edit, say). Whitespace around the record and any line endings are fine."""
+    if body is None:
+        return set()
+    lines = [line.strip() for line in body.splitlines() if line.strip()]
+    m = POSTED_RE.fullmatch(lines[-1]) if lines else None
+    try:
+        return set(json.loads(m.group(1))) if m else None
+    except ValueError:  # e.g. `[1 2]`
+        return None
 
 
 def render_comment(matches: list[Match], posted: set[int]) -> str:
@@ -275,7 +287,7 @@ def render_comment(matches: list[Match], posted: set[int]) -> str:
         "### Related open PRs",
         "",
         "Open PRs that may already adapt Mathlib to the dependency changes in this PR. "
-        "Updated every hour while this PR is open.",
+        "Updated every hour while this PR is open and not on the merge queue.",
         "",
     ]
     if not matches:
@@ -288,6 +300,7 @@ def render_comment(matches: list[Match], posted: set[int]) -> str:
         lines += [f"**Also changing these dependencies** (pushed in the last {PUSH_DAYS} days):", ""]
         lines += [f"* #{m.number} {code_span(m.title)}: {'; '.join(m.reasons)}" for m in also]
         lines.append("")
+    # Last, after every title: `posted_from_comment` reads only the last line.
     lines.append(f"<!-- related-dependency-prs-posted: {json.dumps(sorted(posted))} -->")
     return "\n".join(lines).rstrip() + "\n"
 
@@ -305,15 +318,22 @@ def plan(repo: str, pr: int, matches: list[Match], old_body: Optional[str]) -> t
     """The new comment body and the Zulip message, each empty when there is nothing to do.
 
     Likely adaptations are posted once per update PR: the comment remembers them, and keeps
-    remembering them after they drop off the list. No comment is created until there is
-    something to list, and an unchanged comment is left alone."""
+    remembering them after they drop off the list. If the comment's record can't be read, nothing
+    is posted and a new record starts with the likely adaptations listed now. No comment is
+    created until there is something to list, and an unchanged comment is left alone."""
+    if old_body is not None:
+        old_body = old_body.replace("\r\n", "\n")  # GitHub may hand the body back with CRLF
     posted = posted_from_comment(old_body)
+    if posted is None:
+        print("::warning::the related-PR comment has no readable record of the PRs posted to "
+              "Zulip; posting nothing, and starting a new record", file=sys.stderr)
+        posted = {m.number for m in matches if m.likely}
     new = [m for m in matches if m.likely and m.number not in posted]
     zulip = render_zulip(repo, pr, new)
     body = render_comment(matches, posted | {m.number for m in new})
     if old_body is None and not matches:
         body = ""
-    elif old_body is not None and old_body.replace("\r\n", "\n").strip() == body.strip():
+    elif old_body is not None and old_body.strip() == body.strip():
         body = ""
     return body, zulip
 
