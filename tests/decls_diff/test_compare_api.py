@@ -16,7 +16,7 @@ from compareApi import CLASSES, COMPONENTS, Delta, compare, describe_attrs
 _REAL = Path(__file__).resolve().parent / "data" / "order-bounds-basic"
 
 # Every field the script reads, each at version 1.
-FIELDS = ("n", "k", "m", "d", "a", "p", "x", "g", "dep", "al", "rs", "l",
+FIELDS = ("n", "k", "m", "d", "a", "p", "mt", "x", "g", "dep", "al", "rs", "l",
           "mod", "dm", "md", "imp", "src")
 
 
@@ -342,6 +342,14 @@ class TestSurvivingNames:
         d = cmp([rec("Foo.a", p=True), rec("Foo.b")], [rec("Foo.a"), rec("Foo.b", p=True)])
         assert [it.note for it in d.items["visibility"]] == ["no longer protected", "now protected"]
 
+    def test_meta(self) -> None:
+        """Listed either way, never flagged."""
+        d = cmp([rec("elabFoo", mt=True), rec("bar")], [rec("elabFoo"), rec("bar", mt=True)])
+        assert [(it.name, it.note) for it in d.items["meta"]] == [
+            ("bar", "now `meta`"), ("elabFoo", "no longer `meta`")]
+        assert not d.warnings() and d.shape() == "`meta` changes"
+        assert d.title("meta") == "`meta` changed"
+
     def test_generated_and_hand_written(self) -> None:
         base = [rec("src"), rec("a"), rec("b", x="src", g=True)]
         head = [rec("src"), rec("a", x="src", g=True), rec("b")]
@@ -497,6 +505,11 @@ class TestFieldsNotCompared:
                 head_fields=without("a"))
         assert only(d, "removed").warn == "removed or renamed without a deprecation"
 
+    def test_a_base_from_before_meta_reads_as_no_meta_change(self) -> None:
+        """A merge base dumped before `mt` was added has no `mt` in its header."""
+        d = cmp([rec("elabFoo")], [rec("elabFoo", mt=True)], base_fields=without("mt"))
+        assert not d.items and not d.has("mt")
+
     def test_a_field_this_script_does_not_know_is_ignored(self) -> None:
         fields = (*FIELDS, "t")
         d = cmp([rec("foo", t="1")], [rec("foo", t="2")], base_fields=fields, head_fields=fields)
@@ -508,13 +521,15 @@ class TestUntrustedValues:
 
     def test_an_empty_value_written_out_reads_as_left_out(self) -> None:
         base = [rec("foo")]
-        head = [rec("foo", d=None, a=[], p=False, x=None, g=False, dep=None, al=None, rs=False),
+        head = [rec("foo", d=None, a=[], p=False, mt=False, x=None, g=False, dep=None, al=None,
+                    rs=False),
                 {"mod": "M", "dm": None, "md": None, "imp": []}]
         assert not cmp(base + [{"mod": "M"}], head).items
 
     @pytest.mark.parametrize("field, value", [
         ("k", 1), ("m", ["M"]), ("d", 5), ("a", "simp"), ("a", ["simp", 1]), ("p", "yes"),
-        ("p", 1), ("x", {"n": "foo"}), ("g", 1), ("rs", "true"), ("l", "7"), ("l", True),
+        ("p", 1), ("mt", "yes"), ("mt", 1), ("x", {"n": "foo"}), ("g", 1), ("rs", "true"),
+        ("l", "7"), ("l", True),
         ("dep", "new"), ("dep", {"to": "new"}), ("dep", {"to": 1, "since": None, "text": None}),
         ("dep", {"to": None, "since": None, "text": None, "more": None}),
         ("al", {"k": "plain"}), ("al", {"k": "sideways", "of": "new"}),
