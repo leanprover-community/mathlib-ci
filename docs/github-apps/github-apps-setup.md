@@ -47,7 +47,7 @@ environment:
 
   - Secret: `<YOUR_APP>_APP_ID` (repo convention keeps app IDs in secrets).
   - Variable: `GH_APP_AZURE_CLIENT_ID_<GROUP>` (new or existing grouping variable). This is the "Application (client) ID" of the Entra App you registered in step 4.
-    Consider adding it as an [organization-wide variable](https://github.com/organizations/leanprover-community/settings/variables/actions) if it might be reused by other repos (e.g., `mathlib4-nightly-testing`).
+    Consider adding it as an [organization-wide variable](https://github.com/organizations/leanprover-community/settings/variables/actions) if it might be reused by other repos.
 
   If you created an environment in step 2, you can put these in the environment you created instead of the repo secrets.
 
