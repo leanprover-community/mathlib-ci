@@ -1,4 +1,4 @@
-{"fields":{"a":1,"al":1,"d":1,"dep":1,"dm":1,"g":1,"imp":1,"k":1,"l":1,"m":1,"md":1,"mod":1,"n":1,"p":1,"rs":1,"src":1,"x":1},"schema":1}
+{"fields":{"a":1,"al":1,"d":1,"dep":1,"dm":1,"g":1,"imp":1,"k":1,"l":1,"m":1,"md":1,"mod":1,"mt":1,"n":1,"p":1,"rs":1,"src":1,"x":1},"schema":1}
 {"k":"thm","l":82,"m":"Mathlib.Order.Bounds.Basic","n":"BddAbove.dual"}
 {"k":"thm","l":429,"m":"Mathlib.Order.Bounds.Basic","n":"BddAbove.exists_ge"}
 {"k":"thm","l":667,"m":"Mathlib.Order.Bounds.Basic","n":"BddAbove.insert","p":true}
@@ -390,7 +390,7 @@
 {"a":["simp"],"k":"thm","l":913,"m":"Mathlib.Order.Bounds.Basic","n":"sSup_univ"}
 {"k":"thm","l":256,"m":"Mathlib.Order.Bounds.Basic","n":"subset_lowerBounds_upperBounds"}
 {"g":true,"k":"thm","l":255,"m":"Mathlib.Order.Bounds.Basic","n":"subset_upperBounds_lowerBounds","x":"subset_lowerBounds_upperBounds"}
-{"d":"9221416050855840079","g":true,"k":"def","l":697,"m":"Mathlib.Order.Bounds.Basic","n":"tacticBddDefault"}
+{"d":"9221416050855840079","g":true,"k":"def","l":697,"m":"Mathlib.Order.Bounds.Basic","mt":true,"n":"tacticBddDefault"}
 {"k":"thm","l":50,"m":"Mathlib.Order.Bounds.Basic","n":"top_mem_upperBounds"}
 {"g":true,"k":"thm","l":328,"m":"Mathlib.Order.Bounds.Basic","n":"union_lowerBounds_subset_lowerBounds_inter","x":"union_upperBounds_subset_upperBounds_inter"}
 {"k":"thm","l":329,"m":"Mathlib.Order.Bounds.Basic","n":"union_upperBounds_subset_upperBounds_inter"}
@@ -409,7 +409,7 @@
 {"a":["simp"],"k":"thm","l":855,"m":"Mathlib.Order.Bounds.Basic","n":"upperBounds_prod"}
 {"a":["simp"],"k":"thm","l":513,"m":"Mathlib.Order.Bounds.Basic","n":"upperBounds_singleton"}
 {"a":["simp"],"k":"thm","l":324,"m":"Mathlib.Order.Bounds.Basic","n":"upperBounds_union"}
-{"d":"1197273820153029633","g":true,"k":"def","l":163,"m":"Mathlib.Order.Defs.PartialOrder","n":"«term_⋖_»"}
-{"d":"3368637328328815825","g":true,"k":"def","l":152,"m":"Mathlib.Order.Defs.PartialOrder","n":"«term_⩿_»"}
+{"d":"1197273820153029633","g":true,"k":"def","l":163,"m":"Mathlib.Order.Defs.PartialOrder","mt":true,"n":"«term_⋖_»"}
+{"d":"3368637328328815825","g":true,"k":"def","l":152,"m":"Mathlib.Order.Defs.PartialOrder","mt":true,"n":"«term_⩿_»"}
 {"md":"12659425979293997099","mod":"Mathlib.Order.Bounds.Basic","src":"15326551642582187918"}
 {"md":"7298387141524653498","mod":"Mathlib.Order.Defs.PartialOrder","src":"7256049133956780573"}

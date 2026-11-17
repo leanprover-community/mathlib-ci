@@ -38,8 +38,8 @@ DECLS_FILE = "decls.txt"
 # Default values assigned to omitted fields: the "empty" column of *The API dump*'s tables.
 # `n`, `k`, `m` and `mod` are in every row of their kind.
 EMPTY = {
-    "d": None, "a": [], "p": False, "x": None, "g": False, "dep": None, "al": None, "rs": False,
-    "l": None,
+    "d": None, "a": [], "p": False, "mt": False, "x": None, "g": False, "dep": None, "al": None,
+    "rs": False, "l": None,
     "dm": None, "md": None, "imp": [], "src": None,
 }
 

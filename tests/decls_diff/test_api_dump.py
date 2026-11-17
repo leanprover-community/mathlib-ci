@@ -54,6 +54,9 @@ class TestRealDump:
         assert api.decls["Preorder.le_refl"] == {
             "n": "Preorder.le_refl", "k": "thm", "m": "Mathlib.Order.Defs.PartialOrder",
             "p": True, "l": 44}
+        # `macro`, `syntax` and `notation` make a parser that is `meta`, as `meta def` would.
+        assert {n for n, r in api.decls.items() if r.get("mt")} == {
+            "tacticBddDefault", "«term_⋖_»", "«term_⩿_»"}
         # Here every `x` names a row: none names the internal `…._to_dual_1` that
         # `@[to_dual none]` makes.
         assert all(r["x"] in api.decls for r in api.decls.values() if "x" in r)
