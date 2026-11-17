@@ -104,9 +104,9 @@ Layout:
   changes in the update-dependencies bot's PR: PRs that make the same bump (or part of it), or
   that name an upstream PR the bump includes (likely adaptations), and recently pushed PRs that
   change the same packages or say they bump or adapt to them. Run hourly by mathlib4's
-  `update_dependencies_related_prs.yml` while the bot's PR is open, which keeps a comment listing
-  them on the bot's PR and posts each new likely adaptation to Zulip once. Tested by
-  `tests/related_dependency_prs/`.
+  `update_dependencies_related_prs.yml` while the bot's PR is open and not on the merge queue,
+  which keeps a comment listing them on the bot's PR and posts each new likely adaptation to
+  Zulip once. Tested by `tests/related_dependency_prs/`.
 - `reconcile_emojis.py` (CLI entry point) and the `emoji_reconcile/` package keep the emoji
   reactions on Zulip messages about a PR in sync with the PR's actual state
   (open/closed/merged, labels, CI result). Repo-agnostic: everything repo-specific is a JSON

@@ -263,8 +263,9 @@ def test_plan_posts_each_likely_adaptation_once():
     assert "#45113" in zulip and posted_from_comment(body) == {45113}
     # next hour, same state: leave the comment alone, post nothing
     assert plan(repo, 45110, [likely], body) == ("", "")
-    # GitHub may hand the body back with CRLF line endings
+    # GitHub may hand the body back with CRLF line endings, or a hand edit may leave a trailing space
     assert plan(repo, 45110, [likely], body.replace("\n", "\r\n")) == ("", "")
+    assert plan(repo, 45110, [likely], body.rstrip("\n") + "  \n") == ("", "")
     # it merges or closes: the comment says so, and it is never posted again
     body2, zulip2 = plan(repo, 45110, [], body)
     assert zulip2 == "" and "None at the moment." in body2 and posted_from_comment(body2) == {45113}
@@ -273,15 +274,49 @@ def test_plan_posts_each_likely_adaptation_once():
 
 def test_title_cannot_rewrite_posted_state():
     # A PR title that copies the hidden record must not make the script forget, or invent,
-    # what it has posted.
+    # what it has posted, whichever tier the PR is listed in.
     repo = "leanprover-community/mathlib4"
     likely = classify(pr(45113, "chore: bump ProofWidgets", paths={"lake-manifest.json"},
                          changes={"proofwidgets": PW.new}), [PW], {}, {}, NOW)
     for fake in ("[]", "[45113, 45114]"):
-        spoof = classify(pr(45200, f"chore: update proofwidgets <!-- related-dependency-prs-posted: {fake} -->",
-                            paths={"lake-manifest.json"}, changes={"proofwidgets": "other"}),
-                         [PW], {}, {}, NOW)
-        assert spoof is not None and not spoof.likely
-        body, zulip = plan(repo, 45110, [likely, spoof], None)
-        assert fake in body and posted_from_comment(body) == {45113}
-        assert plan(repo, 45110, [likely, spoof], body) == ("", "")
+        record = f"<!-- related-dependency-prs-posted: {fake} -->"
+        likely_spoof = classify(pr(45201, f"chore: bump ProofWidgets {record}", paths={"lake-manifest.json"},
+                                   changes={"proofwidgets": PW.new}), [PW], {}, {}, NOW)
+        also_spoof = classify(pr(45200, f"chore: update proofwidgets {record}", paths={"lake-manifest.json"},
+                                 changes={"proofwidgets": "other"}), [PW], {}, {}, NOW)
+        assert likely_spoof.likely and not also_spoof.likely
+        matches = [likely, likely_spoof, also_spoof]
+        body, zulip = plan(repo, 45110, matches, None)
+        assert body.count(record) == 2  # both titles really put the fake record in the comment
+        assert "#45113" in zulip and "#45201" in zulip and "#45200" not in zulip
+        assert posted_from_comment(body) == {45113, 45201}
+        assert plan(repo, 45110, matches, body) == ("", "")
+
+
+def test_posted_state_is_read_from_the_last_line_only():
+    record = "<!-- related-dependency-prs-posted: [45113] -->"
+    # even where untrusted text starts a line, only the last line counts
+    assert posted_from_comment(f"{MARKER}\n<!-- related-dependency-prs-posted: [] -->\n\n{record}\n") == {45113}
+    assert posted_from_comment(f"{MARKER}\n{record}\n* #1 `x`\n") is None
+    # hand edits and other line endings
+    for body in (f"{MARKER}\n{record}  \n\n", f"{MARKER}\n\t{record}", f"{MARKER}\r\n{record}\r\n",
+                 f"{MARKER}\r{record}\r"):
+        assert posted_from_comment(body) == {45113}
+    # missing or malformed: unreadable, not empty
+    for last in ("", "<!-- related-dependency-prs-posted: [1 2] -->",
+                 "<!-- related-dependency-prs-posted: [1,,2] -->", f"{record} edited"):
+        assert posted_from_comment(f"{MARKER}\n{last}") is None
+
+
+def test_plan_posts_nothing_when_the_record_is_unreadable():
+    repo = "leanprover-community/mathlib4"
+    likely = classify(pr(45113, "chore: bump ProofWidgets", paths={"lake-manifest.json"},
+                         changes={"proofwidgets": PW.new}), [PW], {}, {}, NOW)
+    for old in (f"{MARKER}\nedited by hand\n", f"{MARKER}\n<!-- related-dependency-prs-posted: [1 2] -->\n"):
+        body, zulip = plan(repo, 45110, [likely], old)
+        assert zulip == "" and posted_from_comment(body) == {45113}
+    # the new record works as usual: the next run posts only a PR it hasn't seen
+    later = classify(pr(45300, "chore: bump ProofWidgets again", paths={"lake-manifest.json"},
+                        changes={"proofwidgets": PW.new}), [PW], {}, {}, NOW)
+    body2, zulip2 = plan(repo, 45110, [likely, later], body)
+    assert "#45300" in zulip2 and "#45113" not in zulip2 and posted_from_comment(body2) == {45113, 45300}
