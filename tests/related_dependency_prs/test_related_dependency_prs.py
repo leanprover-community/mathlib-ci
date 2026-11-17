@@ -269,3 +269,19 @@ def test_plan_posts_each_likely_adaptation_once():
     body2, zulip2 = plan(repo, 45110, [], body)
     assert zulip2 == "" and "None at the moment." in body2 and posted_from_comment(body2) == {45113}
     assert plan(repo, 45110, [likely], body2)[1] == ""
+
+
+def test_title_cannot_rewrite_posted_state():
+    # A PR title that copies the hidden record must not make the script forget, or invent,
+    # what it has posted.
+    repo = "leanprover-community/mathlib4"
+    likely = classify(pr(45113, "chore: bump ProofWidgets", paths={"lake-manifest.json"},
+                         changes={"proofwidgets": PW.new}), [PW], {}, {}, NOW)
+    for fake in ("[]", "[45113, 45114]"):
+        spoof = classify(pr(45200, f"chore: update proofwidgets <!-- related-dependency-prs-posted: {fake} -->",
+                            paths={"lake-manifest.json"}, changes={"proofwidgets": "other"}),
+                         [PW], {}, {}, NOW)
+        assert spoof is not None and not spoof.likely
+        body, zulip = plan(repo, 45110, [likely, spoof], None)
+        assert fake in body and posted_from_comment(body) == {45113}
+        assert plan(repo, 45110, [likely, spoof], body) == ("", "")

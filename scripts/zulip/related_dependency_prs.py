@@ -61,7 +61,8 @@ SCAN_DAYS = 30  # open PRs updated within this window are considered at all
 PUSH_DAYS = 14  # the "also changing" tier also needs a commit within this window
 
 MARKER = "<!-- related-dependency-prs -->"
-POSTED_RE = re.compile(r"<!-- related-dependency-prs-posted: (\[[0-9, ]*\]) -->")
+# On a line of its own, where a PR title can't copy it: titles are only shown inside list items.
+POSTED_RE = re.compile(r"^<!-- related-dependency-prs-posted: (\[[0-9, ]*\]) -->$", re.MULTILINE)
 
 
 # ── pure helpers ─────────────────────────────────────────────────────────────
@@ -263,7 +264,7 @@ def code_span(text: str) -> str:
 
 
 def posted_from_comment(body: Optional[str]) -> set[int]:
-    m = POSTED_RE.search(body or "")
+    m = POSTED_RE.search((body or "").replace("\r\n", "\n"))
     return set(json.loads(m.group(1))) if m else set()
 
 
@@ -275,7 +276,7 @@ def render_comment(matches: list[Match], posted: set[int]) -> str:
         "### Related open PRs",
         "",
         "Open PRs that may already adapt Mathlib to the dependency changes in this PR. "
-        "Updated every hour while this PR is open.",
+        "Updated every hour while this PR is open and not on the merge queue.",
         "",
     ]
     if not matches:
