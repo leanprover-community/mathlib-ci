@@ -22,15 +22,25 @@ Layout:
   it must track Lean's import grammar — `(public)? (meta)? import (all)? <module>`, plus
   mathlib's trailing `-- shake: keep` comments. Tested by `tests/trans_deps/`.
 - `dumpReasonableDecls.lean` writes (to `--out`) a sorted list of every "reasonable"
-  declaration in the imported environment and (to `--imports-out`) a single-line JSON of
-  per-module transitive-import counts (format-compatible with `count-trans-deps.py`). Both
-  outputs are produced from a single Lean env load. Invoked post-build by
-  `mathlib4`'s `build_template.yml` to populate the `import-graph` artifact.
-- `declsDiff.py` takes two pre-computed `decls.txt` files (from
-  `dumpReasonableDecls.lean`) and emits the `+NAME` / `-NAME` set-difference plus a Markdown
-  body for the `#### Declarations diff` section of the PR summary comment. With `--with-heading`
-  it also emits the `#### Declarations diff (Lean)` heading and `<details>` wrap, for splicing
-  into the comment.
+  declaration in the imported environment, (to `--imports-out`) a single-line JSON of
+  per-module transitive-import counts (format-compatible with `count-trans-deps.py`) and (to
+  `--api-out`) the API dump `api.jsonl`: a versioned header, then one JSON row per
+  declaration and per module, documented in the script. `--out-dir DIR` writes the last
+  two into `DIR` under their standard names; the API dump lists the same names as `--out`,
+  which is kept for local use. Every output is produced from a single Lean env load.
+  Invoked post-build by `mathlib4`'s `build_template.yml` to populate the `import-graph`
+  artifact.
+- `declsDiff.py` takes two pre-computed dumps (dump directories, or bare `decls.txt` files)
+  and emits the `+NAME` / `-NAME` set-difference plus a Markdown body for the
+  `#### Declarations diff` section of the PR summary comment. With `--with-heading` it also
+  emits the `#### Declarations diff (Lean)` heading and `<details>` wrap, for splicing into
+  the comment. A directory's names come from `api.jsonl`, or from `decls.txt` in artifacts
+  written before the API dump; `--api-status` reports which fields two API dumps share.
+- `crossrefsDiff.py` takes two `crossrefs.json` exports (`mathlib4/scripts/export_crossrefs.lean`)
+  and emits a Markdown table of the cross-references the PR adds, each linked to its entry
+  in the external database.
+- `apiDump.py` reads `api.jsonl` for `declsDiff.py`. It treats the dump as untrusted, and
+  decides which fields two dumps share: those both headers list at the same version.
 - `updateDeclsDiffSection.py` PATCHes the `#### Declarations diff (Lean)` block of a PR's
   `### PR summary` comment with the Lean-aware diff, by replacing the region between the
   `<!-- DECLS_DIFF_LEAN_BEGIN/END -->` markers (the regex block is left untouched). Invoked
@@ -57,6 +67,10 @@ Layout:
   `late_importers.sh` for further details.
 - `zulip_build_report.sh` is used to analyse the output from building the nightly-testing-green
   branch with additional linting enabled, and posts a summary of its findings on zulip.
+  It is also used by Mathlib's weekly linting report.  The summary counts each distinct message;
+  messages that occur only a few times can also link to their locations, and a full report with
+  every location is written to the GitHub job summary.  See the header of the script for the
+  environment variables that configure it.
 
 ## `maintainer/`
 - `get_tlabel.sh` extracts the `t-`label that a PR has (assuming that there is exactly one).
@@ -65,8 +79,9 @@ Layout:
 - `maintainer_merge_message.sh` contains a shell script that produces the Zulip message for a
   `maintainer merge`/`maintainer delegate` comment.
 - `lean-pr-testing-comments.sh`
-  Generate comments and labels on a Batteries PR after CI has finished on a
-  `batteries-pr-testing-NNNN` branch.
+  Reports Mathlib CI results on the Batteries PR named by `batteries-pr-testing-NNNN`.
+  Accepts a pull request event context and the reporting App's login.
+  Links PR reports to the Mathlib adaptation PR and skips outdated Batteries pins when the caller supplies the tested revision.
 
 ## `nightly/`
 - `create-adaptation-pr.sh` implements some of the steps in the workflow described at
@@ -85,6 +100,13 @@ Layout:
 - `parse_lake_manifest_changes.py` compares two versions of `lake-manifest.json` to report
   dependency changes in Zulip notifications. Used by the `update_dependencies_zulip.yml` workflow
   to show which dependencies were updated, added, or removed, with links to GitHub diffs.
+- `related_dependency_prs.py` finds open PRs that may already adapt Mathlib to the dependency
+  changes in the update-dependencies bot's PR: PRs that make the same bump (or part of it), or
+  that name an upstream PR the bump includes (likely adaptations), and recently pushed PRs that
+  change the same packages or say they bump or adapt to them. Run hourly by mathlib4's
+  `update_dependencies_related_prs.yml` while the bot's PR is open and not on the merge queue,
+  which keeps a comment listing them on the bot's PR and posts each new likely adaptation to
+  Zulip once. Tested by `tests/related_dependency_prs/`.
 - `reconcile_emojis.py` (CLI entry point) and the `emoji_reconcile/` package keep the emoji
   reactions on Zulip messages about a PR in sync with the PR's actual state
   (open/closed/merged, labels, CI result). Repo-agnostic: everything repo-specific is a JSON

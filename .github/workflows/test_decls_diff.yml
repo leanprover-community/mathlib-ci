@@ -1,14 +1,17 @@
 name: Test decls-diff scripts
 
-# Runs the unit-test suite for `scripts/pr_summary/declsDiff.py` and the
-# `decls-diff` composite action on every push / PR that touches their
-# source or their tests.
+# Runs the unit-test suite for `scripts/pr_summary/declsDiff.py`, the API-dump
+# reader `apiDump.py` and the `decls-diff` composite action on every push / PR
+# that touches their source or their tests. `dumpReasonableDecls.lean` is
+# included because a test checks that it writes what `apiDump.py` reads.
 
 on:
   push:
     branches: [master]
     paths:
       - scripts/pr_summary/declsDiff.py
+      - scripts/pr_summary/apiDump.py
+      - scripts/pr_summary/dumpReasonableDecls.lean
       - .github/actions/decls-diff/**
       - tests/decls_diff/**
       - .github/workflows/test_decls_diff.yml
@@ -16,6 +19,8 @@ on:
   pull_request:
     paths:
       - scripts/pr_summary/declsDiff.py
+      - scripts/pr_summary/apiDump.py
+      - scripts/pr_summary/dumpReasonableDecls.lean
       - .github/actions/decls-diff/**
       - tests/decls_diff/**
       - .github/workflows/test_decls_diff.yml

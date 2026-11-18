@@ -13,12 +13,18 @@ Treat each Entra app registration as a security boundary: related GitHub Apps ca
 
 ## Cache writer identities
 
-These are not GitHub Apps but OIDC-federated Azure workload identities (no Key Vault keys) used by mathlib4 CI to upload the build cache to the `lakecache` storage account.
-Each is RBAC-scoped to write one Blob Storage container, which is the enforced trust boundary (see mathlib4 `Cache/SECURITY.md`).
+mathlib4 CI uploads the build cache to R2.
+Each upload job exchanges its GitHub OIDC token at the cache broker for a short-lived S3-compatible key pair, with the [`mint-s3-credentials`](../../.github/actions/mint-s3-credentials/action.yml) action.
+The key pair reaches one container only, which is the enforced trust boundary (see mathlib4 `Cache/SECURITY.md`).
 
-| Entra App | App (client) id variable | Container written |
-|---|---|---|
-| Mathlib CI Cache Writer - Master | CACHE_MASTER_WRITER_AZURE_APP_ID | `master` |
-| Mathlib CI Cache Writer - Non-Master | CACHE_NON_MASTER_WRITER_AZURE_APP_ID | `forks` |
-| Mathlib CI Cache Writer - Nightly Testing | CACHE_NIGHTLY_TESTING_WRITER_AZURE_APP_ID | `nightly-testing` |
-| Mathlib CI Cache Writer - PR Toolchain Tests | CACHE_PR_TOOLCHAIN_TESTS_WRITER_AZURE_APP_ID | `pr-toolchain-tests` |
+The identities below are not GitHub Apps but OIDC-federated Azure workload identities (no Key Vault keys) for the `lakecache` storage account.
+Each is RBAC-scoped to write one Blob Storage container.
+The current mathlib4 workflows do not use them.
+A release tag or a release branch runs the workflows of its own tree, so an older release line can still use them.
+
+| Entra App | App (client) id variable | Container written | Workflow trees that use it |
+|---|---|---|---|
+| Mathlib CI Cache Writer - Master | CACHE_MASTER_WRITER_AZURE_APP_ID | `master` | Before mathlib4#44832 (v4.35.x and older) |
+| Mathlib CI Cache Writer - Non-Master | CACHE_NON_MASTER_WRITER_AZURE_APP_ID | `forks` | Before mathlib4#44640 (v4.35.0-rc4 and older) |
+| Mathlib CI Cache Writer - Nightly Testing | CACHE_NIGHTLY_TESTING_WRITER_AZURE_APP_ID | `nightly-testing` | Before mathlib4#44640 (v4.35.0-rc4 and older) |
+| Mathlib CI Cache Writer - PR Toolchain Tests | CACHE_PR_TOOLCHAIN_TESTS_WRITER_AZURE_APP_ID | `pr-toolchain-tests` | Before mathlib4#44640 (v4.35.0-rc4 and older) |
