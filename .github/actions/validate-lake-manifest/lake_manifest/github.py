@@ -85,11 +85,11 @@ class GitHub:
     def merge_base(self, repository: str, base: str, head: str) -> str:
         return self.compare(repository, base, head)["merge_base_commit"]["sha"]
 
-    def read_manifest(self, repository: str, ref: str) -> str:
-        """The text of lake-manifest.json at `ref`."""
-        answer = self.get(f"/repos/{repository}/contents/lake-manifest.json?ref={quote(ref, safe='')}")
+    def read_file(self, repository: str, path: str, ref: str) -> str:
+        """The text of the file `path` at `ref`."""
+        answer = self.get(f"/repos/{repository}/contents/{path}?ref={quote(ref, safe='')}")
         if not isinstance(answer, dict) or answer.get("type") != "file":
-            raise ApiError(f"lake-manifest.json at `{ref}` is not a file.")
+            raise ApiError(f"{path} at `{ref}` is not a file.")
         return base64.b64decode(answer["content"]).decode("utf-8")
 
     def is_ancestor(self, repository: str, commit: str, tip: str) -> bool:

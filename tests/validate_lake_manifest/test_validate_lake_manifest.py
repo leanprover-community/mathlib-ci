@@ -10,6 +10,7 @@ NEWER = manifest(package(rev=NEW))
 OFF_BRANCH = manifest(package(rev=FORK))
 INVALID = ("error", "lake-manifest.json is not valid.")
 NOT_ON_BRANCH = "Dependency pin is not on branch main"
+NIGHTLY_TOOLCHAIN = "leanprover/lean4:nightly-2026-11-11\n"
 
 
 def test_unchanged_manifest_passes(run):
@@ -49,6 +50,19 @@ def test_source_rules_fail_only_strict_runs(run, fields, title):
     github = FakeGitHub(head=manifest(package(**fields)), base=BASE)
     assert run(github) == (0, [("warning", title)])
     assert run(github, "--strict") == (1, [("error", title), INVALID])
+
+
+def test_nightly_toolchain_allows_nightly_testing(run):
+    # The source rules reject `nightly-testing` with the default release toolchain.
+    on_branch = manifest(package(input_rev="nightly-testing", rev=NEW))
+    off_branch = manifest(package(input_rev="nightly-testing", rev=FORK))
+    assert run(FakeGitHub(head=on_branch, base=BASE, toolchain=NIGHTLY_TOOLCHAIN), "--strict") == (0, [])
+    assert run(FakeGitHub(head=off_branch, base=BASE, toolchain=NIGHTLY_TOOLCHAIN), "--strict") == (
+        1, [("error", "Dependency pin is not on branch nightly-testing"), INVALID])
+
+
+def test_toolchain_is_read_only_for_nightly_testing(run):
+    assert run(FakeGitHub(head=NEWER, base=BASE, toolchain=404), "--strict") == (0, [])
 
 
 def test_batteries_adaptation_pr(run):

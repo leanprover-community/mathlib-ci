@@ -10,8 +10,12 @@ from dataclasses import dataclass
 from .github import ApiError
 
 FILE = "lake-manifest.json"
+TOOLCHAIN_FILE = "lean-toolchain"
 BASE_BRANCH = "master"
 BRANCH_REVS = frozenset({"main", "master"})
+# A dependency can also track `NIGHTLY_BRANCH` when lean-toolchain starts with `NIGHTLY_TOOLCHAIN`.
+NIGHTLY_BRANCH = "nightly-testing"
+NIGHTLY_TOOLCHAIN = "leanprover/lean4:nightly-"
 TAG_REV = re.compile(r"v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.-]+)?(\+[a-zA-Z0-9.-]+)?")
 REPOSITORY_URL = re.compile(r"https://github\.com/((?:leanprover|leanprover-community)/[A-Za-z0-9._-]+)")
 FULL_SHA = re.compile(r"[0-9a-f]{40}")
@@ -89,16 +93,22 @@ def require_hint(dep: Dependency) -> str:
     return f"Hint: Fix the `require` for `{dep.name}` in {where}, then run {lake_update(dep)}."
 
 
-def check_fields(dep: Dependency) -> list[Finding]:
-    """The findings for `inputRev`, `url` and the pin of one dependency."""
+def check_fields(dep: Dependency, branches: frozenset[str]) -> list[Finding]:
+    """The findings for `inputRev`, `url` and the pin of one dependency.
+
+    `branches` are the branches that a dependency can track.
+    """
     findings = []
-    if not (dep.input_rev in BRANCH_REVS or matches(TAG_REV, dep.input_rev)):
+    if not (dep.input_rev in branches or matches(TAG_REV, dep.input_rev)):
+        names = ", ".join(f"`{branch}`" for branch in sorted(branches))
+        notes = [f"Note: Mathlib can merge only {names} or a version tag such as `v4.25.0` or `v4.25.0-rc1`."]
+        if dep.input_rev == NIGHTLY_BRANCH:
+            notes.append(f"Note: Mathlib can merge `{NIGHTLY_BRANCH}` only when {TOOLCHAIN_FILE} names a Lean nightly.")
         findings.append(Finding(
             UNMERGEABLE,
             "Invalid dependency inputRev",
             f"{FILE} makes `{dep.name}` track `{dep.input_rev}`, which is not an allowed `inputRev`.",
-            ("Note: Mathlib can merge only `main`, `master` or a version tag such as `v4.25.0` or `v4.25.0-rc1`.",
-             require_hint(dep)),
+            (*notes, require_hint(dep)),
         ))
     if dep.allowed_repository is None:
         findings.append(Finding(
@@ -128,7 +138,7 @@ def check_pin(dep: Dependency, old: Dependency | None, github) -> Finding | None
     if same_source and old.rev == dep.rev:
         return None
     repository = dep.allowed_repository
-    if dep.input_rev not in BRANCH_REVS:
+    if matches(TAG_REV, dep.input_rev):
         sha = github.tag_commit(repository, dep.input_rev)
         if sha == dep.rev:
             return None
@@ -162,19 +172,36 @@ def validate(github, repository: str, ref: str) -> list[Finding]:
 
     The base manifest is `BASE_BRANCH`'s manifest at the merge base of
     `BASE_BRANCH` and `ref`. Raises `ApiError` or `ValueError` when the manifest
-    at `ref` cannot be read. A failure to read the base manifest or to check a
-    pin is one `UNMERGEABLE` finding.
+    at `ref` cannot be read. A failure to read lean-toolchain or the base
+    manifest, or to check a pin, is one `UNMERGEABLE` finding.
     """
     findings: list[Finding] = []
     valid: list[Dependency] = []
-    for dep in parse(github.read_manifest(repository, ref)):
-        problems = check_fields(dep)
+    deps = parse(github.read_file(repository, FILE, ref))
+    branches = BRANCH_REVS
+    # Only a manifest that tracks `NIGHTLY_BRANCH` needs lean-toolchain.
+    if any(dep.input_rev == NIGHTLY_BRANCH for dep in deps):
+        try:
+            nightly = github.read_file(repository, TOOLCHAIN_FILE, ref).startswith(NIGHTLY_TOOLCHAIN)
+        except (ApiError, ValueError) as error:
+            # This one finding covers each dependency that tracks `NIGHTLY_BRANCH`.
+            nightly = True
+            findings.append(Finding(
+                UNMERGEABLE,
+                "Lean toolchain check failed",
+                f"CI could not read {TOOLCHAIN_FILE}: {error}",
+                ("Hint: Re-run the job.",),
+            ))
+        if nightly:
+            branches = BRANCH_REVS | {NIGHTLY_BRANCH}
+    for dep in deps:
+        problems = check_fields(dep, branches)
         findings += problems
         if not problems:
             valid.append(dep)
     try:
         base_ref = github.merge_base(repository, BASE_BRANCH, ref)
-        base = {dep.name: dep for dep in parse(github.read_manifest(repository, base_ref))}
+        base = {dep.name: dep for dep in parse(github.read_file(repository, FILE, base_ref))}
         for dep in valid:
             if finding := check_pin(dep, base.get(dep.name), github):
                 findings.append(finding)

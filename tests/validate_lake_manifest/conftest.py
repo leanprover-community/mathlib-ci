@@ -1,8 +1,9 @@
 """Run the action's CLI against a fake GitHub API, and read its annotations.
 
-The fake serves the three endpoints that the action uses from a `FakeGitHub`:
-the manifests by ref, the commits that each branch or commit contains, and the
-tags. `main` contains OLD and NEW. FORK is on no branch. UNKNOWN is no commit.
+The fake serves the endpoints that the action uses from a `FakeGitHub`: the
+manifests by ref, lean-toolchain, the commits that each branch or commit
+contains, and the tags. `main` and `nightly-testing` contain OLD and NEW. FORK is
+on no branch. UNKNOWN is no commit.
 """
 
 from __future__ import annotations
@@ -47,7 +48,8 @@ class FakeGitHub:
     """What the fake GitHub serves.
 
     A manifest is its text, or the answer to send instead: an HTTP status, or
-    a JSON value such as `[]` for a directory. `None` is a 404. `failures` are
+    a JSON value such as `[]` for a directory. `None` is a 404. `toolchain` is
+    lean-toolchain at the commit under test, in the same form. `failures` are
     the HTTP statuses that answer the first requests, each with
     `Retry-After: retry_after` if set.
     """
@@ -55,13 +57,17 @@ class FakeGitHub:
     head: object
     base: object = None
     tags: dict[str, str] = field(default_factory=dict)
+    toolchain: object = "leanprover/lean4:v4.25.0\n"
     failures: list[int] = field(default_factory=list)
     retry_after: str | None = None
 
-    CONTAINS = {"main": {OLD, NEW}, NEW: {OLD, NEW}, OLD: {OLD}, FORK: {FORK}}
+    CONTAINS = {"main": {OLD, NEW}, "nightly-testing": {OLD, NEW}, NEW: {OLD, NEW}, OLD: {OLD}, FORK: {FORK}}
 
     def manifest(self, ref: str):
-        answer = {HEAD: self.head, MERGE_BASE: self.base}.get(ref)
+        return self.file({HEAD: self.head, MERGE_BASE: self.base}.get(ref))
+
+    @staticmethod
+    def file(answer):
         if isinstance(answer, str):
             return {"type": "file", "content": base64.b64encode(answer.encode()).decode()}
         return 404 if answer is None else answer
@@ -92,6 +98,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return self.answer(github.failures.pop(0), github.retry_after)
         if path.endswith("/contents/lake-manifest.json"):
             return self.answer(github.manifest(urllib.parse.parse_qs(url.query)["ref"][0]))
+        if path.endswith("/contents/lean-toolchain"):
+            return self.answer(github.file(github.toolchain))
         if match := re.fullmatch(r"/repos/[^/]+/[^/]+/compare/(.+)\.\.\.(.+)", path):
             return self.answer(github.compare(match[1], match[2]))
         if match := re.fullmatch(r"/repos/[^/]+/[^/]+/commits/refs/tags/(.+)", path):

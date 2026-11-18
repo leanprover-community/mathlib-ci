@@ -12,7 +12,8 @@ The other rules check that bors can merge the commit. With `strict: true`, the
 action fails when a dependency breaks one of them. Otherwise it only warns, so a PR
 can test an unmerged dependency commit, for example in a Batteries adaptation PR.
 
-- `inputRev` is `main`, `master` or a version tag.
+- `inputRev` is `main`, `master` or a version tag. When lean-toolchain at the
+  commit names a Lean nightly, `inputRev` can also be `nightly-testing`.
 - `url` is a GitHub repository in `leanprover-community` or `leanprover`.
 
 The base manifest is master's manifest at the merge base of master and the commit
@@ -27,7 +28,8 @@ that is new or whose `url`, `inputRev` or pin differs from the base:
   catches a contributor who keeps an older pin when they resolve a merge conflict.
 
 When an API error or an unreadable base manifest stops these checks, the action
-reports one broken rule. With `allow-older-pins: true`, the older-pin rule only
+reports one broken rule. It also reports one broken rule when it cannot read
+lean-toolchain. With `allow-older-pins: true`, the older-pin rule only
 warns, even with `strict: true`.
 
 ## Tests
