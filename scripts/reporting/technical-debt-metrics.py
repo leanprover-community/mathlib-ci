@@ -16,6 +16,7 @@
 from collections import OrderedDict
 from datetime import datetime, timedelta
 import itertools
+import os
 import subprocess
 import sys
 
@@ -259,8 +260,10 @@ git clone https://github.com/leanprover-community/mathlib-ci.git ../mathlib-ci
 if len(sys.argv) > 1 and sys.argv[1] == "pr_summary":
     pr_summary = True
     curr_commit = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, encoding='utf-8', check=True).stdout.strip()
+    # The PR's base branch: `PR_BASE_REF` (`master`, or a `bump/*` branch), default `master`.
     # TODO: the latest version of leanprover-community/mathlib4 is called "upstream/master" for most users; can we determine the right remote automatically?
-    ref_commit = subprocess.run(["git", "merge-base", "origin/master", "HEAD"], capture_output=True, encoding='utf-8', check=True).stdout.strip()
+    base_branch = os.environ.get("PR_BASE_REF") or "master"
+    ref_commit = subprocess.run(["git", "merge-base", f"origin/{base_branch}", "HEAD"], capture_output=True, encoding='utf-8', check=True).stdout.strip()
     print("***  pr_summary passed  ***", file=sys.stderr)
 else:
     pr_summary = False

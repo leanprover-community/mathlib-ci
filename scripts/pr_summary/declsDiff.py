@@ -14,6 +14,7 @@ or that lists no declarations, is an error, as a missing or empty `decls.txt` is
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -38,11 +39,12 @@ MAX_RENDERED_LINES = 200
 DETAILS_LINE_THRESHOLD = 15
 
 # Hint shown when one of the input dumps is missing or empty — the most
-# common cause is that the master-side artifact for the merge-base wasn't
-# found in CI's artifact store.
+# common cause is that the base-side artifact for the merge-base wasn't
+# found in CI's artifact store. The base branch is `PR_BASE_REF`, default `master`.
+_BASE_BRANCH = os.environ.get("PR_BASE_REF") or "master"
 MERGE_HINT = (
-    "This usually means the master-side artifact for the merge-base wasn't "
-    "found in CI; try merging master into your PR and pushing to refresh."
+    f"This usually means the {_BASE_BRANCH}-side artifact for the merge-base wasn't "
+    f"found in CI; try merging {_BASE_BRANCH} into your PR and pushing to refresh."
 )
 
 # Characters that split a Markdown line when they appear inside a `+NAME`
