@@ -50,7 +50,6 @@ case "$ENFORCE" in ""|active|disabled) ;; *) echo "--enforce must be active or d
 # The events are the union of the `on:` triggers of the listed files.
 CONFIG=$(cat <<'CFG'
 mathlib4|build_fork.yml,PR_summary.yml,add_label_from_diff.yaml,check_pr_titles.yaml,label_new_contributor.yml,sync_closed_tasks.yaml,zulip_emoji_reconcile.yml|issues,pull_request_target,schedule,workflow_dispatch,workflow_run
-mathlib4-nightly-testing|build_fork.yml,PR_summary.yml,add_label_from_diff.yaml,check_pr_titles.yaml,label_new_contributor.yml,sync_closed_tasks.yaml,zulip_emoji_reconcile.yml|issues,pull_request_target,schedule,workflow_dispatch,workflow_run
 batteries|labels-from-status.yml,test_mathlib.yml|pull_request_target,workflow_run
 physlib|PRMessage.yml,add_label_from_diff.yaml,pr_size_label.yaml|pull_request,pull_request_target,push,workflow_dispatch
 blog|message_zulip_on_prs.yml|pull_request_target
