@@ -183,7 +183,7 @@ def validate(github, repository: str, ref: str) -> list[Finding]:
         try:
             nightly = github.read_file(repository, TOOLCHAIN_FILE, ref).startswith(NIGHTLY_TOOLCHAIN)
         except (ApiError, ValueError) as error:
-            # Allow `NIGHTLY_BRANCH` so that this finding is the only one.
+            # Allow `NIGHTLY_BRANCH` in the later checks, to report the failure only once.
             nightly = True
             findings.append(Finding(
                 UNMERGEABLE,
