@@ -13,8 +13,7 @@ FILE = "lake-manifest.json"
 TOOLCHAIN_FILE = "lean-toolchain"
 BASE_BRANCH = "master"
 BRANCH_REVS = frozenset({"main", "master"})
-# `inputRev` can also be `NIGHTLY_BRANCH` when lean-toolchain is a nightly.
-NIGHTLY_BRANCH = "nightly-testing"
+NIGHTLY_REVS = frozenset({"nightly-testing"})  # Allowed only when lean-toolchain is a nightly.
 NIGHTLY_TOOLCHAIN = "leanprover/lean4:nightly-"
 TAG_REV = re.compile(r"v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.-]+)?(\+[a-zA-Z0-9.-]+)?")
 REPOSITORY_URL = re.compile(r"https://github\.com/((?:leanprover|leanprover-community)/[A-Za-z0-9._-]+)")
@@ -102,8 +101,8 @@ def check_fields(dep: Dependency, branches: frozenset[str]) -> list[Finding]:
     if not (dep.input_rev in branches or matches(TAG_REV, dep.input_rev)):
         names = ", ".join(f"`{branch}`" for branch in sorted(branches))
         notes = [f"Note: Mathlib can merge only {names} or a version tag such as `v4.25.0` or `v4.25.0-rc1`."]
-        if dep.input_rev == NIGHTLY_BRANCH:
-            notes.append(f"Note: Mathlib can merge `{NIGHTLY_BRANCH}` only when {TOOLCHAIN_FILE} is a nightly.")
+        if dep.input_rev in NIGHTLY_REVS:
+            notes.append(f"Note: Mathlib can merge `{dep.input_rev}` only when {TOOLCHAIN_FILE} is a nightly.")
         findings.append(Finding(
             UNMERGEABLE,
             "Invalid dependency inputRev",
@@ -179,11 +178,11 @@ def validate(github, repository: str, ref: str) -> list[Finding]:
     valid: list[Dependency] = []
     deps = parse(github.read_file(repository, FILE, ref))
     branches = BRANCH_REVS
-    if any(dep.input_rev == NIGHTLY_BRANCH for dep in deps):
+    if any(dep.input_rev in NIGHTLY_REVS for dep in deps):
         try:
             nightly = github.read_file(repository, TOOLCHAIN_FILE, ref).startswith(NIGHTLY_TOOLCHAIN)
         except (ApiError, ValueError) as error:
-            # Allow `NIGHTLY_BRANCH` in the later checks, to report the failure only once.
+            # Allow `NIGHTLY_REVS` in the later checks, to report the failure only once.
             nightly = True
             findings.append(Finding(
                 UNMERGEABLE,
@@ -192,7 +191,7 @@ def validate(github, repository: str, ref: str) -> list[Finding]:
                 ("Hint: Re-run the job.",),
             ))
         if nightly:
-            branches = BRANCH_REVS | {NIGHTLY_BRANCH}
+            branches = BRANCH_REVS | NIGHTLY_REVS
     for dep in deps:
         problems = check_fields(dep, branches)
         findings += problems
