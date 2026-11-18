@@ -467,6 +467,7 @@ def compare(base: ApiDump, head: ApiDump, date: datetime.date | None = None,
     explained_removals(w)
     removals(w)
     additions(w)
+    namespace_slips(w)
     surviving_names(w)
     modules(w)
     fold_dsimp_gains(delta)
@@ -685,6 +686,39 @@ def additions(w: Work) -> None:
     for a in sorted(w.added - w.unmatched - w.accounted):
         if head[a].get("rs"):
             w.delta.add("aux", Item(a, "added"))
+
+
+def namespace_slips(w: Work) -> None:
+    """Adds to the warning of a `removed` item, or to the note of an `added-deprecated` one,
+    and to no class.
+
+    A new name already deprecated, beside a name this PR removes or deprecates that differs
+    from it only in namespace: most likely the alias meant for that name, written in the wrong
+    namespace, as `alias foo` inside `namespace Foo` for a removed `Foo.Bar.foo`. Nothing but
+    the names ties the two, so this asks and does not join them. A removal left with no alias
+    gets the question in its warning; once the name is deprecated, the stray alias gets a
+    note, since all that is left is a name no one used. Removals come first, and each name
+    pairs once. A removal that is not flagged is not asked about, and a generated name is
+    skipped: a translation that keeps the last component, as `to_additive` does across
+    namespaces, would pair with its own source."""
+    head = w.head
+    born = defaultdict(list)
+    for it in w.delta.items.get("added-deprecated", []):
+        if not head[it.name].get("g"):
+            born[short(it.name)].append(it)
+    if not born:
+        return
+    for it in w.delta.items.get("removed", []):
+        if it.warn and born.get(short(it.name)):
+            b = born[short(it.name)].pop(0)
+            it.warn += (f"; {b.name}, new and already deprecated, differs from it only in "
+                        "namespace: was that meant to be this name?")
+            it.refs.append(b.name)
+    for it in w.delta.items.get("deprecated", []):
+        if born.get(short(it.name)):
+            b = born[short(it.name)].pop(0)
+            b.note += f"; {it.name}, deprecated here too, differs from it only in namespace"
+            b.refs.append(it.name)
 
 
 # -- names on both sides

@@ -204,6 +204,52 @@ class TestNewNamesAlreadyDeprecated:
         assert it.note == "alias → new" and it.warn == "no `since` date"
 
 
+class TestNamespaceSlips:
+    """A new name already deprecated, beside a name removed or deprecated that differs from it
+    only in namespace: `alias foo` written inside `namespace M` for `M.Lp.foo`."""
+
+    BASE = [rec("M.Lp.foo"), rec("M.bar")]
+
+    def test_a_removal_is_asked_about(self) -> None:
+        d = cmp(self.BASE, [rec("M.bar"), alias("M.foo", "M.bar")])
+        it = d.items["removed"][0]
+        assert it.warn == ("removed or renamed without a deprecation; M.foo, new and already "
+                           "deprecated, differs from it only in namespace: was that meant to be "
+                           "this name?")
+        assert it.refs == ["M.foo"]
+        only_classes(d, "removed", "added-deprecated")
+        assert d.items["added-deprecated"][0].note == "alias → M.bar"
+
+    def test_once_it_is_deprecated_the_alias_gets_a_note(self) -> None:
+        head = [alias("M.Lp.foo", "M.Lp.foo'"), rec("M.Lp.foo'"), rec("M.bar"),
+                alias("M.foo", "M.bar")]
+        d = cmp(self.BASE, head)
+        it = d.items["added-deprecated"][0]
+        assert it.note == ("alias → M.bar; M.Lp.foo, deprecated here too, differs from it only "
+                           "in namespace")
+        assert it.refs == ["M.bar", "M.Lp.foo"] and not d.warnings()
+
+    def test_a_removal_first_and_each_name_once(self) -> None:
+        base = [rec("A.foo"), rec("B.foo"), rec("x")]
+        head = [alias("B.foo", "B.foo'"), rec("B.foo'"), rec("x"), alias("C.foo", "x")]
+        d = cmp(base, head)
+        assert d.items["removed"][0].refs == ["C.foo"]
+        assert d.items["added-deprecated"][0].note == "alias → x"
+
+    def test_not_a_generated_name_nor_a_removal_not_flagged(self) -> None:
+        """A `to_additive` alias keeps its last component across namespaces, and would pair with
+        its source; without `rs` no removal is flagged, so none is asked about."""
+        base = [rec("Monoid.foo"), rec("x")]
+        head = [alias("Monoid.foo", "x"), rec("x"),
+                alias("AddMonoid.foo", "x", x="Monoid.foo", g=True)]
+        d = only_classes(cmp(base, head), "deprecated", "added-deprecated")
+        assert d.items["added-deprecated"][0].note == "alias → x; generated from Monoid.foo"
+        no_rs = tuple(f for f in FIELDS if f != "rs")
+        d = cmp(self.BASE, [rec("M.bar"), alias("M.foo", "M.bar")], base_fields=no_rs,
+                head_fields=no_rs)
+        assert d.items["removed"][0].warn == "" and d.items["removed"][0].refs == []
+
+
 class TestNewDeprecations:
     def test_an_alias_of_a_new_name(self) -> None:
         d = cmp([rec("old")], [alias("old", "new"), rec("new")])
