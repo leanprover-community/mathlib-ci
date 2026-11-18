@@ -161,17 +161,47 @@ class TestRenamedDeprecations:
                 rec("target")]
         d = cmp(self.BASE, head)
         assert d.items["dep-renamed"][0].refs == ["b_alias", "target"]
-        assert names(d, "deprecated") == ["a_alias"]
+        assert names(d, "added-deprecated") == ["a_alias"]
 
     def test_not_with_a_name_of_another_kind(self) -> None:
         d = cmp(self.BASE, [alias("new_alias", "target", k="def"), rec("target")])
-        assert names(d, "dep-removed") == ["old_alias"] and names(d, "deprecated") == ["new_alias"]
+        assert names(d, "dep-removed") == ["old_alias"]
+        assert names(d, "added-deprecated") == ["new_alias"]
 
     def test_before_the_cutoff_the_new_name_should_go_instead(self) -> None:
         d = cmp(self.BASE, [alias("new_alias", "target"), rec("target")], cutoff="2026-06-01")
         assert only(d, "dep-renamed").warn == (
             "deprecated alias renamed to new_alias; deprecated 2026-01-01, before the cutoff "
             "2026-06-01, so remove new_alias rather than restore the old name")
+
+
+class TestNewNamesAlreadyDeprecated:
+    """A name that did not exist, arriving deprecated, is restored or an alias under a name
+    that never existed: a class of its own, apart from the names that gained a deprecation,
+    in the same shape component, and listed, not flagged."""
+
+    def test_a_name_restored_as_an_alias(self) -> None:
+        d = cmp([rec("foo")], [rec("foo"), alias("foo'", "foo")])
+        it = only(d, "added-deprecated")
+        assert (it.note, it.warn, it.since, it.refs) == ("alias → foo", "", "2026-01-01", ["foo"])
+        assert not d.items.get("deprecated") and d.shape() == "deprecations"
+
+    def test_it_says_where_it_points(self) -> None:
+        """In a new deprecation's words; a generated one names its source."""
+        head = [rec("iff"), alias("a", "iff", kind="forward"), rec("b", dep=dep("iff")),
+                rec("c", dep=dep(text="Use `simp`.")), alias("e", "iff", x="b", g=True)]
+        d = cmp([rec("iff")], head)
+        assert [(it.name, it.note, it.refs) for it in d.items["added-deprecated"]] == [
+            ("a", "alias → (.mp) iff", ["iff"]),
+            ("b", "in favour of iff (not an alias)", ["iff"]),
+            ("c", "no replacement: Use `simp`.", []),
+            ("e", "alias → iff; generated from b", ["iff", "b"])]
+        assert not d.items.get("added")
+
+    def test_its_since_is_checked(self) -> None:
+        d = cmp([rec("new")], [rec("new"), alias("restored", "new", since=None)])
+        it = only(d, "added-deprecated")
+        assert it.note == "alias → new" and it.warn == "no `since` date"
 
 
 class TestNewDeprecations:
@@ -248,11 +278,6 @@ class TestNewDeprecations:
         d = cmp([rec("old")], [alias("old", "new", since=since), rec("new")], date="2026-06-01")
         it = only(d, "deprecated")
         assert it.warn == warn and it.note == "alias → new (new name)" + note
-
-    def test_a_name_that_arrives_deprecated(self) -> None:
-        d = cmp([rec("new")], [rec("new"), alias("restored", "new", since=None)])
-        it = only(d, "deprecated")
-        assert it.note == "new deprecated alias → new" and it.warn == "no `since` date"
 
     def test_a_deprecation_withdrawn_is_flagged(self) -> None:
         d = cmp([alias("old", "new"), rec("new")], [rec("old"), rec("new")])
