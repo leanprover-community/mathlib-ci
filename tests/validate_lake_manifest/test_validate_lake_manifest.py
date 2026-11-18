@@ -65,6 +65,12 @@ def test_toolchain_is_read_only_for_nightly_testing(run):
     assert run(FakeGitHub(head=NEWER, base=BASE, toolchain=404), "--strict") == (0, [])
 
 
+def test_unreadable_toolchain_is_one_finding(run):
+    head = manifest(package(input_rev="nightly-testing", rev=NEW), package("aesop", input_rev="nightly-testing", rev=NEW))
+    assert run(FakeGitHub(head=head, base=BASE, toolchain=404), "--strict") == (
+        1, [("error", "Lean toolchain check failed"), INVALID])
+
+
 def test_batteries_adaptation_pr(run):
     # The adaptation PR requires the head commit of a Batteries PR, from the repository of that PR.
     head = manifest(package(input_rev=FORK, url="https://github.com/someone/batteries", rev=FORK))
