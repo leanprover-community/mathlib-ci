@@ -53,7 +53,7 @@ def test_source_rules_fail_only_strict_runs(run, fields, title):
 
 
 def test_nightly_toolchain_allows_nightly_testing(run):
-    # The source rules reject `nightly-testing` with the default release toolchain.
+    # With a release toolchain, the source rules reject `nightly-testing`.
     on_branch = manifest(package(input_rev="nightly-testing", rev=NEW))
     off_branch = manifest(package(input_rev="nightly-testing", rev=FORK))
     assert run(FakeGitHub(head=on_branch, base=BASE, toolchain=NIGHTLY_TOOLCHAIN), "--strict") == (0, [])

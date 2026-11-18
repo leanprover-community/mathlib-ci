@@ -13,7 +13,7 @@ FILE = "lake-manifest.json"
 TOOLCHAIN_FILE = "lean-toolchain"
 BASE_BRANCH = "master"
 BRANCH_REVS = frozenset({"main", "master"})
-# A dependency can also track `NIGHTLY_BRANCH` when lean-toolchain starts with `NIGHTLY_TOOLCHAIN`.
+# `inputRev` can also be `NIGHTLY_BRANCH` when lean-toolchain is a nightly.
 NIGHTLY_BRANCH = "nightly-testing"
 NIGHTLY_TOOLCHAIN = "leanprover/lean4:nightly-"
 TAG_REV = re.compile(r"v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.-]+)?(\+[a-zA-Z0-9.-]+)?")
@@ -96,14 +96,14 @@ def require_hint(dep: Dependency) -> str:
 def check_fields(dep: Dependency, branches: frozenset[str]) -> list[Finding]:
     """The findings for `inputRev`, `url` and the pin of one dependency.
 
-    `branches` are the branches that a dependency can track.
+    `branches` are the allowed branches for `inputRev`.
     """
     findings = []
     if not (dep.input_rev in branches or matches(TAG_REV, dep.input_rev)):
         names = ", ".join(f"`{branch}`" for branch in sorted(branches))
         notes = [f"Note: Mathlib can merge only {names} or a version tag such as `v4.25.0` or `v4.25.0-rc1`."]
         if dep.input_rev == NIGHTLY_BRANCH:
-            notes.append(f"Note: Mathlib can merge `{NIGHTLY_BRANCH}` only when {TOOLCHAIN_FILE} names a Lean nightly.")
+            notes.append(f"Note: Mathlib can merge `{NIGHTLY_BRANCH}` only when {TOOLCHAIN_FILE} is a nightly.")
         findings.append(Finding(
             UNMERGEABLE,
             "Invalid dependency inputRev",
@@ -172,19 +172,18 @@ def validate(github, repository: str, ref: str) -> list[Finding]:
 
     The base manifest is `BASE_BRANCH`'s manifest at the merge base of
     `BASE_BRANCH` and `ref`. Raises `ApiError` or `ValueError` when the manifest
-    at `ref` cannot be read. A failure to read lean-toolchain or the base
-    manifest, or to check a pin, is one `UNMERGEABLE` finding.
+    at `ref` cannot be read. A failure to read lean-toolchain, to read the base
+    manifest or to check the pins is one `UNMERGEABLE` finding.
     """
     findings: list[Finding] = []
     valid: list[Dependency] = []
     deps = parse(github.read_file(repository, FILE, ref))
     branches = BRANCH_REVS
-    # Only a manifest that tracks `NIGHTLY_BRANCH` needs lean-toolchain.
     if any(dep.input_rev == NIGHTLY_BRANCH for dep in deps):
         try:
             nightly = github.read_file(repository, TOOLCHAIN_FILE, ref).startswith(NIGHTLY_TOOLCHAIN)
         except (ApiError, ValueError) as error:
-            # This one finding covers each dependency that tracks `NIGHTLY_BRANCH`.
+            # Allow `NIGHTLY_BRANCH` so that this finding is the only one.
             nightly = True
             findings.append(Finding(
                 UNMERGEABLE,

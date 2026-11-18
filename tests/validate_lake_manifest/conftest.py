@@ -49,7 +49,7 @@ class FakeGitHub:
 
     A manifest is its text, or the answer to send instead: an HTTP status, or
     a JSON value such as `[]` for a directory. `None` is a 404. `toolchain` is
-    lean-toolchain at the commit under test, in the same form. `failures` are
+    lean-toolchain at every ref, in the same form. `failures` are
     the HTTP statuses that answer the first requests, each with
     `Retry-After: retry_after` if set.
     """
