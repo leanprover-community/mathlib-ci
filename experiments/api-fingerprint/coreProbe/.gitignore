@@ -1,0 +1,4 @@
+# The toolchain is the mathlib checkout's: `lake --dir` is run from there.
+/.lake/
+/lake-manifest.json
+/lean-toolchain

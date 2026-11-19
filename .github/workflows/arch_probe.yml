@@ -1,0 +1,139 @@
+name: API architecture probe (not for merging)
+
+# Timing only, on the branch `ci-dev/api-arch-probe`: the probe of the prototype's
+# ARCHITECTURE.md on all of `Mathlib`, on hosted runners.
+#
+# * #99's dumper (`scripts/pr_summary/dumpReasonableDecls.lean`, this branch's base);
+# * the compiled core (experiments/api-fingerprint/coreProbe), writing `api.jsonl`;
+# * the project script, a `lean --run` script that imports the core's package beside Mathlib,
+#   writing `api.mathlib.jsonl` and `imports.json`.
+#
+# Each runs alone, and then the core and the project script run at once, in two rounds.
+# Then compare.py checks that the two new files, merged by name, are #99's dump.
+#
+# mathlib4 is pinned to the last master commit on v4.36.0, which #99's dumper was written for.
+
+on:
+  push:
+    branches: ['ci-dev/api-arch-probe']
+
+permissions:
+  contents: read
+
+env:
+  MATHLIB: 70cebc908bcbecd2c276fe4992b1772a296c6f77
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        run: [1, 2, 3]
+    steps:
+      - name: Checkout mathlib-ci (this branch)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: ci
+
+      - name: Checkout mathlib4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: leanprover-community/mathlib4
+          ref: ${{ env.MATHLIB }}
+          path: mathlib4
+
+      - name: Configure Lean
+        uses: leanprover/lean-action@ba3fdfe5c4476c925da13bf11a005ddb47e47aee # v1.7.1
+        with:
+          auto-config: false
+          use-github-cache: false
+          use-mathlib-cache: false
+          lake-package-directory: mathlib4
+
+      - name: The machine
+        run: |
+          nproc
+          lscpu | grep -E 'Model name|^CPU\(s\)|Thread|MHz' || true
+          free -g
+          python3 --version
+
+      - name: Fetch Mathlib's oleans
+        working-directory: mathlib4
+        run: |
+          git log -1 --format='mathlib4 %H %cI'
+          cat lean-toolchain
+          lake exe cache get
+          lake build ImportGraph.Imports.ImportGraph ImportGraph.Graph.TransitiveClosure \
+            Batteries.Tactic.Alias
+
+      - name: Build the core, then again when built
+        working-directory: mathlib4
+        run: |
+          time lake --dir ../ci/experiments/api-fingerprint/coreProbe build
+          time lake --dir ../ci/experiments/api-fingerprint/coreProbe build
+
+      - name: Dump, two rounds
+        working-directory: mathlib4
+        run: |
+          probe=$(realpath ../ci/experiments/api-fingerprint/coreProbe)
+          dumper=$(realpath ../ci/scripts/pr_summary/dumpReasonableDecls.lean)
+          # The project script finds the core's package ahead of `lake env`'s search path.
+          plp="$probe/.lake/build/lib/lean:$(lake env printenv LEAN_PATH)"
+          core=(lake env "$probe/.lake/build/bin/coreprobe" --out)
+          project=(env LEAN_PATH="$plp" lake env lean --run "$probe/ProjectProbe.lean" --out-dir)
+          timed() {
+            local name=$1; shift
+            /usr/bin/time -v -o "../time-$name.txt" "$@"
+            echo "$name: $(grep -E 'Elapsed|Maximum resident' "../time-$name.txt" | tr -s ' \t\n' ' ')"
+          }
+          for r in 1 2; do
+            mkdir -p ../old ../core ../project ../both
+            echo "== round $r"
+            timed "old-$r" lake env lean --run "$dumper" --out-dir ../old Mathlib
+            timed "core-$r" "${core[@]}" ../core/api.jsonl Mathlib
+            timed "project-$r" "${project[@]}" ../project Mathlib
+            start=$EPOCHREALTIME
+            timed "both-core-$r" "${core[@]}" ../both/api.jsonl Mathlib & c=$!
+            timed "both-project-$r" "${project[@]}" ../both Mathlib & p=$!
+            wait $c
+            wait $p
+            echo "both at once, round $r: $(python3 -c "print(round($EPOCHREALTIME - $start, 1))") s"
+          done
+          echo "== the same files alone and at once"
+          cmp ../core/api.jsonl ../both/api.jsonl
+          cmp ../project/api.mathlib.jsonl ../both/api.mathlib.jsonl
+          cmp ../project/imports.json ../both/imports.json
+          ls -l ../old ../both
+          for f in ../old/api.jsonl ../both/api.jsonl ../both/api.mathlib.jsonl; do
+            echo "$f: $(gzip -c "$f" | wc -c) bytes gzipped"
+          done
+
+      - name: The merged files against #99's dump
+        run: python3 ci/experiments/api-fingerprint/coreProbe/compare.py old both
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "| process | round | wall | peak memory |"
+            echo "|---|---|---|---|"
+            for f in time-*.txt; do
+              name=${f#time-}; name=${name%.txt}
+              wall=$(grep 'Elapsed' "$f" | awk '{print $NF}')
+              mem=$(grep 'Maximum resident' "$f" | awk '{printf "%d MB", $NF/1024}')
+              echo "| ${name%-*} | ${name##*-} | $wall | $mem |"
+            done
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload the dumps
+        if: always() && matrix.run == 1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: arch-probe
+          retention-days: 7
+          path: |
+            old/
+            both/
+            time-*.txt

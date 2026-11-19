@@ -1,0 +1,9 @@
+name = "coreProbe"
+defaultTargets = ["CoreProbe", "coreprobe"]
+
+[[lean_lib]]
+name = "CoreProbe"
+
+[[lean_exe]]
+name = "coreprobe"
+root = "Main"
