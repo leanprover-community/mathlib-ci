@@ -341,8 +341,10 @@ def plan(repo: str, pr: int, matches: list[Match], old_body: Optional[str]) -> t
 # ── GitHub and git ───────────────────────────────────────────────────────────
 
 
-# GitHub answers large GraphQL pages with the odd 502/504; retry those after a pause.
-_TRANSIENT = re.compile(r"HTTP 50[234]|timed? ?out", re.IGNORECASE)
+# GitHub answers large GraphQL pages with the odd 502/504; retry those after a pause. Such an
+# answer can come with an empty body, and `gh api graphql` parses the body before it looks at the
+# status, so gh then reports only "unexpected end of JSON input", without the status.
+_TRANSIENT = re.compile(r"HTTP 50[234]|timed? ?out|unexpected end of JSON input", re.IGNORECASE)
 _BACKOFF_SECONDS = (5, 20, 60)
 
 
@@ -379,10 +381,12 @@ def ts(value: str) -> datetime:
     return datetime.fromisoformat(value.replace("Z", "+00:00"))
 
 
+# Pages of 25 PRs: with 50, a page took GitHub 3 to 10 seconds and about one in seven ran into
+# GitHub's 10-second limit; pages of 25 mostly take 1 to 5, and the whole scan takes less time.
 OPEN_PRS = """
 query($owner: String!, $name: String!, $cursor: String) {
   repository(owner: $owner, name: $name) {
-    pullRequests(states: OPEN, first: 50, after: $cursor, orderBy: {field: UPDATED_AT, direction: DESC}) {
+    pullRequests(states: OPEN, first: 25, after: $cursor, orderBy: {field: UPDATED_AT, direction: DESC}) {
       pageInfo { hasNextPage endCursor }
       nodes {
         number title headRefName updatedAt
