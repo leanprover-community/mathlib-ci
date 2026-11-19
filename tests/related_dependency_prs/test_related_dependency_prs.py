@@ -7,7 +7,10 @@ The cases are modelled on real mathlib4 PRs: #45113 (a ProofWidgets bump to the 
 from __future__ import annotations
 
 import json
+import subprocess
 from datetime import datetime, timedelta, timezone
+
+import pytest
 
 import related_dependency_prs
 from related_dependency_prs import (
@@ -115,6 +118,43 @@ def test_included_upstream_prs_reads_every_page(monkeypatch):
     assert included_upstream_prs(BATT) == set(range(1, 265))
     assert "--paginate" in calls[0]
     assert included_upstream_prs(Bump("new", BATT.url, None, "ddd")) == set()
+
+
+def fake_runs(monkeypatch, *results):
+    """Make `gh` see these `(returncode, stderr)` results in turn, without sleeping between them."""
+    calls = []
+
+    def fake_run(cmd, **kwargs):
+        returncode, stderr = results[len(calls)]
+        calls.append(cmd)
+        return subprocess.CompletedProcess(cmd, returncode, stdout="{}" if returncode == 0 else "", stderr=stderr)
+
+    monkeypatch.setattr(related_dependency_prs.subprocess, "run", fake_run)
+    monkeypatch.setattr(related_dependency_prs.time, "sleep", lambda seconds: None)
+    return calls
+
+
+def test_gh_retries_server_errors():
+    # gh reports a 5xx with an empty body as a JSON parse error, without the status
+    for stderr in ("gh: HTTP 502", "gh: HTTP 504", "unexpected end of JSON input", "i/o timeout"):
+        with pytest.MonkeyPatch.context() as monkeypatch:
+            calls = fake_runs(monkeypatch, (1, stderr), (1, stderr), (0, ""))
+            assert related_dependency_prs.gh("api", "graphql") == "{}"
+            assert len(calls) == 3
+
+
+def test_gh_gives_up_after_the_last_retry(monkeypatch):
+    calls = fake_runs(monkeypatch, *[(1, "unexpected end of JSON input")] * 5)
+    with pytest.raises(RuntimeError, match="unexpected end of JSON input"):
+        related_dependency_prs.gh("api", "graphql")
+    assert len(calls) == 4
+
+
+def test_gh_does_not_retry_other_errors(monkeypatch):
+    calls = fake_runs(monkeypatch, (1, "gh: Bad credentials (HTTP 401)"), (0, ""))
+    with pytest.raises(RuntimeError, match="HTTP 401"):
+        related_dependency_prs.gh("api", "graphql")
+    assert len(calls) == 1
 
 
 MATHLIB = "leanprover-community/mathlib4"
