@@ -156,7 +156,14 @@ jobs:
         id: zulip-report
         if: always() && steps.bump.outcome == 'success'
         run: |
+          mathlib_toolchain=$(cat "$TARGET_PATH/lean-toolchain" 2>/dev/null || printf 'unavailable')
+          docgen_toolchain=$(cat "$TARGET_PATH/.lake/packages/doc-gen4/lean-toolchain" 2>/dev/null || printf 'unavailable')
+          # shellcheck disable=SC2016 # The backticks are literal Markdown.
+          description=$(printf 'Toolchains: Mathlib (used for this build) `%s`; doc-gen4 (declared) `%s`.' \
+            "$mathlib_toolchain" "$docgen_toolchain")
+
           # Process output for posting to Zulip
+          DESCRIPTION="$description" \
           WORKFLOW="${{ github.workflow }}" \
           TARGET_SHA="${{ steps.bump.outputs.sha }}" \
           TARGET_REPO="${{ env.TARGET_REPO }}" \
