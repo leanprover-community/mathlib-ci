@@ -20,7 +20,6 @@ Test file basenames must be unique across suites — see the comment in `pytest.
 - PR/label/comment automation scripts
 - Zulip reporting and emoji sync scripts
 - dependency/update monitoring scripts
-- nightly automation scripts
 - commit verification scripts
 
 
