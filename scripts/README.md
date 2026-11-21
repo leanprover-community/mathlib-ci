@@ -38,6 +38,10 @@ Layout:
   written before the API dump; `--api-status` reports which fields two API dumps share.
 - `apiDump.py` reads `api.jsonl` for `declsDiff.py`. It treats the dump as untrusted, and
   decides which fields two dumps share: those both headers list at the same version.
+- `compareApi.py` compares two API dumps on the fields they share and sorts every difference
+  into a class: removed while deprecated, newly deprecated, moved, attributes changed, and so
+  on, with a warning on those a reviewer should look at. It prints the classes as JSON.
+  Nothing calls it yet.
 - `updateDeclsDiffSection.py` PATCHes the `#### Declarations diff (Lean)` block of a PR's
   `### PR summary` comment with the Lean-aware diff, by replacing the region between the
   `<!-- DECLS_DIFF_LEAN_BEGIN/END -->` markers (the regex block is left untouched). Invoked
