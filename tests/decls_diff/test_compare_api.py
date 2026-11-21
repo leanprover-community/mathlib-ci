@@ -292,11 +292,16 @@ class TestNewDeprecations:
         assert only(d, "deprecated").warn == "docstring not carried over to new"
         assert not cmp([rec("old", d="1")], [alias("old", "new"), rec("new", d="2")]).warnings()
 
-    def test_an_alias_that_drops_protected_is_told_the_line_to_write(self) -> None:
+    def test_an_alias_that_drops_protected_is_told_where_the_word_goes(self) -> None:
         d = cmp([rec("Foo.old", p=True)], [alias("Foo.old", "Foo.new"), rec("Foo.new", p=True)])
         assert only(d, "deprecated").warn == (
             "no longer `protected`, so `open Foo` now brings `old` into scope; "
-            "write `protected alias old := Foo.new`")
+            "write `protected` before `alias`")
+
+    def test_an_iff_alias_that_drops_protected_is_told_the_same(self) -> None:
+        d = cmp([rec("Foo.old", p=True)],
+                [alias("Foo.old", "Foo.new", kind="forward"), rec("Foo.new", p=True)])
+        assert only(d, "deprecated").warn.endswith("; write `protected` before `alias`")
 
     def test_one_deprecated_in_place_is_told_to_stay_protected(self) -> None:
         d = cmp([rec("Foo.old", p=True), rec("Foo.new")],

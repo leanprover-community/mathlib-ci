@@ -520,9 +520,11 @@ def new_deprecation(w: Work, n: str) -> Item:
     # a root name. Gaining it is noted only: `@[to_additive] protected alias` makes both
     # copies protected, which is sometimes meant.
     if b.get("p") and not h.get("p"):
-        # The line to write; an `alias ⟨_, _⟩` has no one line.
-        fix = (f"write `protected alias {short(n)} := {target}`" if al and al["k"] == "plain"
-               else "write `protected alias`" if al else "keep it `protected`")
+        # The word and where it goes, not the line: inside `namespace Foo` the alias is
+        # `protected alias old := Foo.new`, and at the root `protected alias Foo.old :=
+        # Foo.new`. Each is wrong in the other place, the first an error, and a dump does
+        # not say where the alias is written.
+        fix = "write `protected` before `alias`" if al else "keep it `protected`"
         why = (f"no longer `protected`, so `open {namespace(n)}` now brings `{short(n)}` "
                f"into scope; {fix}")
         it.warn = f"{it.warn}; also {why}" if it.warn else why
